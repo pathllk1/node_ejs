@@ -166,6 +166,199 @@ X-Refresh-Token: <refresh_token>
 - 401 Unauthorized: Invalid or missing tokens
 - 500 Internal Server Error: Server error
 
+### AI Integration
+
+#### POST /ai/api/ai-check
+
+Analyze text sentiment using AI microservice.
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+X-Refresh-Token: <refresh_token>
+```
+
+**Request Body:**
+```json
+{
+  "message": "string"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "analysis_result": "Positive|Negative|Neutral",
+    "confidence_score": 0.0-1.0,
+    "original_text": "string"
+  }
+}
+```
+
+**Error Responses:**
+- 400 Bad Request: Missing message field
+- 401 Unauthorized: Invalid or missing tokens
+- 500 Internal Server Error: AI service unavailable
+
+#### POST /ai/api/chat
+
+Engage in conversation with AI assistant.
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+X-Refresh-Token: <refresh_token>
+```
+
+**Request Body:**
+```json
+{
+  "message": "string",
+  "history": [
+    {
+      "role": "user|assistant",
+      "content": "string"
+    }
+  ]
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "reply": "string",
+  "success": true
+}
+```
+
+**Error Responses:**
+- 400 Bad Request: Missing message field
+- 401 Unauthorized: Invalid or missing tokens
+- 500 Internal Server Error: AI service unavailable
+
+### Admin Endpoints
+
+#### GET /admin/logs
+
+View system request logs (requires authentication).
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+X-Refresh-Token: <refresh_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "layout": "layouts/main",
+  "title": "System Logs",
+  "logs": [
+    {
+      "id": "number",
+      "method": "string",
+      "url": "string",
+      "ip": "string",
+      "timestamp": "string (ISO date)"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- 401 Unauthorized: Invalid or missing tokens
+- 500 Internal Server Error: Database or service error
+
+## Python Microservice API
+
+### Base URL
+
+```
+http://localhost:5200
+```
+
+**Note**: This service is internal and should not be accessed directly by clients.
+
+### Endpoints
+
+#### GET /
+
+Health check endpoint.
+
+**Response (200 OK):**
+```json
+{
+  "status": "Python AI Service is Running"
+}
+```
+
+#### POST /analyze
+
+Analyze text sentiment (internal use).
+
+**Request Body:**
+```json
+{
+  "text": "string"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "analysis_result": "Positive|Negative|Neutral",
+  "confidence_score": 0.0-1.0,
+  "original_text": "string"
+}
+```
+
+#### POST /chat
+
+Chat with AI assistant (internal use).
+
+**Request Body:**
+```json
+{
+  "history": [
+    {
+      "role": "system|user|assistant",
+      "content": "string"
+    }
+  ],
+  "message": "string"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "reply": "string",
+  "success": true
+}
+```
+
+#### GET /logs
+
+Retrieve system logs (internal use).
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "logs": [
+    {
+      "id": "number",
+      "method": "string",
+      "url": "string",
+      "ip": "string",
+      "timestamp": "string (ISO date)"
+    }
+  ]
+}
+```
+
 ## Error Handling
 
 ### Error Response Format
@@ -188,6 +381,8 @@ All error responses follow this format:
 - **404 Not Found**: Resource not found
 - **409 Conflict**: Resource conflict (e.g., duplicate username)
 - **500 Internal Server Error**: Server error
+- **502 Bad Gateway**: Microservice unavailable
+- **503 Service Unavailable**: Service temporarily unavailable
 
 ## Security Considerations
 
@@ -206,13 +401,23 @@ All input is validated and sanitized:
 - **XSS Protection**: Input is sanitized using the `xss` library
 - **SQL Injection**: Database queries use parameterized statements
 - **Password Security**: Passwords are hashed using bcrypt
+- **AI Input**: Text inputs are validated before AI processing
 
 ### Rate Limiting
 
 Consider implementing rate limiting in production:
+
 - Limit login attempts per IP address
 - Limit API requests per user
 - Implement CAPTCHA for suspicious activity
+- Rate limit AI service calls
+
+### Microservice Security
+
+- **Internal Communication**: Microservice endpoints are internal-only
+- **Authentication**: All microservice calls require authentication
+- **Input Validation**: AI service validates all inputs
+- **Error Handling**: Graceful error handling without information leakage
 
 ## Client-Side Implementation
 
@@ -269,6 +474,18 @@ async function makeAuthenticatedRequest(url, options = {}) {
 
   return response;
 }
+
+// AI Analysis
+async function analyzeSentiment(text) {
+  const response = await window.api.post('/ai/api/ai-check', { message: text });
+  return response.json();
+}
+
+// AI Chat
+async function chatWithAI(message, history = []) {
+  const response = await window.api.post('/ai/api/chat', { message, history });
+  return response.json();
+}
 ```
 
 ### Auto-Refresh Implementation
@@ -293,6 +510,18 @@ curl -X POST http://localhost:3000/api/auth/login \
 curl -X GET http://localhost:3000/api/users/profile \
   -H "Authorization: Bearer <access_token>" \
   -H "X-Refresh-Token: <refresh_token>"
+
+# AI Analysis
+curl -X POST http://localhost:3000/ai/api/ai-check \
+  -H "Authorization: Bearer <access_token>" \
+  -H "X-Refresh-Token: <refresh_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"I love this application!"}'
+
+# Admin Logs
+curl -X GET http://localhost:3000/admin/logs \
+  -H "Authorization: Bearer <access_token>" \
+  -H "X-Refresh-Token: <refresh_token>"
 ```
 
 ### Using Postman
@@ -302,6 +531,27 @@ curl -X GET http://localhost:3000/api/users/profile \
 3. Use environment variables for tokens
 4. Add pre-request scripts for token management
 5. Use test scripts to extract and store tokens
+6. Test AI endpoints with authentication
+
+### Python Microservice Testing
+
+```bash
+# Health check
+curl http://localhost:5200/
+
+# AI Analysis (internal)
+curl -X POST http://localhost:5200/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text":"I love this application!"}'
+
+# Chat (internal)
+curl -X POST http://localhost:5200/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Hello", "history":[]}'
+
+# Logs (internal)
+curl http://localhost:5200/logs
+```
 
 ## Development Notes
 
@@ -349,3 +599,43 @@ NODE_ENV=production
 JWT_SECRET=your-secret-key
 JWT_REFRESH_SECRET=your-refresh-secret
 DB_PATH=./config/app.db
+OPENROUTER_API_KEY=your-openrouter-api-key
+```
+
+### Microservice Configuration
+
+```bash
+# Python service
+cd python_service
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+pip install fastapi uvicorn openai python-dotenv
+
+# Start service
+uvicorn main:app --reload --port 5200
+```
+
+## Architecture Notes
+
+### Service Communication
+
+- **Node.js (3000)**: Main application server
+- **Python (5200)**: AI microservice
+- **SQLite**: Shared database
+- **JWT**: Authentication tokens
+
+### Security Flow
+
+1. User authenticates with Node.js server
+2. Tokens stored in localStorage
+3. All requests include tokens in headers
+4. Node.js validates tokens and forwards to Python service
+5. Python service processes AI requests
+6. Responses returned through Node.js to client
+
+### Error Handling Strategy
+
+1. **Client-side**: Token refresh and retry logic
+2. **Server-side**: Graceful error responses
+3. **Microservice**: Circuit breaker patterns
+4. **Database**: Connection pooling and error recovery

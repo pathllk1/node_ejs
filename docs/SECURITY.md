@@ -14,6 +14,8 @@ The application implements a multi-layered security architecture designed to pro
 4. **Security Headers**
 5. **Request Logging & Monitoring**
 6. **Database Security**
+7. **Microservice Security** (Python AI Service)
+8. **Cross-Service Communication Security**
 
 ## 🔒 Authentication System
 
@@ -114,6 +116,7 @@ app.use((req, res, next) => {
     "frame-ancestors 'none'",
     "form-action 'self'",
     "object-src 'none'",
+    "media-src 'self'",
     "upgrade-insecure-requests",
     "block-all-mixed-content"
   ].join('; '));
@@ -251,6 +254,36 @@ CREATE TABLE request_logs (
 - **Unique Constraints**: Username and email must be unique
 - **Strict Mode**: SQLite strict mode enabled for data integrity
 
+## 🤖 Microservice Security (Python AI Service)
+
+### Inter-Service Communication Security
+
+The Python microservice (port 5200) implements additional security measures:
+
+#### API Key Management
+- **Environment Variables**: OpenRouter API keys stored securely
+- **Load Balancing**: Uses OpenRouter for AI service redundancy
+- **Rate Limiting**: Built-in protection against API abuse
+
+#### Database Access Security
+- **Shared Database**: Secure access to main application database
+- **Thread Safety**: SQLite connection configured for concurrent access
+- **Path Resolution**: Secure path calculation for database access
+
+#### Input Validation
+- **Pydantic Models**: Type-safe input validation
+- **JSON Parsing**: Secure JSON handling with error recovery
+- **Content Filtering**: AI response validation and sanitization
+
+### Cross-Origin Resource Sharing (CORS)
+
+For microservice communication:
+```javascript
+// Cross-origin resource isolation
+res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+```
+
 ## 🚨 Threat Mitigation
 
 ### XSS (Cross-Site Scripting)
@@ -259,6 +292,7 @@ CREATE TABLE request_logs (
 - Input sanitization with `xss` library
 - CSP blocking inline scripts and eval()
 - Content-Type validation
+- AI response sanitization in Python service
 
 **Testing**:
 ```javascript
@@ -292,6 +326,7 @@ const maliciousInput = "<script>alert('XSS')</script>";
 - JWT token verification on all protected endpoints
 - Token expiration and refresh mechanism
 - Secure password hashing
+- Microservice authentication validation
 
 ### Token Theft Mitigation
 
@@ -299,6 +334,16 @@ const maliciousInput = "<script>alert('XSS')</script>";
 - Short-lived access tokens (15 minutes)
 - Refresh tokens only used when needed
 - Headers-only token transmission (not in URL)
+- Automatic token rotation on refresh
+
+### AI Service Security
+
+**Protection**:
+- API key environment variable protection
+- Input validation and sanitization
+- Response validation and JSON parsing
+- Error handling without information leakage
+- Rate limiting through OpenRouter
 
 ## 🔧 Security Configuration
 
@@ -317,6 +362,9 @@ DB_PATH=./config/app.db
 # Server
 PORT=3000
 NODE_ENV=production
+
+# AI Service
+OPENROUTER_API_KEY=your-openrouter-api-key
 ```
 
 ### HTTPS Configuration
@@ -332,6 +380,21 @@ app.use((req, res, next) => {
     next();
   }
 });
+```
+
+### Microservice Security
+
+For Python AI service:
+```bash
+# Python environment
+cd python_service
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or
+venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install fastapi uvicorn openai python-dotenv
 ```
 
 ## 🧪 Security Testing
@@ -350,6 +413,9 @@ app.use((req, res, next) => {
 - [ ] No external scripts loaded
 - [ ] HTTPS upgrade working
 - [ ] Clickjacking protection active
+- [ ] AI service requires authentication
+- [ ] Microservice endpoints protected
+- [ ] Request logs capture all activity
 
 ### Automated Testing
 
@@ -370,6 +436,26 @@ describe('Security Headers', () => {
 });
 ```
 
+### AI Service Testing
+
+```python
+# Python service security test
+import pytest
+import requests
+
+def test_ai_service_authentication():
+    """Test that AI endpoints require authentication"""
+    response = requests.post('http://localhost:5200/analyze', 
+                           json={'text': 'test'})
+    assert response.status_code == 401  # Should require auth
+
+def test_input_validation():
+    """Test input validation and sanitization"""
+    # Test XSS attempts
+    malicious_input = "<script>alert('XSS')</script>"
+    # Should be sanitized by AI service
+```
+
 ## 📋 Security Best Practices
 
 ### Development
@@ -379,6 +465,8 @@ describe('Security Headers', () => {
 3. **Validate all inputs** on both client and server
 4. **Use HTTPS** in production
 5. **Keep dependencies updated**
+6. **Secure API keys** in environment variables
+7. **Validate AI responses** before processing
 
 ### Production
 
@@ -387,6 +475,17 @@ describe('Security Headers', () => {
 3. **Monitor logs** for suspicious activity
 4. **Regular security audits** and updates
 5. **Backup database** regularly
+6. **Monitor AI service usage** and costs
+7. **Implement circuit breakers** for external services
+
+### Microservice Security
+
+1. **Secure inter-service communication**
+2. **Validate all external API responses**
+3. **Implement proper error handling**
+4. **Monitor service health and performance**
+5. **Use environment variables for secrets**
+6. **Implement graceful degradation**
 
 ### Monitoring
 
@@ -394,6 +493,8 @@ describe('Security Headers', () => {
 2. **Performance monitoring** for DoS attacks
 3. **Security scanning** for vulnerabilities
 4. **User activity tracking** for anomalies
+5. **AI service usage monitoring**
+6. **Database access pattern analysis**
 
 ## 🆘 Incident Response
 
@@ -403,6 +504,7 @@ describe('Security Headers', () => {
    - Disable affected accounts
    - Rotate all JWT secrets
    - Review access logs
+   - Check AI service logs
    - Notify users if necessary
 
 2. **Investigation**:
@@ -410,12 +512,14 @@ describe('Security Headers', () => {
    - Check for data exfiltration
    - Identify attack vectors
    - Assess impact scope
+   - Review AI service interactions
 
 3. **Remediation**:
    - Patch vulnerabilities
    - Update security measures
    - Enhance monitoring
    - Document lessons learned
+   - Update AI service security
 
 ### Contact Information
 
@@ -424,14 +528,26 @@ For security issues or vulnerabilities:
 - Include detailed reproduction steps
 - Provide impact assessment
 - Suggest potential fixes if possible
+- Include AI service interaction details if relevant
 
 ## 📚 Additional Resources
 
+### Core Security
 - [OWASP Top 10](https://owasp.org/Top10/)
 - [Express.js Security Best Practices](https://expressjs.com/en/advanced/best-practice-security.html)
 - [JWT Security Best Practices](https://auth0.com/blog/a-look-at-the-latest-draft-for-jwt-bcp/)
 - [CSP Reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
 
+### Microservice Security
+- [FastAPI Security Documentation](https://fastapi.tiangolo.com/advanced/security/)
+- [OpenRouter API Security](https://openrouter.ai/docs)
+- [Python Security Best Practices](https://python-security.readthedocs.io/)
+
+### AI Security
+- [OWASP AI Security Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+- [AI Prompt Injection Prevention](https://github.com/centerforaianddigitalpolicy/prompt-injection)
+- [Secure AI Development Guidelines](https://github.com/trailofbits/ai-sec-guidelines)
+
 ---
 
-**Note**: This security implementation is designed for educational and demonstration purposes. For production applications, consider additional security measures such as rate limiting, more comprehensive input validation, and regular security audits.
+**Note**: This security implementation is designed for educational and demonstration purposes. For production applications, consider additional security measures such as rate limiting, more comprehensive input validation, regular security audits, and AI-specific security considerations including prompt injection prevention and response validation.

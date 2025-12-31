@@ -1,6 +1,6 @@
 # Development Setup Guide
 
-This guide provides detailed instructions for setting up the development environment and contributing to the Secure Express.js Authentication Application.
+This guide provides detailed instructions for setting up the development environment and contributing to the Secure Express.js Authentication Application with AI Integration.
 
 ## 🛠️ Prerequisites
 
@@ -9,6 +9,8 @@ This guide provides detailed instructions for setting up the development environ
 - **Node.js**: Version 14 or higher
 - **npm**: Version 6 or higher (comes with Node.js)
 - **Git**: For version control
+- **Python**: Version 3.8 or higher (for AI microservice)
+- **pip**: Python package manager
 
 ### Optional Tools
 
@@ -17,6 +19,7 @@ This guide provides detailed instructions for setting up the development environ
 - **VS Code**: Recommended IDE with extensions
 - **Postman**: For API testing
 - **SQLite Browser**: For database inspection
+- **Docker**: For containerized development
 
 ### Recommended VS Code Extensions
 
@@ -29,7 +32,9 @@ This guide provides detailed instructions for setting up the development environ
     "bradlc.vscode-tailwindcss",
     "formulahendry.auto-rename-tag",
     "christian-kohler.path-intellisense",
-    "ms-vscode.vscode-typescript-next"
+    "ms-vscode.vscode-typescript-next",
+    "ms-python.python",
+    "ms-python.vscode-pylance"
   ]
 }
 ```
@@ -46,16 +51,57 @@ cd tst2
 ### 2. Install Dependencies
 
 ```bash
+# Install Node.js dependencies
 npm install
+
+# Install Python dependencies for AI service
+cd python_service
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or
+venv\Scripts\activate     # Windows
+pip install fastapi uvicorn openai python-dotenv
 ```
 
-### 3. Start Development Server
+### 3. Set Environment Variables
+
+Create `.env` file in the root directory:
 
 ```bash
+# JWT Secrets
+JWT_SECRET=your_development_secret_key_here
+JWT_REFRESH_SECRET=your_development_refresh_secret_here
+
+# Database
+DB_PATH=./config/app.db
+
+# Server
+PORT=3000
+NODE_ENV=development
+
+# AI Service
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+### 4. Start Development Environment
+
+```bash
+# Start all services concurrently
 npm run dev
+
+# Or start services individually:
+# Terminal 1: Start Node.js server
+npm run watch:server
+
+# Terminal 2: Start CSS watcher
+npm run watch:css
+
+# Terminal 3: Start Python AI service
+cd python_service && venv\Scripts\python -m uvicorn main:app --reload --port 5200
 ```
 
 The application will start on `http://localhost:3000`
+The Python AI service will start on `http://localhost:5200`
 
 ## 📁 Project Structure
 
@@ -70,7 +116,9 @@ tst2/
 │   ├── app.db-wal           # SQLite write-ahead log
 │   └── db.js                # Database configuration
 ├── controllers/
-│   └── authController.js    # Authentication logic
+│   ├── authController.js    # Authentication logic
+│   ├── aiController.js      # AI integration logic
+│   └── adminController.js   # Admin functionality
 ├── docs/                    # Documentation
 │   ├── API.md              # API documentation
 │   ├── SECURITY.md         # Security documentation
@@ -86,11 +134,19 @@ tst2/
 │   │   ├── api.js          # API client with interceptors
 │   │   ├── auth.js         # Authentication logic
 │   │   ├── dashboard.js    # Dashboard functionality
-│   │   └── navbar.js       # Navigation logic
+│   │   ├── navbar.js       # Navigation logic
+│   │   └── ai-client.js    # AI client logic
 │   └── stylesheets/        # Compiled CSS
+├── python_service/         # AI Microservice
+│   ├── main.py            # FastAPI application
+│   ├── db_client.py       # Database client
+│   ├── venv/              # Python virtual environment
+│   └── requirements.txt   # Python dependencies
 ├── routes/
 │   ├── index.js            # Main routes
-│   └── users.js            # User-related routes
+│   ├── users.js            # User-related routes
+│   ├── ai_py_route.js      # AI integration routes
+│   └── admin.js            # Admin routes
 ├── styles/
 │   └── input.css           # Tailwind CSS input
 ├── views/
@@ -100,6 +156,10 @@ tst2/
 │   │   └── toast.ejs       # Toast notification component
 │   ├── layouts/           # EJS layout templates
 │   │   └── main.ejs       # Main layout template
+│   ├── ai-dashboard.ejs   # AI dashboard
+│   ├── chat.ejs           # AI chat interface
+│   ├── admin/
+│   │   └── logs.ejs       # Admin logs view
 │   └── *.ejs              # View templates
 ├── package.json           # Package configuration
 ├── package-lock.json      # Lock file
@@ -122,6 +182,9 @@ npm run watch:css
 # Start only the server
 npm run watch:server
 
+# Start Python AI service
+npm run watch:python
+
 # Build CSS manually
 npm run build:css
 
@@ -141,6 +204,7 @@ npm test
 - **CSS Watching**: Tailwind CSS rebuilds on changes
 - **Hot Reload**: Browser refreshes on CSS changes
 - **Error Handling**: Detailed error messages in development
+- **Concurrent Services**: Node.js and Python services run together
 
 ## 🎨 Frontend Development
 
@@ -160,6 +224,7 @@ Client-side JavaScript files are located in `public/javascripts/`:
 - **auth.js**: Authentication logic and token management
 - **dashboard.js**: Dashboard functionality
 - **navbar.js**: Navigation logic
+- **ai-client.js**: AI dashboard client logic
 
 ### Template Development
 
@@ -168,6 +233,17 @@ Views use EJS templating:
 - **Layouts**: `views/layouts/main.ejs`
 - **Components**: `views/components/`
 - **Pages**: `views/*.ejs`
+- **AI Templates**: `views/ai-dashboard.ejs`, `views/chat.ejs`
+- **Admin Templates**: `views/admin/logs.ejs`
+
+### AI Client Development
+
+The AI client (`public/javascripts/ai-client.js`) includes:
+
+- **Sentiment Analysis**: Text analysis via Python microservice
+- **Chat Interface**: Conversational AI integration
+- **Real-time Updates**: Live result display with animations
+- **Error Handling**: Graceful fallbacks for service unavailability
 
 ## 🗄️ Database Development
 
@@ -178,6 +254,7 @@ The application uses SQLite with better-sqlite3:
 - **Database file**: `config/app.db`
 - **Schema**: Defined in `config/db.js`
 - **Migration**: Handled automatically on startup
+- **Shared Access**: Both Node.js and Python services access the same database
 
 ### Database Tables
 
@@ -211,6 +288,56 @@ For database inspection and management:
 - **SQLite Browser**: [DB Browser for SQLite](https://sqlitebrowser.org/)
 - **Command Line**: `sqlite3 config/app.db`
 - **VS Code Extension**: SQLite Viewer
+- **Python Client**: `python_service/db_client.py`
+
+## 🤖 AI Microservice Development
+
+### Python Service Setup
+
+1. **Navigate to Python service directory**:
+   ```bash
+   cd python_service
+   ```
+
+2. **Create virtual environment**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # or
+   venv\Scripts\activate     # Windows
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   pip install fastapi uvicorn openai python-dotenv
+   ```
+
+4. **Set environment variables**:
+   Create `.env` file in `python_service/`:
+   ```bash
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
+   ```
+
+5. **Start the service**:
+   ```bash
+   uvicorn main:app --reload --port 5200
+   ```
+
+### AI Service Endpoints
+
+- **GET /**: Health check
+- **POST /analyze**: Text sentiment analysis
+- **POST /chat**: Conversational AI
+- **GET /logs**: System logs
+
+### AI Integration
+
+The Node.js application communicates with the Python service:
+
+1. **Authentication**: All AI endpoints require JWT tokens
+2. **Request Forwarding**: Node.js forwards requests to Python service
+3. **Response Processing**: Results returned to client via Node.js
+4. **Error Handling**: Graceful fallbacks for service issues
 
 ## 🔐 Security Development
 
@@ -241,6 +368,13 @@ Input sanitization is handled in `middleware/sanitizer.js`:
 - **Input Validation**: All request data is sanitized
 - **Custom Rules**: Configure sanitization rules as needed
 
+### AI Service Security
+
+- **API Key Protection**: OpenRouter API keys in environment variables
+- **Input Validation**: Pydantic models for type safety
+- **Response Validation**: JSON parsing with error recovery
+- **Error Handling**: No information leakage
+
 ## 🧪 Testing
 
 ### Manual Testing
@@ -248,11 +382,12 @@ Input sanitization is handled in `middleware/sanitizer.js`:
 1. **Start the development server**: `npm run dev`
 2. **Open browser**: Navigate to `http://localhost:3000`
 3. **Test functionality**:
-   - User registration
-   - User login
+   - User registration and login
    - Dashboard access
    - Protected routes
    - Token refresh
+   - AI features (sentiment analysis, chat)
+   - Admin features (request logs)
 
 ### API Testing
 
@@ -264,10 +399,34 @@ curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"password123"}'
 
-# Test protected endpoint
-curl -X GET http://localhost:3000/api/users/profile \
+# Test AI analysis
+curl -X POST http://localhost:3000/ai/api/ai-check \
+  -H "Authorization: Bearer <access_token>" \
+  -H "X-Refresh-Token: <refresh_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"I love this application!"}'
+
+# Test admin logs
+curl -X GET http://localhost:3000/admin/logs \
   -H "Authorization: Bearer <access_token>" \
   -H "X-Refresh-Token: <refresh_token>"
+```
+
+### Python Service Testing
+
+```bash
+# Test Python service directly
+curl http://localhost:5200/
+
+# Test AI analysis
+curl -X POST http://localhost:5200/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text":"I love this application!"}'
+
+# Test chat
+curl -X POST http://localhost:5200/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Hello", "history":[]}'
 ```
 
 ### Security Testing
@@ -278,6 +437,7 @@ Test security features:
 2. **CSP**: Verify CSP headers are present
 3. **Authentication**: Test unauthorized access
 4. **Token Expiry**: Test token refresh mechanism
+5. **AI Input Validation**: Test malicious input handling
 
 ## 🚀 Production Deployment
 
@@ -291,6 +451,7 @@ PORT=3000
 JWT_SECRET=your-production-secret
 JWT_REFRESH_SECRET=your-production-refresh-secret
 DB_PATH=./config/app.db
+OPENROUTER_API_KEY=your-openrouter-api-key
 ```
 
 ### Build Process
@@ -310,32 +471,47 @@ DB_PATH=./config/app.db
    npm start
    ```
 
+4. **Start Python service**:
+   ```bash
+   cd python_service
+   uvicorn main:app --port 5200
+   ```
+
 ### Docker Deployment
 
-Create a `Dockerfile`:
+Create a `docker-compose.yml`:
 
-```dockerfile
-FROM node:18-alpine
+```yaml
+version: '3.8'
+services:
+  node-app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - DB_PATH=/app/config/app.db
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      - python-service
 
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-
-RUN npm run build:css
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
+  python-service:
+    build: ./python_service
+    ports:
+      - "5200:5200"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    volumes:
+      - ./config:/app/config
 ```
 
 Build and run:
-
 ```bash
-docker build -t secure-app .
-docker run -p 3000:3000 secure-app
+docker-compose up -d
 ```
 
 ## 🔄 Contributing
@@ -343,6 +519,7 @@ docker run -p 3000:3000 secure-app
 ### Code Style
 
 - **JavaScript**: Follow existing patterns
+- **Python**: Use PEP 8 style guide
 - **CSS**: Use Tailwind classes
 - **EJS**: Keep templates clean and organized
 - **Comments**: Add comments for complex logic
@@ -361,6 +538,7 @@ docker run -p 3000:3000 secure-app
 - **Clear description**: Explain what the PR does
 - **Test changes**: Ensure functionality works
 - **Update docs**: Update documentation if needed
+- **AI Integration**: Test both Node.js and Python components
 
 ## 🐛 Debugging
 
@@ -373,6 +551,20 @@ lsof -i :3000
 
 # Kill the process
 kill -9 <PID>
+```
+
+#### Python Service Not Starting
+```bash
+# Check Python version
+python --version
+
+# Activate virtual environment
+source venv/bin/activate  # Linux/Mac
+# or
+venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 #### Database Issues
@@ -392,6 +584,7 @@ npm run build:css
 ### Debug Tools
 
 - **Node.js Inspector**: `node --inspect bin/www`
+- **Python Debugger**: `python -m pdb main.py`
 - **Browser DevTools**: For frontend debugging
 - **Console Logging**: Use `console.log()` for debugging
 - **VS Code Debugger**: Set breakpoints in code
@@ -404,21 +597,36 @@ npm run build:css
 2. **JavaScript**: Minimize client-side code
 3. **Database**: Add indexes for frequently queried fields
 4. **Caching**: Consider adding response caching
+5. **AI Service**: Implement request queuing for high load
 
 ### Monitoring
 
 - **Request Logs**: Check `config/app.db` for request patterns
 - **Performance**: Monitor response times
 - **Errors**: Check server logs for errors
+- **AI Usage**: Monitor API calls and costs
+- **Database**: Monitor query performance
 
 ## 📚 Additional Resources
 
+### Core Technologies
 - [Express.js Documentation](https://expressjs.com/)
 - [Tailwind CSS Documentation](https://tailwindcss.com/)
 - [EJS Documentation](https://ejs.co/)
 - [bcrypt Documentation](https://www.npmjs.com/package/bcrypt)
 - [jsonwebtoken Documentation](https://www.npmjs.com/package/jsonwebtoken)
 - [better-sqlite3 Documentation](https://github.com/WiseLibs/better-sqlite3)
+
+### AI Integration
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [OpenRouter API Documentation](https://openrouter.ai/docs)
+- [OpenAI API Documentation](https://platform.openai.com/docs/)
+- [Pydantic Documentation](https://pydantic-docs.helpmanual.io/)
+
+### Development Tools
+- [Nodemon Documentation](https://nodemon.io/)
+- [Concurrently Documentation](https://www.npmjs.com/package/concurrently)
+- [Tailwind CLI Documentation](https://tailwindcss.com/docs/installation)
 
 ## 🆘 Getting Help
 
@@ -431,12 +639,14 @@ npm run build:css
 - Check existing [issues](https://github.com/your-repo/issues)
 - Create new issue with detailed description
 - Include reproduction steps
+- Specify if issue relates to Node.js, Python, or both
 
 ### Community
 - Join discussions on GitHub
 - Ask questions in relevant forums
 - Contribute to documentation
+- Share AI integration improvements
 
 ---
 
-**Note**: This development guide is designed to help contributors understand the project structure and development workflow. Always follow security best practices when developing and deploying the application.
+**Note**: This development guide is designed to help contributors understand the project structure and development workflow. Always follow security best practices when developing and deploying the application. The dual-service architecture (Node.js + Python) requires careful coordination between services for optimal performance and security.

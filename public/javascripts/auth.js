@@ -81,11 +81,17 @@ function initAuth() {
     };
 
     let tokenTimerInterval = null;
+    let timerStartTime = null; // Track when timer started
 
     const updateTokenTimer = () => {
         const token = localStorage.getItem('access_token');
         const timerElement = document.getElementById('token-timer');
         const mobileTimerElement = document.getElementById('mobile-token-timer');
+
+        // Only update timer if timer elements exist on the page
+        if (!timerElement && !mobileTimerElement) {
+            return;
+        }
 
         if (!token) {
             if (timerElement) timerElement.textContent = '--:--';
@@ -108,13 +114,17 @@ function initAuth() {
 
         if (timerElement) {
             timerElement.textContent = timeString;
-            // Change color based on time remaining
-            if (minutes === 0 && seconds <= 60) {
-                timerElement.parentElement.classList.add('bg-red-500/40');
-                timerElement.parentElement.classList.remove('bg-white/20');
+            // Change color when less than 1 minute (minutes === 0 means < 60 seconds)
+            if (minutes === 0) {
+                if (!timerElement.parentElement.classList.contains('bg-red-500/40')) {
+                    timerElement.parentElement.classList.add('bg-red-500/40');
+                    timerElement.parentElement.classList.remove('bg-white/20');
+                }
             } else {
-                timerElement.parentElement.classList.remove('bg-red-500/40');
-                timerElement.parentElement.classList.add('bg-white/20');
+                if (!timerElement.parentElement.classList.contains('bg-white/20')) {
+                    timerElement.parentElement.classList.remove('bg-red-500/40');
+                    timerElement.parentElement.classList.add('bg-white/20');
+                }
             }
         }
 
@@ -122,29 +132,28 @@ function initAuth() {
             mobileTimerElement.textContent = timeString;
         }
 
-        // Auto-logout when token expires
-        if (timeRemaining <= 0) {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('user_info');
-            if (timerElement) timerElement.textContent = '00:00';
-            if (mobileTimerElement) mobileTimerElement.textContent = '00:00';
-            showToast('Your session has expired. Please login again.', 'error');
-            updateNavbar();
-            setTimeout(() => window.location.href = '/users/login', 2000);
-        }
+        // Note: NO auto-logout here! 
+        // With refresh token mechanism, when access token expires, 
+        // the API interceptor will automatically get a new one.
+        // If BOTH tokens are expired, the API call will fail with 401,
+        // and the interceptor will redirect to login.
+        // This is handled by the api.js interceptor, not the timer.
     };
 
     const startTokenTimer = () => {
         if (tokenTimerInterval) clearInterval(tokenTimerInterval);
+        timerStartTime = Date.now(); // Mark when timer started
+        console.log('✅ Token timer started');
         updateTokenTimer(); // Update immediately
-        tokenTimerInterval = setInterval(updateTokenTimer, 500); // Update every 500ms for smooth countdown
+        tokenTimerInterval = setInterval(updateTokenTimer, 500); // Update every 500ms
     };
 
     const stopTokenTimer = () => {
         if (tokenTimerInterval) {
             clearInterval(tokenTimerInterval);
             tokenTimerInterval = null;
+            timerStartTime = null;
+            console.log('⏹️ Token timer stopped');
         }
     };
 
@@ -152,12 +161,19 @@ function initAuth() {
     window.startTokenTimer = startTokenTimer;
     window.stopTokenTimer = stopTokenTimer;
 
-    // Start timer on page load if token exists
-    if (localStorage.getItem('access_token')) {
+    // Only start timer if token exists AND page has timer elements (user is logged in)
+    const shouldStartTimer = () => {
+        const hasToken = !!localStorage.getItem('access_token');
+        const hasTimerElement = !!(document.getElementById('token-timer') || document.getElementById('mobile-token-timer'));
+        return hasToken && hasTimerElement;
+    };
+
+    if (shouldStartTimer()) {
         startTokenTimer();
     }
 
     const handleLogout = () => {
+        stopTokenTimer(); // Stop timer before logging out
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_info');

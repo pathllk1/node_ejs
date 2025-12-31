@@ -1,0 +1,79 @@
+<nav class="fixed top-0 left-0 w-full h-16 bg-gradient-to-r from-red-600 to-green-600 shadow-lg z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            
+            <div class="flex-shrink-0">
+                <a href="/" class="text-2xl font-bold text-white tracking-wide hover:text-gray-100 transition-colors duration-300">
+                    MyApp
+                </a>
+            </div>
+
+            <div class="hidden md:block">
+                <div class="ml-10 flex items-center space-x-4">
+                    <a href="/" class="text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="/about" class="text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium">About</a>
+                    <a href="/contact" class="text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium">Contact</a>
+                    
+                    <span class="text-white/40">|</span>
+
+                    <div id="nav-guest" class="flex items-center space-x-4">
+                        <a href="/users/login" class="text-white hover:text-gray-200 text-sm font-medium">Login</a>
+                        <a href="/users/signup" class="bg-white text-red-600 hover:bg-gray-100 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">Sign Up</a>
+                    </div>
+
+                    <div id="nav-user" class="hidden flex items-center space-x-4">
+                        <span id="nav-username" class="text-white font-medium">User</span>
+                        <a href="/users/profile" class="text-white hover:text-gray-200 text-sm font-medium">Profile</a>
+                        <!-- Token Timer -->
+                        <div class="flex items-center space-x-2 px-3 py-1 bg-white/20 rounded-lg">
+                            <svg class="w-4 h-4 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span id="token-timer" class="text-white font-mono font-bold text-sm">--:--</span>
+                        </div>
+                        <button id="logout-btn" class="bg-red-800 text-white hover:bg-red-900 px-3 py-1 rounded text-sm transition">Logout</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="-mr-2 flex md:hidden">
+                <button id="mobile-menu-btn" type="button" class="bg-red-700 inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-white transition-colors">
+                    <span class="sr-only">Open main menu</span>
+                    <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden md:hidden bg-gradient-to-r from-red-600 to-green-600 border-t border-white/10">
+        <div class="px-2 pt-2 pb-3 space-y-1 shadow-inner">
+            <a href="/" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20">Home</a>
+            <a href="/about" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20">About</a>
+            <a href="/contact" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20">Contact</a>
+            
+            <div class="border-t border-white/20 my-2"></div>
+            
+            <div id="mobile-nav-guest">
+                <a href="/users/login" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20">Login</a>
+                <a href="/users/signup" class="bg-white text-red-600 block px-3 py-2 rounded-md text-base font-bold text-center mt-2 shadow-sm">Sign Up</a>
+            </div>
+
+            <div id="mobile-nav-user" class="hidden">
+                <div class="px-3 py-2 text-white font-bold text-lg" id="mobile-nav-username">Hi, User</div>
+                <a href="/users/profile" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20">Profile</a>
+                <!-- Mobile Token Timer -->
+                <div class="flex items-center space-x-2 px-3 py-2 bg-white/20 rounded-md text-white font-mono font-bold">
+                    <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Token expires in: <span id="mobile-token-timer" class="ml-1">--:--</span>
+                </div>
+                <button id="mobile-logout-btn" class="w-full text-left text-white bg-red-800/80 block px-3 py-2 rounded-md text-base font-medium hover:bg-red-900 transition-colors mt-2">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>

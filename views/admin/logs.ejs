@@ -1,0 +1,58 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">System Logs</h1>
+            <p class="text-slate-500 text-sm mt-1">Viewing all system requests</p>
+        </div>
+        <div class="flex gap-2">
+            <input type="text" id="searchInput" placeholder="Search URL or IP..." class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
+        </div>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+        <div class="bg-red-50 text-red-600 p-4 rounded-lg mb-4 text-sm font-medium border border-red-100">
+            Error: <%= error %>
+        </div>
+    <% } %>
+
+    <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs uppercase tracking-wider">
+                        <th class="px-4 py-4 font-bold w-16">ID</th>
+                        <th class="px-4 py-4 font-bold w-24">Method</th>
+                        <th class="px-4 py-4 font-bold">Endpoint</th>
+                        <th class="px-4 py-4 font-bold w-32">IP</th>
+                        <th class="px-4 py-4 font-bold w-48 text-right">Time</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-400">Loading logs...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex items-center justify-between select-none">
+            <span class="text-xs text-slate-500">
+                Showing <span id="startRow" class="font-bold">0</span> to <span id="endRow" class="font-bold">0</span> of <span id="totalRows" class="font-bold">0</span> entries
+            </span>
+            <div class="flex gap-2">
+                <button id="prevBtn" class="px-3 py-1 rounded bg-white border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition">Previous</button>
+                <span id="pageIndicator" class="text-xs font-bold text-slate-600 self-center">Page 1</span>
+                <button id="nextBtn" class="px-3 py-1 rounded bg-white border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="logs-data" type="application/json">
+    <%- JSON.stringify(logs || []) %>
+</script>
+
+<script defer src="/javascripts/admin/logs.js"></script>

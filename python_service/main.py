@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
+import db_client
 
 # 1. Load the API Key
 load_dotenv()
@@ -33,6 +34,10 @@ class Message(BaseModel):
 class ChatInput(BaseModel):
     history: List[Message] # Previous chat context
     message: str           # The new user message
+
+@app.get("/logs")
+def get_system_logs():
+    return db_client.fetch_logs()    
 
 @app.post("/chat")
 def chat_endpoint(data: ChatInput):
@@ -116,3 +121,5 @@ def analyze_text(data: DataInput):
             "confidence_score": 0.0,
             "original_text": data.text
         }
+    
+    

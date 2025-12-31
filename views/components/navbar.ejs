@@ -1,7 +1,7 @@
 <nav class="fixed top-0 left-0 w-full h-16 bg-gradient-to-r from-red-600 to-green-600 shadow-lg z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-            
+
             <div class="flex-shrink-0">
                 <a href="/" class="text-2xl font-bold text-white tracking-wide hover:text-gray-100 transition-colors duration-300">
                     MyApp
@@ -13,7 +13,7 @@
                     <a href="/" class="text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium transition">Home</a>
                     <a href="/about" class="text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium transition">About</a>
                     <a href="/contact" class="text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium transition">Contact</a>
-                    
+
                     <span class="text-white/40">|</span>
 
                     <div id="nav-guest" class="flex items-center space-x-4">
@@ -26,13 +26,22 @@
                         <a href="/users/profile" class="text-white hover:text-gray-200 text-sm font-medium transition">Profile</a>
 
                         <div class="relative ml-2">
-                            <button id="ai-menu-btn" class="flex items-center space-x-1 text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium transition focus:outline-none">
-                                <span>AI Tools</span>
-                                <svg class="w-4 h-4 transition-transform duration-200" id="ai-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <button id="tools-menu-btn" class="flex items-center space-x-1 text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium transition focus:outline-none">
+                                <span>Tools</span>
+                                <svg class="w-4 h-4 transition-transform duration-200" id="tools-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
                             </button>
-                            <div id="ai-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 origin-top-right transition-all">
-                                <a href="/ai/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Ai Dashboard</a>
-                                <a href="/ai/chat" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Ai Chat</a>
+
+                            <div id="tools-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 origin-top-right transition-all">
+                                <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Features</div>
+                                <a href="/ai/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Dashboard</a>
+                                <a href="/ai/chat" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Chat</a>
+
+                                <div class="border-t border-slate-100 my-1"></div>
+
+                                <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">System</div>
+                                <a href="/admin/logs" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Request Logs</a>
                             </div>
                         </div>
 
@@ -63,9 +72,9 @@
             <a href="/" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition">Home</a>
             <a href="/about" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition">About</a>
             <a href="/contact" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition">Contact</a>
-            
+
             <div class="border-t border-white/20 my-2"></div>
-            
+
             <div id="mobile-nav-guest">
                 <a href="/users/login" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition">Login</a>
                 <a href="/users/signup" class="bg-white text-red-600 block px-3 py-2 rounded-md text-base font-bold text-center mt-2 shadow-sm">Sign Up</a>
@@ -74,15 +83,21 @@
             <div id="mobile-nav-user" class="hidden">
                 <div class="px-3 py-2 text-white font-bold text-lg" id="mobile-nav-username">Hi, User</div>
                 <a href="/users/profile" class="text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition">Profile</a>
-                
+
                 <div>
-                    <button id="mobile-ai-btn" class="w-full text-left text-white flex justify-between items-center px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition focus:outline-none">
-                        <span>AI Tools</span>
-                        <svg class="w-4 h-4 transition-transform duration-200" id="mobile-ai-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <button id="mobile-tools-btn" class="w-full text-left text-white flex justify-between items-center px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition focus:outline-none">
+                        <span>Tools</span>
+                        <svg class="w-4 h-4 transition-transform duration-200" id="mobile-tools-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </button>
-                    <div id="mobile-ai-menu" class="hidden pl-6 space-y-1 bg-black/10 rounded-md mt-1 pb-2">
-                        <a href="/ai/dashboard" class="text-white/90 block px-3 py-2 rounded-md text-sm font-medium hover:text-white hover:bg-white/10">Ai Dashboard</a>
-                        <a href="/ai/chat" class="text-white/90 block px-3 py-2 rounded-md text-sm font-medium hover:text-white hover:bg-white/10">Ai Chat</a>
+                    <div id="mobile-tools-menu" class="hidden pl-4 bg-black/10 rounded-md mt-1 pb-2">
+                        <div class="px-3 py-1 text-xs font-semibold text-white/50 uppercase tracking-wider mt-1">AI Features</div>
+                        <a href="/ai/dashboard" class="text-white/90 block px-3 py-2 rounded-md text-sm font-medium hover:text-white hover:bg-white/10">Dashboard</a>
+                        <a href="/ai/chat" class="text-white/90 block px-3 py-2 rounded-md text-sm font-medium hover:text-white hover:bg-white/10">Chat</a>
+                        
+                        <div class="px-3 py-1 text-xs font-semibold text-white/50 uppercase tracking-wider mt-2">System</div>
+                        <a href="/admin/logs" class="text-white/90 block px-3 py-2 rounded-md text-sm font-medium hover:text-white hover:bg-white/10">Request Logs</a>
                     </div>
                 </div>
 

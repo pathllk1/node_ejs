@@ -9,6 +9,7 @@ const requestLogger = require('./middleware/requestLogger');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var aiPyRouter = require('./routes/ai_py_route');
 
 var app = express();
 
@@ -35,6 +36,7 @@ app.use(requestLogger); // Use the custom request logger middleware
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/ai', aiPyRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

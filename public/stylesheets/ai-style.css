@@ -1,0 +1,17 @@
+/* public/stylesheets/ai-style.css */
+
+@keyframes progress {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+
+.animate-progress {
+    animation: progress 1.5s ease-in-out infinite;
+}
+
+/* Optional: Add this if you want to hide elements before JS loads 
+   to prevent "flash of unstyled content" */
+.js-hidden {
+    display: none;
+}

@@ -1,5 +1,7 @@
+const verifyToken = require('../middleware/authMiddleware');
 exports.viewLogs = async (req, res) => {
     try {
+        if(!verifyToken) return res.status(401).send('Unauthorized');
         // 1. Fetch from Python Microservice
         const response = await fetch('http://127.0.0.1:5200/logs');
         const data = await response.json();

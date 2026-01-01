@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
 import db_client
+from chat_service import router as chat_router
 
 # 1. Load the API Key
 load_dotenv()
@@ -19,6 +20,9 @@ client = OpenAI(
 
 app = FastAPI()
 
+# Include the chat router
+app.include_router(chat_router)
+
 class DataInput(BaseModel):
     text: str
 
@@ -26,51 +30,9 @@ class DataInput(BaseModel):
 def read_root():
     return {"status": "Python AI Service is Running"}
 
-# 1. New Data Structure: We accept a list of messages
-class Message(BaseModel):
-    role: str
-    content: str
-
-class ChatInput(BaseModel):
-    history: List[Message] # Previous chat context
-    message: str           # The new user message
-
 @app.get("/logs")
 def get_system_logs():
-    return db_client.fetch_logs()    
-
-@app.post("/chat")
-def chat_endpoint(data: ChatInput):
-    try:
-        # 2. Build the conversation history for the AI
-        # Start with a System Prompt to define personality
-        messages = [
-            {"role": "system", "content": "You are a helpful, witty, and concise AI assistant named 'Imagination'."}
-        ]
-        
-        # Add previous history (if any)
-        for msg in data.history:
-            messages.append({"role": msg.role, "content": msg.content})
-
-        # Add the current new message
-        messages.append({"role": "user", "content": data.message})
-
-        # 3. Call OpenRouter
-        response = client.chat.completions.create(
-            model="kwaipilot/kat-coder-pro:free",
-            messages=messages
-        )
-
-        bot_reply = response.choices[0].message.content
-
-        return {
-            "reply": bot_reply,
-            "success": True
-        }
-
-    except Exception as e:
-        print(f"Chat Error: {e}")
-        return {"reply": "I lost my train of thought. (Error)", "success": False}
+    return db_client.fetch_logs()
 
 @app.post("/analyze")
 def analyze_text(data: DataInput):
@@ -121,5 +83,3 @@ def analyze_text(data: DataInput):
             "confidence_score": 0.0,
             "original_text": data.text
         }
-    
-    

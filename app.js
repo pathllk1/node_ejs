@@ -5,6 +5,7 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const csp = require('./middleware/csp');
 const sanitizer = require('./middleware/sanitizer');
+const optionalAuth = require('./middleware/optionalAuth');
 const requestLogger = require('./middleware/requestLogger');
 
 var indexRouter = require('./routes/index');
@@ -31,9 +32,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Security Middleware - Apply CSP and other security headers FIRST
 app.use(csp);
 
-// Input Sanitization & Logging
-app.use(sanitizer); // Use the custom sanitizer middleware
-app.use(requestLogger); // Use the custom request logger middleware
+// Input Sanitization
+app.use(sanitizer);
+
+// Optional Auth - Extract user info if available (for logging purposes)
+// This runs BEFORE requestLogger so req.user is available for authenticated requests
+app.use(optionalAuth);
+
+// Request Logging - Now can access req.user if authenticated
+app.use(requestLogger);
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);

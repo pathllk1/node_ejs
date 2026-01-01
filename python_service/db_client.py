@@ -27,6 +27,7 @@ def fetch_logs():
                 "method": row["method"],
                 "url": row["url"],
                 "ip": row["ip"],
+                "username": row["username"],
                 "timestamp": row["timestamp"]
             })
             

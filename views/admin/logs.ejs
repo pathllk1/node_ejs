@@ -8,7 +8,7 @@
             <p class="text-slate-500 text-sm mt-1">Viewing all system requests</p>
         </div>
         <div class="flex gap-2">
-            <input type="text" id="searchInput" placeholder="Search URL or IP..." class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
+            <input type="text" id="searchInput" placeholder="Search URL, IP, or Username..." class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
         </div>
     </div>
 
@@ -27,12 +27,13 @@
                         <th class="px-4 py-4 font-bold w-24">Method</th>
                         <th class="px-4 py-4 font-bold">Endpoint</th>
                         <th class="px-4 py-4 font-bold w-32">IP</th>
+                        <th class="px-4 py-4 font-bold w-24">User</th>
                         <th class="px-4 py-4 font-bold w-48 text-right">Time</th>
                     </tr>
                 </thead>
                 <tbody id="logsTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-slate-400">Loading logs...</td>
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-400">Loading logs...</td>
                     </tr>
                 </tbody>
             </table>

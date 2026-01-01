@@ -11,10 +11,21 @@ db.exec(`
         method TEXT NOT NULL,
         url TEXT NOT NULL,
         ip TEXT,
+        username TEXT,
         user_agent TEXT,
         timestamp TEXT NOT NULL DEFAULT (datetime('now'))
     ) STRICT;
 `);
+
+// Migrate: Add username column if it doesn't exist
+try {
+    db.exec(`ALTER TABLE request_logs ADD COLUMN username TEXT;`);
+} catch (err) {
+    // Column already exists, ignore the error
+    if (!err.message.includes('duplicate column name')) {
+        console.error('Migration error:', err.message);
+    }
+}
 
 // Users Table
 // dates are TEXT because SQLite doesn't have a native Date type, but we enforce ISO strings via logic

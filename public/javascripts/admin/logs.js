@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Handle Empty State
         if (pageData.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-12 text-center text-slate-400 italic">No logs found matching your criteria.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-slate-400 italic">No logs found matching your criteria.</td></tr>`;
             prevBtn.disabled = true;
             nextBtn.disabled = true;
             return;
@@ -92,6 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td class="px-4 py-3 text-slate-500 text-xs">
                     ${(log.ip === '::1' || log.ip === '127.0.0.1') ? 'Localhost' : log.ip}
+                </td>
+                <td class="px-4 py-3 text-xs">
+                    ${log.username ? `<span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-semibold">${log.username}</span>` : '<span class="text-slate-400">Guest</span>'}
                 </td>
                 <td class="px-4 py-3 text-slate-500 text-xs text-right whitespace-nowrap">
                     ${formatDate(log.timestamp)}
@@ -134,8 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
             filteredLogs = allLogs.filter(log => {
                 const url = (log.url || '').toLowerCase();
                 const ip = (log.ip || '').toLowerCase();
+                const username = (log.username || '').toLowerCase();
                 const method = (log.method || '').toLowerCase();
-                return url.includes(term) || ip.includes(term) || method.includes(term);
+                return url.includes(term) || ip.includes(term) || username.includes(term) || method.includes(term);
             });
         }
         

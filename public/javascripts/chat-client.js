@@ -162,4 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     userMsgInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSend();
     });
+
+    // Ensure chat container has proper hover class for scrollbar
+    chatContainer.classList.add('no-scrollbar');
 });

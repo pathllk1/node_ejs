@@ -6,6 +6,62 @@ document.addEventListener('DOMContentLoaded', () => {
     // We store the conversation locally to send context to Python
     let chatHistory = []; 
 
+    // ============================================
+    // SECURITY: HTML Entity Escaping (XSS Protection)
+    // ============================================
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ============================================
+    // MARKDOWN PARSER (Zero Dependencies, CSP Safe)
+    // ============================================
+    function parseMarkdown(text) {
+        // Step 1: Escape HTML to prevent XSS
+        text = escapeHtml(text);
+
+        // Step 2: Parse code blocks (```...```) - MUST be first
+        text = text.replace(/```([\s\S]*?)```/g, (match, code) => {
+            const language = code.split('\n')[0].trim();
+            const codeContent = code.replace(language, '').trim();
+            return `<pre class="markdown-code-block"><code class="markdown-code-content">${codeContent}</code></pre>`;
+        });
+
+        // Step 3: Parse inline code (`...`)
+        text = text.replace(/`([^`\n]+?)`/g, '<code class="markdown-inline-code">$1</code>');
+
+        // Step 4: Parse bold (**text** or __text__)
+        text = text.replace(/\*\*([^\*\n]+?)\*\*/g, '<strong class="markdown-bold">$1</strong>');
+        text = text.replace(/__([^_\n]+?)__/g, '<strong class="markdown-bold">$1</strong>');
+
+        // Step 5: Parse italic (*text* or _text_)
+        text = text.replace(/\*([^\*\n]+?)\*/g, '<em class="markdown-italic">$1</em>');
+        text = text.replace(/_([^_\n]+?)_/g, '<em class="markdown-italic">$1</em>');
+
+        // Step 6: Parse ordered lists (1. 2. 3.)
+        text = text.replace(/^\d+\.\s+(.+)$/gm, '<li class="markdown-list-item">$1</li>');
+        text = text.replace(/(<li class="markdown-list-item">.*?<\/li>)/s, '<ol class="markdown-ordered-list">$1</ol>');
+
+        // Step 7: Parse unordered lists (- or *)
+        text = text.replace(/^[\-\*]\s+(.+)$/gm, '<li class="markdown-list-item">$1</li>');
+        text = text.replace(/(<li class="markdown-list-item">.*?<\/li>)/s, '<ul class="markdown-unordered-list">$1</ul>');
+
+        // Step 8: Parse headers (#, ##, ###)
+        text = text.replace(/^###\s+(.+)$/gm, '<h3 class="markdown-h3">$1</h3>');
+        text = text.replace(/^##\s+(.+)$/gm, '<h2 class="markdown-h2">$1</h2>');
+        text = text.replace(/^#\s+(.+)$/gm, '<h1 class="markdown-h1">$1</h1>');
+
+        // Step 9: Parse line breaks
+        text = text.replace(/\n/g, '<br>');
+
+        return text;
+    }
+
+    // ============================================
+    // MESSAGE DISPLAY FUNCTION
+    // ============================================
     // 1. Function to create HTML bubbles
     function appendMessage(role, text) {
         const isUser = role === 'user';
@@ -23,7 +79,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ? 'bg-slate-800 text-white rounded-tr-none border-slate-700' 
             : 'bg-white text-slate-700 rounded-tl-none border-slate-100'
         }`;
-        bubble.textContent = text;
+        
+        // Security: Use innerHTML safely for AI responses (markdown parsed and escaped)
+        // Use textContent for user messages (no parsing needed)
+        if (isUser) {
+            bubble.textContent = text;
+        } else {
+            // Parse markdown and insert as HTML
+            bubble.innerHTML = parseMarkdown(text);
+        }
 
         wrapper.appendChild(avatar);
         wrapper.appendChild(bubble);

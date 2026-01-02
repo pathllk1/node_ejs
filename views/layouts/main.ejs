@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,20 +10,22 @@
     <!-- Google Fonts for Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom Stylesheet -->
-    <link href="/stylesheets/style.css" rel="stylesheet"> 
+    <link href="/stylesheets/style.css" rel="stylesheet">
 </head>
+
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
     <%- include('../components/navbar') %>
 
-    <main class="flex-grow pt-16 pb-10">
-        <%- body -%>
-    </main>
+        <main class="flex-grow pt-16 pb-10">
+            <%- body -%>
+        </main>
 
-    <%- include('../components/footer') %>
-    <%- include('../components/toast') %>
-    <script src="/javascripts/navbar.js"></script>
-    <script src="/javascripts/auth.js"></script>
-    <script src="/javascripts/api.js"></script>
+        <%- include('../components/footer') %>
+            <%- include('../components/toast') %>
+                <script src="/javascripts/api.js"></script>
+                <script src="/javascripts/navbar.js"></script>
+                <script src="/javascripts/auth.js"></script>
 </body>
+
 </html>

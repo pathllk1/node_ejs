@@ -21,7 +21,7 @@ router.get('/signup', function(req, res, next) {
 });
 
 // GET profile page (no token verification needed - client will fetch data with token)
-router.get('/profile', function(req, res) {
+router.get('/profile', verifyToken, function(req, res) {
   res.render('dashboard', { title: 'Dashboard' });
 });
 

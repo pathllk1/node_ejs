@@ -1,5 +1,8 @@
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Security Check: If no token, kick out immediately
+// Remove "document.addEventListener..." and wrap logic in a self-executing function
+(async function initDashboard() {
+    console.log("Dashboard script started..."); // Debug check
+
+    // 1. Security Check
     if (!localStorage.getItem('access_token')) {
         window.location.href = '/users/login';
         return;
@@ -9,15 +12,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const content = document.getElementById('dashboard-content');
 
     try {
-        // 2. Fetch Data using the Global Interceptor (window.api)
-        // Note: window.api is available because we loaded api.js in the layout
+        // 2. Fetch Data
+        // Ensure window.api exists before calling it
+        if (!window.api) {
+            console.error("API utility not loaded");
+            return;
+        }
+
         const res = await window.api.get('/users/api/profile');
         
         if (res.ok) {
             const data = await res.json();
             const user = data.user;
 
-            // 3. Populate UI safely
+            // 3. Populate UI
             const setText = (id, text) => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = text;
@@ -28,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             setText('user-username', user.username);
             setText('user-id', '#' + user.id);
             
-            // Format Date
             if (user.created_at) {
                 const date = new Date(user.created_at);
                 setText('user-joined', date.toLocaleDateString('en-US', { 
@@ -45,8 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (error) {
         console.error('Dashboard Error:', error);
-        // If the API fails (e.g., token invalid), the interceptor usually handles redirect.
-        // But as a fallback, we redirect to login.
-        window.location.href = '/users/login';
+        // window.location.href = '/users/login'; // Uncomment if you want strict redirect
     }
-});
+})();

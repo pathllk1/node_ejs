@@ -1,6 +1,10 @@
-document.addEventListener('DOMContentLoaded', () => {
+(function initLogs() {
+    console.log("Logs script started...");
+
     // 1. Get Data safely from the DOM
     const dataScript = document.getElementById('logs-data');
+    
+    // Safety check: If we are not on the logs page (elements missing), stop.
     if (!dataScript) return;
 
     let allLogs = [];
@@ -25,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalRowsEl = document.getElementById('totalRows');
     const pageIndicator = document.getElementById('pageIndicator');
     const searchInput = document.getElementById('searchInput');
+
+    if (!tableBody) return; // Extra safety
 
     // --- Helper: Format Date ---
     function formatDate(isoString) {
@@ -58,16 +64,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const pageData = filteredLogs.slice(start, end);
 
         // Update Stats UI
-        totalRowsEl.textContent = totalItems;
-        startRowEl.textContent = totalItems === 0 ? 0 : start + 1;
-        endRowEl.textContent = Math.min(end, totalItems);
-        pageIndicator.textContent = `Page ${currentPage} of ${Math.max(1, totalPages)}`;
+        if (totalRowsEl) totalRowsEl.textContent = totalItems;
+        if (startRowEl) startRowEl.textContent = totalItems === 0 ? 0 : start + 1;
+        if (endRowEl) endRowEl.textContent = Math.min(end, totalItems);
+        if (pageIndicator) pageIndicator.textContent = `Page ${currentPage} of ${Math.max(1, totalPages)}`;
 
         // Handle Empty State
         if (pageData.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-slate-400 italic">No logs found matching your criteria.</td></tr>`;
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
             return;
         }
 
@@ -77,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pageData.forEach(log => {
             const row = document.createElement('tr');
             
-            // Apply requested LIME HOVER color here
+            // LIME HOVER applied here
             row.className = 'transition-colors hover:bg-lime-200 group cursor-default border-b border-slate-50 last:border-0';
             
             row.innerHTML = `
@@ -106,47 +112,53 @@ document.addEventListener('DOMContentLoaded', () => {
         tableBody.appendChild(fragment);
 
         // Update Buttons state
-        prevBtn.disabled = currentPage === 1;
-        nextBtn.disabled = currentPage >= totalPages;
+        if (prevBtn) prevBtn.disabled = currentPage === 1;
+        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
     }
 
     // --- Event Listeners ---
 
-    prevBtn.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderTable();
-        }
-    });
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        });
+    }
 
-    nextBtn.addEventListener('click', () => {
-        const totalPages = Math.ceil(filteredLogs.length / rowsPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderTable();
-        }
-    });
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredLogs.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        });
+    }
 
     // Search Logic
-    searchInput.addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        
-        if (!term) {
-            filteredLogs = [...allLogs];
-        } else {
-            filteredLogs = allLogs.filter(log => {
-                const url = (log.url || '').toLowerCase();
-                const ip = (log.ip || '').toLowerCase();
-                const username = (log.username || '').toLowerCase();
-                const method = (log.method || '').toLowerCase();
-                return url.includes(term) || ip.includes(term) || username.includes(term) || method.includes(term);
-            });
-        }
-        
-        currentPage = 1; // Reset to page 1 on search
-        renderTable();
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            
+            if (!term) {
+                filteredLogs = [...allLogs];
+            } else {
+                filteredLogs = allLogs.filter(log => {
+                    const url = (log.url || '').toLowerCase();
+                    const ip = (log.ip || '').toLowerCase();
+                    const username = (log.username || '').toLowerCase();
+                    const method = (log.method || '').toLowerCase();
+                    return url.includes(term) || ip.includes(term) || username.includes(term) || method.includes(term);
+                });
+            }
+            
+            currentPage = 1; // Reset to page 1 on search
+            renderTable();
+        });
+    }
 
     // Initial Render
     renderTable();
-});
+})();

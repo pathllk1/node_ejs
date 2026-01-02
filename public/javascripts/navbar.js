@@ -31,58 +31,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- 4. AJAX NAVIGATION INTERCEPTOR ---
-// --- 4. AJAX NAVIGATION INTERCEPTOR ---
 // --- AJAX NAVIGATION INTERCEPTOR ---
 document.addEventListener('click', async (e) => {
+    // 1. Find the link
     const link = e.target.closest('a');
     
-    // Check if clicked element is a link and specifically the Profile link
-    if (link && link.pathname === '/users/profile') {
+    // If not a link, stop
+    if (!link) return;
+
+    const path = link.pathname; // Gets just the path, e.g., "/users/profile"
+
+    // 2. USE IF / ELSE IF TO CHECK SPECIFIC ROUTES
+    // We only want to intercept Protected Routes that need the Token
+    let shouldIntercept = false;
+
+    if (path === '/users/profile') {
+        shouldIntercept = true;
+    } 
+    else if (path === '/ai/dashboard') {
+        shouldIntercept = true;
+    }
+    else if (path === '/ai/chat') {
+        shouldIntercept = true;
+    }
+    else if (path === '/admin/logs') {
+        shouldIntercept = true;
+    }
+
+    // 3. IF MATCHED, EXECUTE AJAX NAVIGATION
+    if (shouldIntercept) {
         e.preventDefault();
+        console.log(`Interceptor triggered for: ${path}`);
 
         // Safety Check: Ensure api.js is loaded
         if (!window.api) {
-            console.error("API Interceptor not loaded! Falling back to standard reload.");
-            window.location.href = link.href;
+            console.error("API Interceptor not loaded.");
+            alert("System error: API missing. Cannot navigate securely.");
             return;
         }
 
-        console.log("Navigating to Profile with Token...");
-
         try {
-            // -----------------------------------------------------------
-            // THE FIX: Use window.api.get instead of fetch
-            // This ensures Authorization headers are attached automatically
-            // -----------------------------------------------------------
+            // A. Fetch content using window.api (Attaches Token)
             const response = await window.api.get(link.href);
             
-            // Handle if the interceptor logic itself failed or redirected
-            if (!response) return; 
-
+            // B. Handle Auth Errors Manually
+            if (!response) return; // api.js might have handled redirect
+            
             if (!response.ok) {
-                // If the middleware rejected us (e.g., 401/403), the api.js 
-                // likely already handled the redirect. If not, throw error.
-                throw new Error('Server rejected request');
+                console.error(`Server Error: ${response.status}`);
+                if (response.status === 401 || response.status === 403) {
+                    // Redirect to login manually if auth fails
+                    window.location.href = '/users/login'; 
+                } else {
+                    alert(`Cannot load page (Error ${response.status})`);
+                }
+                return; // STOP HERE. Do not parse HTML.
             }
 
+            // C. Parse HTML
             const html = await response.text();
-
-            // ... The rest of the logic remains exactly the same ...
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
 
             const newMain = doc.querySelector('main') || doc.querySelector('#main-content');
             const currentMain = document.querySelector('main') || document.querySelector('#main-content');
 
+            // D. Swap Content
             if (newMain && currentMain) {
-                // 1. Swap HTML
                 currentMain.innerHTML = newMain.innerHTML;
                 
-                // 2. Update URL
+                // Update URL
                 window.history.pushState(null, '', link.href);
 
-                // 3. Re-execute Scripts
+                // Re-execute Scripts
                 const scripts = newMain.querySelectorAll('script');
                 scripts.forEach(oldScript => {
                     const newScript = document.createElement('script');
@@ -93,19 +114,32 @@ document.addEventListener('click', async (e) => {
                     document.body.appendChild(newScript);
                 });
 
-                // 4. Close mobile menu
+                // Close all menus
                 const mobileMenu = document.getElementById('mobile-menu');
+                const toolsDropdown = document.getElementById('tools-dropdown');
                 if (mobileMenu) mobileMenu.classList.add('hidden');
+                if (toolsDropdown) toolsDropdown.classList.add('hidden');
             }
+
         } catch (err) {
             console.error("Navigation failed:", err);
-            // Fallback: If AJAX fails, force a hard reload so the browser 
-            // handles the auth flow normally
-            window.location.href = link.href;
+            // CRITICAL FIX: DO NOT RELOAD PAGE HERE
+            // Reloading forces a browser request without token -> 401 Error Loop
+            alert("Connection failed. Please try again.");
         }
     }
 });
-// Handle Back Button
+
+// Helper to close dropdowns after navigation
+function closeAllMenus() {
+    const mobileMenu = document.getElementById('mobile-menu');
+    const toolsDropdown = document.getElementById('tools-dropdown');
+    
+    if (mobileMenu) mobileMenu.classList.add('hidden');
+    if (toolsDropdown) toolsDropdown.classList.add('hidden');
+}
+
+// Handle Back/Forward buttons
 window.addEventListener('popstate', () => {
     window.location.reload();
 });

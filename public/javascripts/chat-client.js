@@ -1,10 +1,16 @@
-document.addEventListener('DOMContentLoaded', () => {
+(function initChatClient() {
     const chatContainer = document.getElementById('chatContainer');
     const userMsgInput = document.getElementById('userMsg');
     const sendBtn = document.getElementById('sendBtn');
 
-    // We store the conversation locally to send context to Python
+    // Store conversation locally
     let chatHistory = []; 
+
+    // Safety check
+    if (!chatContainer || !userMsgInput || !sendBtn) return;
+
+    // Ensure chat container has proper hover class for scrollbar
+    chatContainer.classList.add('no-scrollbar');
 
     // ============================================
     // SECURITY: HTML Entity Escaping (XSS Protection)
@@ -16,53 +22,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================
-    // MARKDOWN PARSER (Zero Dependencies, CSP Safe)
+    // MARKDOWN PARSER (Zero Dependencies)
     // ============================================
     function parseMarkdown(text) {
-        // Step 1: Escape HTML to prevent XSS
+        // Step 1: Escape HTML
         text = escapeHtml(text);
 
-        // Step 2: Parse code blocks (```...```) - MUST be first
+        // Step 2: Code blocks
         text = text.replace(/```([\s\S]*?)```/g, (match, code) => {
             const language = code.split('\n')[0].trim();
             const codeContent = code.replace(language, '').trim();
             return `<pre class="markdown-code-block"><code class="markdown-code-content">${codeContent}</code></pre>`;
         });
 
-        // Step 3: Parse inline code (`...`)
+        // Step 3: Inline code
         text = text.replace(/`([^`\n]+?)`/g, '<code class="markdown-inline-code">$1</code>');
 
-        // Step 4: Parse bold (**text** or __text__)
+        // Step 4: Bold
         text = text.replace(/\*\*([^\*\n]+?)\*\*/g, '<strong class="markdown-bold">$1</strong>');
         text = text.replace(/__([^_\n]+?)__/g, '<strong class="markdown-bold">$1</strong>');
 
-        // Step 5: Parse italic (*text* or _text_)
+        // Step 5: Italic
         text = text.replace(/\*([^\*\n]+?)\*/g, '<em class="markdown-italic">$1</em>');
         text = text.replace(/_([^_\n]+?)_/g, '<em class="markdown-italic">$1</em>');
 
-        // Step 6: Parse ordered lists (1. 2. 3.)
+        // Step 6: Lists
         text = text.replace(/^\d+\.\s+(.+)$/gm, '<li class="markdown-list-item">$1</li>');
         text = text.replace(/(<li class="markdown-list-item">.*?<\/li>)/s, '<ol class="markdown-ordered-list">$1</ol>');
-
-        // Step 7: Parse unordered lists (- or *)
         text = text.replace(/^[\-\*]\s+(.+)$/gm, '<li class="markdown-list-item">$1</li>');
         text = text.replace(/(<li class="markdown-list-item">.*?<\/li>)/s, '<ul class="markdown-unordered-list">$1</ul>');
 
-        // Step 8: Parse headers (#, ##, ###)
+        // Step 7: Headers
         text = text.replace(/^###\s+(.+)$/gm, '<h3 class="markdown-h3">$1</h3>');
         text = text.replace(/^##\s+(.+)$/gm, '<h2 class="markdown-h2">$1</h2>');
         text = text.replace(/^#\s+(.+)$/gm, '<h1 class="markdown-h1">$1</h1>');
 
-        // Step 9: Parse line breaks
+        // Step 8: Line breaks
         text = text.replace(/\n/g, '<br>');
 
         return text;
     }
 
     // ============================================
-    // MESSAGE DISPLAY FUNCTION
+    // MESSAGE DISPLAY
     // ============================================
-    // 1. Function to create HTML bubbles
     function appendMessage(role, text) {
         const isUser = role === 'user';
         
@@ -80,12 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'bg-white text-slate-700 rounded-tl-none border-slate-100'
         }`;
         
-        // Security: Use innerHTML safely for AI responses (markdown parsed and escaped)
-        // Use textContent for user messages (no parsing needed)
         if (isUser) {
             bubble.textContent = text;
         } else {
-            // Parse markdown and insert as HTML
             bubble.innerHTML = parseMarkdown(text);
         }
 
@@ -93,11 +93,10 @@ document.addEventListener('DOMContentLoaded', () => {
         wrapper.appendChild(bubble);
         chatContainer.appendChild(wrapper);
 
-        // Auto scroll to bottom
+        // Auto scroll
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // 2. Function to create a "Thinking..." bubble
     function showTypingIndicator() {
         const wrapper = document.createElement('div');
         wrapper.id = 'typingIndicator';
@@ -117,7 +116,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return wrapper;
     }
 
-    // 3. Handle Sending
+    // ============================================
+    // HANDLE SEND
+    // ============================================
     async function handleSend() {
         const text = userMsgInput.value.trim();
         if (!text) return;
@@ -131,10 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const typingBubble = showTypingIndicator();
 
         try {
-           
+            // Check API
+            if (!window.api) throw new Error("API Interceptor missing");
 
+            // C. Send Request using window.api.post
             const response = await window.api.post('/ai/api/chat', { message: text, history: chatHistory });
-
             const data = await response.json();
 
             // D. Remove Thinking Bubble
@@ -146,9 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update History
                 chatHistory.push({ role: 'user', content: text });
                 chatHistory.push({ role: 'assistant', content: data.reply });
+            } else {
+                appendMessage('assistant', 'Received empty response.');
             }
 
         } catch (error) {
+            console.error(error);
             typingBubble.remove();
             appendMessage('assistant', 'Sorry, I had a connection error.');
         } finally {
@@ -163,6 +168,4 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') handleSend();
     });
 
-    // Ensure chat container has proper hover class for scrollbar
-    chatContainer.classList.add('no-scrollbar');
-});
+})();

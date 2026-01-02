@@ -12,8 +12,8 @@ router.get('/chat', (req, res) => {
 });
 
 // Define the endpoint
-router.post('/api/ai-check', verifyToken, aiController.getSentiment);
+router.post('/api/ai-check',  aiController.getSentiment);
 
-router.post('/api/chat', verifyToken, aiController.chat);
+router.post('/api/chat', aiController.chat);
 
 module.exports = router;

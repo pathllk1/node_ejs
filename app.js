@@ -5,6 +5,7 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const csp = require('./middleware/csp');
 const sanitizer = require('./middleware/sanitizer');
+const verifyToken = require('./middleware/authMiddleware');
 const optionalAuth = require('./middleware/optionalAuth');
 const requestLogger = require('./middleware/requestLogger');
 
@@ -44,8 +45,8 @@ app.use(requestLogger);
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/ai', aiPyRouter);
-app.use('/admin', adminRouter);
+app.use('/ai', verifyToken, aiPyRouter);
+app.use('/admin', verifyToken, adminRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

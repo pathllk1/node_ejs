@@ -41,4 +41,43 @@ db.exec(`
     ) STRICT;
 `);
 
+// --- STOCKS TABLE MIGRATION ---
+const createStocksTable = `
+    CREATE TABLE IF NOT EXISTS stocks (
+        id INTEGER PRIMARY KEY,
+        item TEXT NOT NULL,
+        pno TEXT, 
+        batch TEXT, 
+        oem TEXT,
+        hsn TEXT NOT NULL,
+        qty REAL NOT NULL,
+        uom TEXT NOT NULL,
+        rate REAL NOT NULL,
+        grate REAL NOT NULL,
+        total REAL NOT NULL,
+        mrp REAL,
+        expiryDate TEXT,
+        user TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    ) STRICT;
+`;
+
+db.exec(createStocksTable);
+
+// Add Unique Indexes specifically for pno and batch allows NULLs to be non-unique (SQLite standard), 
+// but prevents duplicate non-null values.
+try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_pno ON stocks(pno) WHERE pno IS NOT NULL;`); } catch (e) {}
+try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_batch ON stocks(batch) WHERE batch IS NOT NULL;`); } catch (e) {}
+
+// Simple migration helper to add columns if they are missing in existing table
+const columnsToAdd = ['mrp', 'expiryDate', 'oem', 'pno', 'batch'];
+columnsToAdd.forEach(col => {
+    try {
+        db.exec(`ALTER TABLE stocks ADD COLUMN ${col} TEXT;`); // Note: In STRICT mode, might need specific type handling if table wasn't empty, but usually fine for add column
+    } catch (err) {
+        // Ignore duplicate column errors
+    }
+});
+
 module.exports = db;

@@ -1,3 +1,143 @@
 <% layout('layouts/main') -%>
 
-<H1>Stocks</H1>
+<div class="p-4 w-full mx-auto">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Stock Management</h1>
+        <div class="flex gap-2">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search stocks..." 
+                    class="border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 text-sm w-64 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm transition-all">
+                <span class="absolute right-2.5 top-1.5 text-gray-400">🔍</span>
+            </div>
+            <button id="addStockBtn" 
+                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1">
+                <span>+</span> Add Stock
+            </button>
+        </div>
+    </div>
+
+    <div class="overflow-hidden shadow-md rounded-lg border border-gray-200 bg-white">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                    <tr class="bg-gradient-to-r from-gray-50 to-gray-200 text-gray-600 text-xs uppercase font-bold border-b border-gray-300 tracking-wider">
+                        <th class="px-4 py-3 w-10">ID</th>
+                        <th class="px-4 py-3">Item Name</th>
+                        <th class="px-4 py-3">P.No</th>
+                        <th class="px-4 py-3">Batch</th>
+                        <th class="px-4 py-3">HSN</th>
+                        <th class="px-4 py-3 text-right">Qty</th>
+                        <th class="px-4 py-3 text-center">UOM</th>
+                        <th class="px-4 py-3 text-right">Rate</th>
+                        <th class="px-4 py-3 text-right">GST %</th>
+                        <th class="px-4 py-3 text-right">Total</th>
+                        <th class="px-4 py-3 text-right">MRP</th>
+                        <th class="px-4 py-3">Expiry</th>
+                        <th class="px-4 py-3 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody" class="text-xs text-gray-700 divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="flex justify-between items-center mt-4 text-xs font-medium text-gray-600">
+        <span id="pageInfo" class="bg-gray-100 px-3 py-1 rounded-full">Loading...</span>
+        <div class="flex gap-2">
+            <button id="prevBtn" class="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white transition">Previous</button>
+            <button id="nextBtn" class="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white transition">Next</button>
+        </div>
+    </div>
+</div>
+
+<div id="stockModal" class="fixed inset-0 bg-gray-900/60 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl transform transition-all scale-100 overflow-hidden">
+        
+        <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 flex justify-between items-center">
+            <h2 id="modalTitle" class="text-lg font-bold text-white tracking-wide">Add New Stock</h2>
+            <button id="closeModalBtn" class="text-white/80 hover:text-white text-2xl font-light leading-none">&times;</button>
+        </div>
+        
+        <form id="stockForm" class="p-6">
+            <input type="hidden" id="stockId">
+            
+            <div class="grid grid-cols-12 gap-4 text-sm">
+                <div class="col-span-8">
+                    <label class="block text-gray-700 font-semibold mb-1">Item Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="item" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+                <div class="col-span-4">
+                    <label class="block text-gray-700 font-semibold mb-1">HSN Code <span class="text-red-500">*</span></label>
+                    <input type="text" name="hsn" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div class="col-span-4">
+                    <label class="block text-gray-600 font-medium mb-1">Part No</label>
+                    <input type="text" name="pno" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="col-span-4">
+                    <label class="block text-gray-600 font-medium mb-1">Batch No</label>
+                    <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="col-span-4">
+                    <label class="block text-gray-600 font-medium mb-1">OEM</label>
+                    <input type="text" name="oem" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div class="col-span-3">
+                    <label class="block text-gray-700 font-bold mb-1">Quantity <span class="text-red-500">*</span></label>
+                    <input type="number" step="0.01" name="qty" id="qty" required class="w-full border border-gray-300 bg-yellow-50 rounded px-3 py-2 focus:ring-2 focus:ring-yellow-400 outline-none font-medium">
+                </div>
+                <div class="col-span-3">
+                    <label class="block text-gray-700 font-bold mb-1">UOM <span class="text-red-500">*</span></label>
+                    <select name="uom" required class="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <option value="PCS">PCS</option>
+                        <option value="KG">KG</option>
+                        <option value="LTR">LTR</option>
+                        <option value="MTR">MTR</option>
+                        <option value="BOX">BOX</option>
+                        <option value="NOS">NOS</option>
+                        <option value="SET">SET</option>
+                        <option value="ROL">ROL</option>
+                        <option value="UNIT">UNIT</option>
+                        <option value="OTH">OTH</option>
+                    </select>
+                </div>
+                <div class="col-span-3">
+                    <label class="block text-gray-700 font-bold mb-1">Rate (Basic) <span class="text-red-500">*</span></label>
+                    <input type="number" step="0.01" name="rate" id="rate" required class="w-full border border-gray-300 bg-yellow-50 rounded px-3 py-2 focus:ring-2 focus:ring-yellow-400 outline-none font-medium">
+                </div>
+                <div class="col-span-3">
+                    <label class="block text-gray-700 font-bold mb-1">GST Rate (%)</label>
+                    <input type="number" step="0.01" name="grate" id="grate" required placeholder="e.g 18" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div class="col-span-4">
+                    <label class="block text-gray-600 font-medium mb-1">MRP</label>
+                    <input type="number" step="0.01" name="mrp" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="col-span-4">
+                    <label class="block text-gray-600 font-medium mb-1">Expiry Date</label>
+                    <input type="date" name="expiryDate" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none text-gray-500">
+                </div>
+                <div class="col-span-4">
+                    <label class="block text-gray-500 font-medium mb-1 text-xs uppercase">Basic Total (Read Only)</label>
+                    <div id="displayTotal" class="w-full bg-gray-100 border border-gray-200 text-gray-700 px-3 py-2 rounded font-mono font-bold text-right">0.00</div>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-gray-100 flex justify-between items-center bg-gray-50 -mx-6 -mb-6 px-6 py-4">
+                <div class="text-xs text-gray-500">
+                    <span class="block">Est. Tax: <span id="calcTax" class="font-medium text-gray-700">0.00</span></span>
+                    <span class="block mt-0.5">Grand Total (Inc. Tax): <span id="calcGrandTotal" class="font-bold text-indigo-700">0.00</span></span>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" id="cancelModalBtn" class="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-200 transition">Save Record</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/javascripts/inventory/stocks.js"></script>

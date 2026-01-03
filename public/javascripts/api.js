@@ -2,6 +2,8 @@
 window.api = {
     get: async (url) => request('GET', url),
     post: async (url, body) => request('POST', url, body),
+    put: async (url, body) => request('PUT', url, body),    // Added
+    delete: async (url) => request('DELETE', url),          // Added
 };
 
 async function request(method, url, body = null) {

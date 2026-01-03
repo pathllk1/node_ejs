@@ -23,11 +23,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const inventoryBtn = document.getElementById('inventory-menu-btn');
+    const inventoryDropdown = document.getElementById('inventory-dropdown');
+    if (inventoryBtn && inventoryDropdown) {
+        inventoryBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            inventoryDropdown.classList.toggle('hidden');
+        });
+        document.addEventListener('click', (e) => {
+            if (!inventoryBtn.contains(e.target) && !inventoryDropdown.contains(e.target)) {
+                inventoryDropdown.classList.add('hidden');
+            }
+        });
+    }
+
     // --- 3. Mobile Tools Toggle ---
     const mToolsBtn = document.getElementById('mobile-tools-btn');
     const mToolsMenu = document.getElementById('mobile-tools-menu');
     if (mToolsBtn && mToolsMenu) {
         mToolsBtn.addEventListener('click', () => mToolsMenu.classList.toggle('hidden'));
+    }
+
+    const mInventoryBtn = document.getElementById('mobile-inventory-btn');
+    const mInventoryMenu = document.getElementById('mobile-inventory-menu');
+    if (mInventoryBtn && mInventoryMenu) {
+        mInventoryBtn.addEventListener('click', () => mInventoryMenu.classList.toggle('hidden'));
     }
 });
 
@@ -55,6 +75,9 @@ document.addEventListener('click', async (e) => {
         shouldIntercept = true;
     }
     else if (path === '/admin/logs') {
+        shouldIntercept = true;
+    }
+    else if (path === '/inventory/stocks') {
         shouldIntercept = true;
     }
 
@@ -117,8 +140,15 @@ document.addEventListener('click', async (e) => {
                 // Close all menus
                 const mobileMenu = document.getElementById('mobile-menu');
                 const toolsDropdown = document.getElementById('tools-dropdown');
+                const inventoryDropdown = document.getElementById('inventory-dropdown');
                 if (mobileMenu) mobileMenu.classList.add('hidden');
                 if (toolsDropdown) toolsDropdown.classList.add('hidden');
+                if (inventoryDropdown) inventoryDropdown.classList.add('hidden');
+
+                const mobileInventoryMenu = document.getElementById('mobile-inventory-menu');
+                const mobileInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
+                if (mobileInventoryMenu) mobileInventoryMenu.classList.add('hidden');
+                if (mobileInventoryDropdown) mobileInventoryDropdown.classList.add('hidden');
             }
 
         } catch (err) {
@@ -134,11 +164,17 @@ document.addEventListener('click', async (e) => {
 function closeAllMenus() {
     const mobileMenu = document.getElementById('mobile-menu');
     const toolsDropdown = document.getElementById('tools-dropdown');
+    const inventoryDropdown = document.getElementById('inventory-dropdown');
     
     if (mobileMenu) mobileMenu.classList.add('hidden');
     if (toolsDropdown) toolsDropdown.classList.add('hidden');
-}
+    if (inventoryDropdown) inventoryDropdown.classList.add('hidden');
 
+    const mobileInventoryMenu = document.getElementById('mobile-inventory-menu');
+    const mobileInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
+    if (mobileInventoryMenu) mobileInventoryMenu.classList.add('hidden');
+    if (mobileInventoryDropdown) mobileInventoryDropdown.classList.add('hidden');
+}
 // Handle Back/Forward buttons
 window.addEventListener('popstate', () => {
     window.location.reload();

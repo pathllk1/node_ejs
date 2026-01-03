@@ -5,6 +5,97 @@ let filteredStocks = [];
 let currentPage = 1;
 const itemsPerPage = 12;
 
+/**
+ * ==========================================
+ * 1. TOAST NOTIFICATION SYSTEM
+ * ==========================================
+ */
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const template = document.getElementById('toast-template');
+
+    if (!container || !template) {
+        console.warn('Toast container or template not found in DOM.');
+        alert(message); // Fallback
+        return;
+    }
+
+    // Clone the template
+    const toast = template.cloneNode(true);
+    
+    // Remove the ID to avoid duplicates in DOM
+    toast.removeAttribute('id');
+    
+    // Remove 'hidden' immediately so it exists in layout,
+    // but keep translate-x-full/opacity-0 for the animation start state
+    toast.classList.remove('hidden');
+
+    // 1. Set Message
+    const msgEl = toast.querySelector('#toast-message');
+    if (msgEl) msgEl.textContent = message;
+
+    // 2. Set Icon & Color based on type
+    const iconContainer = toast.querySelector('#toast-icon');
+    
+    // Reset borders
+    toast.classList.remove('border-l-4');
+    toast.classList.add('border-l-4'); // Re-add base class
+
+    if (type === 'success') {
+        toast.classList.add('border-green-500');
+        if (iconContainer) {
+            iconContainer.innerHTML = `
+                <svg class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>`;
+        }
+    } else {
+        toast.classList.add('border-red-500');
+        if (iconContainer) {
+            iconContainer.innerHTML = `
+                <svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>`;
+        }
+    }
+
+    // 3. Attach Close Event (Manual listener to avoid inline CSP issues)
+    const closeBtn = toast.querySelector('button');
+    if (closeBtn) {
+        closeBtn.onclick = (e) => {
+            e.preventDefault();
+            removeToast(toast);
+        };
+    }
+
+    // 4. Append to Container
+    container.appendChild(toast);
+
+    // 5. Trigger Animation (Small timeout ensures DOM reflow happens first)
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full', 'opacity-0');
+    }, 50);
+
+    // 6. Auto Dismiss
+    setTimeout(() => {
+        removeToast(toast);
+    }, 3000);
+}
+
+function removeToast(element) {
+    if (!element) return;
+    
+    // Slide out
+    element.classList.add('translate-x-full', 'opacity-0');
+    
+    // Remove from DOM after transition matches CSS duration (300ms)
+    setTimeout(() => {
+        if (element.parentNode) {
+            element.parentNode.removeChild(element);
+        }
+    }, 350);
+}
+
 // Initialize
 (function initStocksPage() {
     console.log("Stocks page loaded...");
@@ -27,6 +118,7 @@ async function fetchStocks() {
     } catch (err) {
         console.error('Failed to fetch stocks:', err);
         document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="13" class="text-center p-4 text-red-500">Error loading data</td></tr>`;
+        showToast('Failed to fetch stocks: ' + err.message, 'error');
     }
 }
 
@@ -251,9 +343,10 @@ async function handleFormSubmit(e) {
         if (!res.ok) throw new Error(result.error || 'Operation failed');
         
         closeModal();
-        fetchStocks(); 
+        fetchStocks();
+        showToast(id ? 'Stock updated successfully!' : 'Stock added successfully!', 'success');
     } catch (err) {
-        alert('Error: ' + err.message);
+        showToast('Error: ' + err.message, 'error');
     }
 }
 
@@ -263,9 +356,10 @@ async function deleteStock(id) {
     try {
         await window.api.delete(`/inventory/api/stocks/${id}`);
         fetchStocks();
+        showToast('Stock deleted successfully!', 'success');
     } catch (err) {
         console.error(err);
-        alert('Failed to delete stock');
+        showToast('Failed to delete stock: ' + err.message, 'error');
     }
 }
 

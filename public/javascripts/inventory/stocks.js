@@ -67,6 +67,7 @@ function setupEventListeners() {
     document.getElementById('addStockBtn').addEventListener('click', openModal);
     document.getElementById('closeModalBtn').addEventListener('click', closeModal);
     document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+    document.getElementById('exportBtn').addEventListener('click', exportToExcel);
 
     // 4. Auto Calculation Logic
     const qtyInput = document.getElementById('qty');
@@ -135,7 +136,7 @@ function renderTable() {
 
     pageData.forEach(stock => {
         const tr = document.createElement('tr');
-        tr.className = "border-b border-gray-100 hover:bg-lime-50 transition-colors group";
+        tr.className = "border-b border-gray-100 hover:bg-lime-100 transition-colors group";
         
         tr.innerHTML = `
             <td class="px-4 py-2 font-mono text-gray-400 text-[10px]">${stock.id}</td>
@@ -266,5 +267,13 @@ async function deleteStock(id) {
         console.error(err);
         alert('Failed to delete stock');
     }
+}
+
+// Export to Excel
+function exportToExcel() {
+    const ws = XLSX.utils.json_to_sheet(filteredStocks);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Stocks");
+    XLSX.writeFile(wb, "stocks_" + new Date().toISOString().split('T')[0] + ".xlsx");
 }
 })();

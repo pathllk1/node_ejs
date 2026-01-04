@@ -864,12 +864,18 @@
                         throw new Error(result.error || 'Failed to save invoice');
                     }
 
-                    alert('Invoice saved successfully! Bill ID: ' + result.billId);
+                    // Generate professional invoice data for Excel export
+                    const invoiceData = generateInvoiceData(billData, result.billId);
                     
-                    // Optionally reset or redirect
-                    // state.cart = [];
-                    // state.selectedParty = null;
-                    // renderLayout();
+                    // Export to Excel
+                    exportInvoiceToExcel(invoiceData);
+                    
+                    // Reset the sales tab after successful save
+                    state.cart = [];
+                    state.selectedParty = null;
+                    renderLayout();
+
+                    alert('Invoice saved successfully! Bill ID: ' + result.billId + '\nInvoice has been exported to Excel.');
 
                 } catch (error) {
                     console.error('Save error:', error);
@@ -1055,6 +1061,177 @@
         }
 
         return '';
+    }
+
+    // --- EXCEL EXPORT HELPERS ---
+    function generateInvoiceData(billData, billId) {
+        const { meta, party, cart } = billData;
+        
+        // Calculate totals for Excel
+        let totalTaxable = 0;
+        let totalTaxAmount = 0;
+        let cgstAmount = 0;
+        let sgstAmount = 0;
+        let igstAmount = 0;
+        
+        cart.forEach(item => {
+            const lineValue = item.qty * item.rate * (1 - (item.disc || 0) / 100);
+            const lineTax = lineValue * (item.grate / 100);
+            totalTaxable += lineValue;
+            totalTaxAmount += lineTax;
+        });
+        
+        if (meta.billType === 'intra-state') {
+            cgstAmount = totalTaxAmount / 2;
+            sgstAmount = totalTaxAmount / 2;
+        } else {
+            igstAmount = totalTaxAmount;
+        }
+        
+        const grandTotal = totalTaxable + totalTaxAmount;
+        
+        return {
+            meta,
+            party,
+            cart,
+            billId,
+            totalTaxable,
+            totalTaxAmount,
+            cgstAmount,
+            sgstAmount,
+            igstAmount,
+            grandTotal
+        };
+    }
+    
+    function exportInvoiceToExcel(invoiceData) {
+        // Create a new workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Create data array for single sheet
+        const data = [];
+        
+        // 1. Add Invoice Header
+        data.push(['INVOICE', '', '', '', '', '', '', invoiceData.meta.billNo]);
+        data.push(['', '', '', '', '', '', '', invoiceData.meta.billDate]);
+        data.push([]); // Empty row
+        
+        // 2. Add Seller and Buyer Information
+        data.push(['SELLER:', '', '', '', 'BUYER:', '', '']);
+        data.push(['Company Name', '', '', '', invoiceData.party.firm, '', '']);
+        data.push(['GSTIN', '', '', '', invoiceData.party.gstin || 'UNREGISTERED', '', '']);
+        data.push(['Address', '', '', '', invoiceData.party.addr || '', '', '']);
+        data.push(['State', '', '', '', invoiceData.party.state || '', '', '']);
+        data.push(['State Code', '', '', '', invoiceData.party.state_code || '', '', '']);
+        data.push([]); // Empty row
+        
+        // 3. Add Items Table Header
+        data.push(['Sr.', 'Item Description', 'HSN', 'Qty', 'Unit', 'Rate', 'Disc %', 'GST %', 'Amount']);
+        
+        // 4. Add Items
+        invoiceData.cart.forEach((item, index) => {
+            const lineTotal = item.qty * item.rate * (1 - (item.disc || 0) / 100);
+            data.push([
+                index + 1,
+                item.item,
+                item.hsn,
+                item.qty,
+                item.uom,
+                item.rate,
+                item.disc || 0,
+                item.grate,
+                lineTotal.toFixed(2)
+            ]);
+        });
+        
+        data.push([]); // Empty row
+        
+        // 5. Add Totals
+        data.push(['', '', '', '', '', 'Taxable Value:', invoiceData.totalTaxable.toFixed(2)]);
+        
+        if (invoiceData.meta.billType === 'intra-state') {
+            data.push(['', '', '', '', '', 'CGST:', invoiceData.cgstAmount.toFixed(2)]);
+            data.push(['', '', '', '', '', 'SGST:', invoiceData.sgstAmount.toFixed(2)]);
+        } else {
+            data.push(['', '', '', '', '', 'IGST:', invoiceData.igstAmount.toFixed(2)]);
+        }
+        
+        data.push(['', '', '', '', '', 'Total Tax:', invoiceData.totalTaxAmount.toFixed(2)]);
+        data.push(['', '', '', '', '', 'GRAND TOTAL:', invoiceData.grandTotal.toFixed(2)]);
+        
+        // Create worksheet
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        // Add styling and formatting
+        // Header styling
+        ws['A1'] = { t: 's', v: 'INVOICE', s: { font: { bold: true, sz: 16 }, alignment: { horizontal: 'left' } } };
+        ws['H1'] = { t: 's', v: invoiceData.meta.billNo, s: { font: { bold: true, sz: 14 }, alignment: { horizontal: 'right' } } };
+        ws['H2'] = { t: 's', v: invoiceData.meta.billDate, s: { font: { sz: 12 }, alignment: { horizontal: 'right' } } };
+        
+        // Section headers
+        ws['A4'] = { t: 's', v: 'SELLER:', s: { font: { bold: true, sz: 12 } } };
+        ws['E4'] = { t: 's', v: 'BUYER:', s: { font: { bold: true, sz: 12 } } };
+        
+        // Items header
+        const headerRow = 11;
+        for (let col = 0; col < 9; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: headerRow - 1, c: col });
+            if (!ws[cellRef]) continue;
+            ws[cellRef].s = {
+                font: { bold: true, sz: 11 },
+                fill: { fgColor: { rgb: 'DDDDDD' } },
+                border: {
+                    top: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    left: { style: 'thin' },
+                    right: { style: 'thin' }
+                }
+            };
+        }
+        
+        // Add borders to all data cells
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let row = range.s.r; row <= range.e.r; row++) {
+            for (let col = range.s.c; col <= range.e.c; col++) {
+                const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                if (!ws[cellRef]) continue;
+                
+                // Skip cells that already have styling
+                if (ws[cellRef].s) continue;
+                
+                ws[cellRef].s = {
+                    border: {
+                        top: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        left: { style: 'thin' },
+                        right: { style: 'thin' }
+                    }
+                };
+            }
+        }
+        
+        // Set column widths
+        ws['!cols'] = [
+            { wch: 5 },   // Sr.
+            { wch: 40 },  // Item Description
+            { wch: 12 },  // HSN
+            { wch: 8 },   // Qty
+            { wch: 8 },   // Unit
+            { wch: 12 },  // Rate
+            { wch: 10 },  // Disc %
+            { wch: 10 },  // GST %
+            { wch: 15 }   // Amount
+        ];
+        
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
+        
+        // Generate filename with date
+        const dateStr = new Date().toISOString().split('T')[0];
+        const filename = `Invoice_${invoiceData.meta.billNo}_${dateStr}.xlsx`;
+        
+        // Export file
+        XLSX.writeFile(wb, filename);
     }
 
     // --- INIT ---

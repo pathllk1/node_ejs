@@ -109,3 +109,207 @@ exports.deleteStock = (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+// --- PARTIES API ---
+
+exports.getAllParties = (req, res) => {
+    try {
+        const stmt = db.prepare('SELECT * FROM parties ORDER BY created_at DESC');
+        const parties = stmt.all();
+        res.json(parties);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.createParty = (req, res) => {
+    try {
+        const { firm, gstin, contact, state, state_code, addr, pin, pan, user } = req.body;
+        
+        const stmt = db.prepare(`
+            INSERT INTO parties (firm, gstin, contact, state, state_code, addr, pin, pan, usern, supply, created_at, updated_at)
+            VALUES (@firm, @gstin, @contact, @state, @state_code, @addr, @pin, @pan, @user, @supply, @created_at, @updated_at)
+        `);
+
+        const result = stmt.run({
+            firm,
+            gstin: gstin || 'UNREGISTERED',
+            contact: contact || null,
+            state: state || '',
+            state_code: state_code || null,
+            addr: addr || null,
+            pin: pin || null,
+            pan: pan || null,
+            user: user || 'system',
+            supply: state || '', // Assuming place of supply is state
+            created_at: now(),
+            updated_at: now()
+        });
+
+        res.json({ id: result.lastInsertRowid, message: 'Party created successfully' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
+// --- BILLS API (Sales Transaction) ---
+
+exports.createBill = (req, res) => {
+    // Expects: { meta: {}, party: {}, cart: [], user: '' }
+    const { meta, party, cart, user } = req.body; 
+
+    if (!cart || cart.length === 0) {
+        return res.status(400).json({ error: "Cart cannot be empty" });
+    }
+
+    // 1. Calculate Header Totals
+    let gtot = 0; // Taxable Total
+    let totalTax = 0;
+
+    cart.forEach(item => {
+        const lineVal = item.qty * item.rate * (1 - (item.disc || 0)/100);
+        const lineTax = lineVal * (item.grate / 100);
+        gtot += lineVal;
+        totalTax += lineTax;
+    });
+
+    const ntot = gtot + totalTax; // Grand Total
+    const supplyState = party.state || 'Local';
+
+    // 2. Perform Transaction (Insert Bill -> Insert Items -> Deduct Stock)
+    const transaction = db.transaction(() => {
+        // A. Insert Bill Header
+        const insertBill = db.prepare(`
+            INSERT INTO bills (
+                bno, bdate, supply, addr, gstin, state, 
+                gtot, ntot, btype, usern, firm, 
+                party_id, created_at, updated_at
+            ) VALUES (
+                @bno, @bdate, @supply, @addr, @gstin, @state,
+                @gtot, @ntot, @btype, @usern, @firm,
+                @party_id, @created_at, @updated_at
+            )
+        `);
+
+        const billResult = insertBill.run({
+            bno: meta.billNo,
+            bdate: meta.billDate,
+            supply: supplyState,
+            addr: party.addr || '',
+            gstin: party.gstin || 'UNREGISTERED',
+            state: party.state || '',
+            gtot: gtot,
+            ntot: ntot,
+            btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
+            usern: user || 'system',
+            firm: party.firm,
+            party_id: party.id || null,
+            created_at: now(),
+            updated_at: now()
+        });
+
+        const billId = billResult.lastInsertRowid;
+
+        // B. Prepare Statements for Line Items
+        const insertReg = db.prepare(`
+            INSERT INTO stock_reg (
+                type, bno, bdate, supply, item, batch, hsn, 
+                qty, uom, rate, grate, disc, total, 
+                stock_id, bill_id, user, firm, created_at, updated_at, qtyh
+            ) VALUES (
+                'SALE', @bno, @bdate, @supply, @item, @batch, @hsn,
+                @qty, @uom, @rate, @grate, @disc, @total,
+                @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0
+            )
+        `);
+
+        const updateStockQty = db.prepare(`
+            UPDATE stocks SET qty = qty - @qty WHERE id = @id
+        `);
+
+        // C. Process Items
+        cart.forEach(item => {
+            const lineTotal = item.qty * item.rate * (1 - (item.disc || 0)/100);
+
+            insertReg.run({
+                bno: meta.billNo,
+                bdate: meta.billDate,
+                supply: supplyState,
+                item: item.item,
+                batch: item.batch || null,
+                hsn: item.hsn,
+                qty: item.qty,
+                uom: item.uom,
+                rate: item.rate,
+                grate: item.grate,
+                disc: item.disc || 0,
+                total: lineTotal,
+                stock_id: item.stockId,
+                bill_id: billId,
+                user: user || 'system',
+                firm: party.firm,
+                created_at: now(),
+                updated_at: now()
+            });
+
+            // Deduct from Stock
+            updateStockQty.run({
+                qty: item.qty,
+                id: item.stockId
+            });
+        });
+
+        return billId;
+    });
+
+    try {
+        const billId = transaction(); // Execute Transaction
+        res.json({ message: "Bill saved successfully", billId });
+    } catch (err) {
+        console.error("Transaction Error:", err);
+        res.status(500).json({ error: "Failed to save bill: " + err.message });
+    }
+};
+
+exports.getAllBills = (req, res) => {
+    try {
+        const stmt = db.prepare('SELECT * FROM bills ORDER BY created_at DESC');
+        const bills = stmt.all();
+        res.json(bills);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// ... existing imports
+
+exports.lookupGST = async (req, res) => {
+    const { gstin } = req.query;
+
+    if (!gstin) {
+        return res.status(400).json({ error: 'GSTIN is required' });
+    }
+
+    // RAPID API CONFIG (Keep your secrets on the server!)
+    const RAPIDAPI_KEY = '520f2a3f21msh31f572b09541cffp199102jsn33e8d1e9997d'; 
+    const url = `https://powerful-gstin-tool.p.rapidapi.com/v1/gstin/${gstin}/details`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-key': RAPIDAPI_KEY,
+                'x-rapidapi-host': 'powerful-gstin-tool.p.rapidapi.com'
+            }
+        });
+
+        const data = await response.json();
+        
+        // Pass the data back to your frontend
+        res.json(data);
+
+    } catch (error) {
+        console.error('GST API Error:', error);
+        res.status(500).json({ error: 'Failed to fetch GST details' });
+    }
+};

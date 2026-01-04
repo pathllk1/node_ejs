@@ -228,7 +228,7 @@ function renderTable() {
 
     pageData.forEach(stock => {
         const tr = document.createElement('tr');
-        tr.className = "border-b border-gray-100 hover:bg-lime-100 transition-colors group";
+        tr.className = "border-b border-gray-100 hover:bg-lime-300 transition-colors group";
         
         tr.innerHTML = `
             <td class="px-4 py-2 font-mono text-gray-400 text-[10px]">${stock.id}</td>

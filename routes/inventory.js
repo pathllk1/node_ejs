@@ -6,6 +6,8 @@ const controller = require('../controllers/inventory/inventory');
 // View Route
 router.get('/stocks', controller.renderStocksPage);
 
+router.get('/bills', controller.renderBillsPage);
+
 // API Routes
 router.get('/api/stocks', controller.getAllStocks);
 router.post('/api/stocks', controller.createStock);

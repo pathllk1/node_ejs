@@ -81,6 +81,10 @@ document.addEventListener('click', async (e) => {
         shouldIntercept = true;
     }
 
+    else if (path === '/inventory/bills') {
+        shouldIntercept = true;
+    }
+
     // 3. IF MATCHED, EXECUTE AJAX NAVIGATION
     if (shouldIntercept) {
         e.preventDefault();

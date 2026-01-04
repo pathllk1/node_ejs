@@ -8,6 +8,12 @@ exports.renderStocksPage = (req, res) => {
     res.render('inventory/stocks', { title: 'Stock Management', user: req.user || { username: 'Guest' } });
 };
 
+exports.renderBillsPage = (req, res) => {
+    // You can pass the logged-in user here if available in req.user
+    res.render('inventory/bills', { title: 'Inventory Bills', user: req.user || { username: 'Guest' } });
+};
+
+
 exports.getAllStocks = (req, res) => {
     try {
         const stmt = db.prepare('SELECT * FROM stocks ORDER BY created_at DESC');

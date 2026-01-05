@@ -155,8 +155,8 @@ exports.createParty = (req, res) => {
 // --- BILLS API (Sales Transaction) ---
 
 exports.createBill = (req, res) => {
-    // Expects: { meta: {}, party: {}, cart: [], user: '' }
-    const { meta, party, cart, user } = req.body; 
+    // Expects: { meta: {}, party: {}, cart: [], otherCharges: [], user: '' }
+    const { meta, party, cart, otherCharges, user } = req.body; 
 
     if (!cart || cart.length === 0) {
         return res.status(400).json({ error: "Cart cannot be empty" });
@@ -178,35 +178,76 @@ exports.createBill = (req, res) => {
 
     // 2. Perform Transaction (Insert Bill -> Insert Items -> Deduct Stock)
     const transaction = db.transaction(() => {
-        // A. Insert Bill Header
+        // A. Insert Bill Header - Check for duplicate bill numbers
         const insertBill = db.prepare(`
             INSERT INTO bills (
                 bno, bdate, supply, addr, gstin, state, 
                 gtot, ntot, btype, usern, firm, 
-                party_id, created_at, updated_at
+                party_id, oth_chg_json, created_at, updated_at
             ) VALUES (
                 @bno, @bdate, @supply, @addr, @gstin, @state,
                 @gtot, @ntot, @btype, @usern, @firm,
-                @party_id, @created_at, @updated_at
+                @party_id, @oth_chg_json, @created_at, @updated_at
             )
         `);
 
-        const billResult = insertBill.run({
-            bno: meta.billNo,
-            bdate: meta.billDate,
-            supply: supplyState,
-            addr: party.addr || '',
-            gstin: party.gstin || 'UNREGISTERED',
-            state: party.state || '',
-            gtot: gtot,
-            ntot: ntot,
-            btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
-            usern: user || 'system',
-            firm: party.firm,
-            party_id: party.id || null,
-            created_at: now(),
-            updated_at: now()
-        });
+        // Retry logic in case of duplicate bill number
+        let billResult;
+        let attempts = 0;
+        const maxAttempts = 10; // Limit retries to prevent infinite loop
+        
+        while (attempts < maxAttempts) {
+            try {
+                billResult = insertBill.run({
+                    bno: meta.billNo,
+                    bdate: meta.billDate,
+                    supply: supplyState,
+                    addr: party.addr || '',
+                    gstin: party.gstin || 'UNREGISTERED',
+                    state: party.state || '',
+                    gtot: gtot,
+                    ntot: ntot,
+                    btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
+                    usern: user || 'system',
+                    firm: party.firm,
+                    party_id: party.id || null,
+                    oth_chg_json: otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
+                    created_at: now(),
+                    updated_at: now()
+                });
+                break; // Success, exit the loop
+            } catch (error) {
+                // Check if the error is due to a duplicate bill number
+                if (error.message.includes('UNIQUE constraint') || error.message.includes('duplicate')) {
+                    attempts++;
+                    console.warn(`Duplicate bill number detected: ${meta.billNo}. Attempt ${attempts}/${maxAttempts}`);
+                    
+                    // Generate a new bill number by incrementing the sequence
+                    const parts = meta.billNo.split('-');
+                    if (parts.length === 3) {
+                        const prefix = parts[0];
+                        const year = parts[1];
+                        const seqNum = parseInt(parts[2]);
+                        if (!isNaN(seqNum)) {
+                            const newSeqNum = seqNum + attempts; // Increment by the attempt number
+                            meta.billNo = `${prefix}-${year}-${newSeqNum.toString().padStart(3, '0')}`;
+                            console.log(`Generated new bill number: ${meta.billNo}`);
+                        } else {
+                            throw new Error(`Invalid bill number format: ${meta.billNo}`);
+                        }
+                    } else {
+                        throw new Error(`Invalid bill number format: ${meta.billNo}`);
+                    }
+                } else {
+                    // Some other error occurred, re-throw it
+                    throw error;
+                }
+            }
+        }
+        
+        if (attempts >= maxAttempts) {
+            throw new Error(`Failed to generate unique bill number after ${maxAttempts} attempts`);
+        }
 
         const billId = billResult.lastInsertRowid;
 
@@ -275,8 +316,63 @@ exports.getAllBills = (req, res) => {
     try {
         const stmt = db.prepare('SELECT * FROM bills ORDER BY created_at DESC');
         const bills = stmt.all();
-        res.json(bills);
+        
+        // Parse the oth_chg_json field for each bill
+        const processedBills = bills.map(bill => {
+            if (bill.oth_chg_json) {
+                try {
+                    bill.otherCharges = JSON.parse(bill.oth_chg_json);
+                } catch (e) {
+                    console.warn('Failed to parse other charges for bill', bill.id, e.message);
+                    bill.otherCharges = [];
+                }
+            } else {
+                bill.otherCharges = [];
+            }
+            return bill;
+        });
+        
+        res.json(processedBills);
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Function to generate next bill number automatically
+exports.getNextBillNumber = (req, res) => {
+    try {
+        const currentYear = new Date().getFullYear();
+        const prefix = 'INV'; // Can be made configurable if needed
+        
+        // Query to find the highest bill number with the current year and prefix
+        // Since SQLite doesn't support negative positions in INSTR, we'll use a simpler approach
+        // and extract the number part in JavaScript
+        const stmt = db.prepare(
+            `SELECT bno FROM bills 
+             WHERE bno LIKE ? 
+             ORDER BY bno DESC 
+             LIMIT 1`
+        );
+        
+        const pattern = `${prefix}-${currentYear}-%`;
+        const result = stmt.get(pattern);
+        
+        let nextNumber = 1;
+        if (result) {
+            // Extract the number part and increment it
+            const lastBillNo = result.bno;
+            const numberPart = lastBillNo.split('-')[2];
+            const lastNumber = parseInt(numberPart);
+            nextNumber = lastNumber + 1;
+        }
+        
+        // Format the new bill number with leading zeros (3 digits)
+        const formattedNumber = nextNumber.toString().padStart(3, '0');
+        const nextBillNo = `${prefix}-${currentYear}-${formattedNumber}`;
+        
+        res.json({ billNo: nextBillNo });
+    } catch (err) {
+        console.error('Error generating next bill number:', err);
         res.status(500).json({ error: err.message });
     }
 };

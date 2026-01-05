@@ -224,6 +224,13 @@ db.exec(`
 try {
     // Lookup bills by number
     db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_bno ON bills(bno);`);
+    
+    // Create unique constraint for bill numbers (add if not exists)
+    try {
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bills_bno_unique ON bills(bno);`);
+    } catch (e) {
+        console.warn('Warning: Could not create unique bill number index - possible duplicates exist:', e.message);
+    }
     // Lookup stock registers by bill number or item
     db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_bno ON stock_reg(bno);`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_item ON stock_reg(item);`);

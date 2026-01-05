@@ -21,6 +21,7 @@ router.post('/api/parties', controller.createParty);
 // --- API Routes: Bills (Sales) ---
 router.get('/api/bills', controller.getAllBills);
 router.post('/api/bills', controller.createBill);
+router.get('/api/bills/next-number', controller.getNextBillNumber);
 
 router.get('/api/gst-lookup', controller.lookupGST);
 

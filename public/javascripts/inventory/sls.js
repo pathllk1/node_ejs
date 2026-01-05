@@ -15,15 +15,50 @@
         cart: [],       // Current Bill Items
         selectedParty: null,
         meta: {
-            billNo: 'INV-' + new Date().getFullYear() + '-001',
+            billNo: '',
             billDate: new Date().toISOString().split('T')[0],
             billType: 'intra-state', // 'intra-state' or 'inter-state'
             reverseCharge: false
-        }
+        },
+        otherCharges: []  // Array to store other charges
     };
 
     // --- UTILS ---
     const formatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
+    
+    // --- OTHER CHARGES MANAGEMENT ---
+    function addOtherCharge(charge) {
+        // Add default GST rate if not provided
+        if (charge.gstRate === undefined) {
+            charge.gstRate = 0; // Default to 0% GST
+        }
+        
+        // Calculate GST amount
+        charge.gstAmount = (charge.amount * charge.gstRate) / 100;
+        
+        state.otherCharges.push(charge);
+        refreshTable();
+    }
+    
+    function removeOtherCharge(index) {
+        state.otherCharges.splice(index, 1);
+        refreshTable();
+    }
+    
+    function updateOtherCharge(index, charge) {
+        // Calculate GST amount
+        charge.gstAmount = (charge.amount * (charge.gstRate || 0)) / 100;
+        
+        state.otherCharges[index] = charge;
+        refreshTable();
+    }
+    
+    function getTotalOtherCharges() {
+        // Calculate total amount of other charges (excluding their GST)
+        return state.otherCharges.reduce((sum, charge) => {
+            return sum + (parseFloat(charge.amount) || 0);
+        }, 0);
+    }
 
     // --- DATA FETCHING ---
     async function fetchData() {
@@ -43,6 +78,17 @@
             } catch (e) {
                 console.warn("Could not fetch parties, starting with empty list", e);
                 state.parties = [];
+            }
+
+            // 3. Fetch next bill number
+            try {
+                const billNoRes = await window.api.get('/inventory/api/bills/next-number');
+                const billNoData = await billNoRes.json();
+                state.meta.billNo = billNoData.billNo;
+            } catch (e) {
+                console.warn("Could not fetch next bill number, using default", e);
+                // Fallback to original format if API fails
+                state.meta.billNo = 'INV-' + new Date().getFullYear() + '-001';
             }
 
             renderLayout();
@@ -81,6 +127,7 @@
                 </div>
 
                 <div class="flex gap-2">
+                    <button id="btn-other-charges" class="px-3 py-1.5 text-xs text-blue-600 border border-blue-200 bg-blue-50 rounded hover:bg-blue-100 transition-colors">Other Charges</button>
                     <button id="btn-reset" class="px-3 py-1.5 text-xs text-red-600 border border-red-200 bg-red-50 rounded hover:bg-red-100 transition-colors">Reset</button>
                     <button id="btn-save" class="px-4 py-1.5 bg-slate-800 text-white text-xs rounded hover:bg-slate-900 shadow font-medium flex items-center gap-2 transition-colors">
                         <span>💾</span> Save Invoice
@@ -162,6 +209,63 @@
             <div id="sub-modal-content" class="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-300 animate-scale-in">
                 </div>
         </div>
+        
+        <!-- Other Charges Modal -->
+        <div id="other-charges-modal-backdrop" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center backdrop-blur-sm transition-opacity">
+            <div id="other-charges-modal-content" class="bg-white rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-300 animate-scale-in">
+                <div class="bg-slate-800 p-4 flex justify-between items-center text-white">
+                    <h3 class="font-bold text-sm tracking-wide">OTHER CHARGES</h3>
+                    <button id="close-other-charges-modal" class="hover:text-red-300 text-lg transition-colors">&times;</button>
+                </div>
+                
+                <div class="p-6">
+                    <div class="flex gap-4 mb-4">
+                        <input type="text" id="charge-name" placeholder="Charge Name" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <input type="text" id="charge-hsn" placeholder="HSN/SAC" class="w-24 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <input type="number" id="charge-amount" placeholder="Amount" step="0.01" class="w-32 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <input type="number" id="charge-gst" placeholder="GST %" step="0.01" class="w-24 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <select id="charge-type" class="w-40 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none bg-white">
+                            <option value="freight">Freight</option>
+                            <option value="packing">Packing</option>
+                            <option value="handling">Handling</option>
+                            <option value="insurance">Insurance</option>
+                            <option value="others">Others</option>
+                        </select>
+                        <button id="add-charge-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap">
+                            ADD
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4 text-sm text-gray-600">
+                        <span>Total Other Charges: </span>
+                        <span id="total-other-charges" class="font-bold text-blue-700">0.00</span>
+                    </div>
+                    
+                    <div class="overflow-y-auto max-h-80">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-100 text-[11px] font-bold text-gray-500 uppercase">
+                                <tr>
+                                    <th class="p-3">Name</th>
+                                    <th class="p-3">HSN/SAC</th>
+                                    <th class="p-3">Type</th>
+                                    <th class="p-3 text-right">Amount</th>
+                                    <th class="p-3 text-right">GST %</th>
+                                    <th class="p-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="other-charges-list" class="text-xs text-gray-700 divide-y divide-gray-100">
+                                ${renderOtherChargesList()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="p-4 border-t border-gray-200 flex justify-end gap-3">
+                    <button id="cancel-other-charges" class="px-5 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium hover:bg-gray-100 rounded">Cancel</button>
+                    <button id="save-other-charges" class="px-6 py-2 bg-green-600 text-white text-sm font-bold rounded shadow hover:bg-green-700 transition-colors">DONE</button>
+                </div>
+            </div>
+        </div>
         `;
 
         attachGlobalListeners();
@@ -170,6 +274,34 @@
 
     // --- RENDER HELPERS ---
 
+    function renderOtherChargesList() {
+        if (state.otherCharges.length === 0) {
+            return `<tr><td colspan="6" class="p-3 text-center text-gray-400 italic">No other charges added</td></tr>`;
+        }
+        
+        return state.otherCharges.map((charge, index) => {
+            const gstAmount = (charge.amount * (charge.gstRate || 0)) / 100;
+            const totalAmount = charge.amount + gstAmount;
+            return `
+            <tr class="hover:bg-blue-50 transition-colors">
+                <td class="p-3 font-medium">${charge.name}</td>
+                <td class="p-3 text-gray-500">${charge.hsnSac || ''}</td>
+                <td class="p-3 text-gray-500">${charge.type}</td>
+                <td class="p-3 text-right font-bold text-gray-800">${formatCurrency(charge.amount)}</td>
+                <td class="p-3 text-right font-bold text-gray-800">${(charge.gstRate || 0)}%</td>
+                <td class="p-3 text-center">
+                    <button class="btn-remove-charge text-red-600 hover:text-red-800 transition-colors font-bold text-lg leading-none" data-index="${index}">&times;</button>
+                </td>
+            </tr>
+            <tr class="hover:bg-blue-50 transition-colors bg-gray-50">
+                <td class="p-1 text-right text-gray-500 text-xs" colspan="3">GST (${(charge.gstRate || 0)}%):</td>
+                <td class="p-1 text-right text-gray-500 text-xs">${formatCurrency(gstAmount)}</td>
+                <td class="p-1 text-right text-gray-500 text-xs font-bold">Total:</td>
+                <td class="p-1 text-right text-gray-800 text-xs font-bold">${formatCurrency(totalAmount)}</td>
+            </tr>`;
+        }).join('');
+    }
+    
     function renderPartyCard() {
         if (state.selectedParty) {
             return `
@@ -261,8 +393,31 @@
         } else {
             igstAmount = totalTaxAmount;
         }
-
-        const grandTotal = totalTaxable + totalTaxAmount;
+        
+        // Calculate GST on other charges
+        let otherChargesGstTotal = 0;
+        let otherChargesSubtotal = 0;
+        state.otherCharges.forEach(charge => {
+            const chargeAmount = parseFloat(charge.amount) || 0;
+            const chargeGstRate = parseFloat(charge.gstRate) || 0;
+            const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+            otherChargesSubtotal += chargeAmount;
+            otherChargesGstTotal += chargeGstAmount;
+        });
+        
+        // Calculate final tax amounts including other charges GST
+        let finalCgstAmount = cgstAmount;
+        let finalSgstAmount = sgstAmount;
+        let finalIgstAmount = igstAmount;
+        
+        if (state.meta.billType === 'intra-state') {
+            finalCgstAmount = cgstAmount + (otherChargesGstTotal / 2);
+            finalSgstAmount = sgstAmount + (otherChargesGstTotal / 2);
+        } else {
+            finalIgstAmount = igstAmount + otherChargesGstTotal;
+        }
+        
+        const grandTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
 
         return `
         <div class="flex justify-between items-start">
@@ -281,15 +436,17 @@
                 ? `<div>CGST Output</div><div>SGST Output</div>`
                 : `<div>IGST Output</div>`
             }
+                    ${state.otherCharges.length > 0 ? `<div>Other Charges</div>` : ''}
                     <div class="pt-2 mt-2 border-t border-gray-200 font-bold text-gray-700">Grand Total</div>
                 </div>
 
                 <div class="text-right space-y-1.5 font-mono font-bold text-gray-800">
                     <div>${formatCurrency(totalTaxable)}</div>
                     ${state.meta.billType === 'intra-state'
-                ? `<div class="text-gray-600">${formatCurrency(cgstAmount)}</div><div class="text-gray-600">${formatCurrency(sgstAmount)}</div>`
-                : `<div class="text-gray-600">${formatCurrency(igstAmount)}</div>`
+                ? `<div class="text-gray-600">${formatCurrency(finalCgstAmount)}</div><div class="text-gray-600">${formatCurrency(finalSgstAmount)}</div>`
+                : `<div class="text-gray-600">${formatCurrency(finalIgstAmount)}</div>`
             }
+                    ${state.otherCharges.length > 0 ? `<div class="text-gray-600">${formatCurrency(otherChargesSubtotal)}</div>` : ''}
                     <div class="pt-2 mt-2 border-t border-gray-200 font-bold text-lg text-blue-700 leading-none">
                         ${formatCurrency(grandTotal)}
                     </div>
@@ -402,6 +559,103 @@
         });
     }
 
+    // --- MODAL: OTHER CHARGES ---
+    function openOtherChargesModal() {
+        const modal = document.getElementById('other-charges-modal-backdrop');
+        const content = document.getElementById('other-charges-modal-content');
+        if (!modal || !content) return;
+        
+        modal.classList.remove('hidden');
+        
+        // Update the total charges display
+        updateTotalOtherCharges();
+        
+        // Render the charges list
+        const chargesList = document.getElementById('other-charges-list');
+        if (chargesList) {
+            chargesList.innerHTML = renderOtherChargesList();
+        }
+        
+        // Attach event listeners for remove buttons
+        attachOtherChargesListeners();
+        
+        // Add charge button
+        document.getElementById('add-charge-btn').onclick = () => {
+            const name = document.getElementById('charge-name').value.trim();
+            const hsnSac = document.getElementById('charge-hsn').value.trim();
+            const amount = parseFloat(document.getElementById('charge-amount').value);
+            const gstRate = parseFloat(document.getElementById('charge-gst').value) || 0;
+            const type = document.getElementById('charge-type').value;
+            
+            if (!name) {
+                alert('Please enter a charge name');
+                return;
+            }
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            addOtherCharge({
+                name: name,
+                hsnSac: hsnSac,
+                amount: amount,
+                gstRate: gstRate,
+                type: type
+            });
+            
+            // Clear inputs
+            document.getElementById('charge-name').value = '';
+            document.getElementById('charge-hsn').value = '';
+            document.getElementById('charge-amount').value = '';
+            document.getElementById('charge-gst').value = '';
+            
+            // Update the display
+            if (chargesList) {
+                chargesList.innerHTML = renderOtherChargesList();
+            }
+            updateTotalOtherCharges();
+            attachOtherChargesListeners();
+        };
+        
+        // Close button
+        document.getElementById('close-other-charges-modal').onclick = () => modal.classList.add('hidden');
+        document.getElementById('cancel-other-charges').onclick = () => modal.classList.add('hidden');
+        
+        // Save button
+        document.getElementById('save-other-charges').onclick = () => {
+            modal.classList.add('hidden');
+        };
+    }
+    
+    function updateTotalOtherCharges() {
+        const totalElement = document.getElementById('total-other-charges');
+        if (totalElement) {
+            totalElement.textContent = formatCurrency(getTotalOtherCharges());
+        }
+    }
+    
+    function attachOtherChargesListeners() {
+        // Attach listeners to remove buttons
+        document.querySelectorAll('.btn-remove-charge').forEach(btn => {
+            btn.onclick = (e) => {
+                const index = parseInt(e.target.dataset.index);
+                removeOtherCharge(index);
+                
+                // Update the display
+                const chargesList = document.getElementById('other-charges-list');
+                if (chargesList) {
+                    chargesList.innerHTML = renderOtherChargesList();
+                }
+                updateTotalOtherCharges();
+                
+                // Re-attach listeners
+                attachOtherChargesListeners();
+            };
+        });
+    }
+    
     // --- MODAL: CREATE NEW STOCK ---
     function openCreateStockModal() {
         const subModal = document.getElementById('sub-modal-backdrop');
@@ -805,6 +1059,10 @@
 
         const changePartyBtn = document.getElementById('btn-change-party');
         if (changePartyBtn) changePartyBtn.onclick = openPartyModal;
+        
+        // Other charges button
+        const otherChargesBtn = document.getElementById('btn-other-charges');
+        if (otherChargesBtn) otherChargesBtn.onclick = openOtherChargesModal;
 
         document.onkeydown = (e) => {
             if (e.key === 'F2') {
@@ -827,7 +1085,11 @@
                 if (confirm("Clear current invoice details?")) {
                     state.cart = [];
                     state.selectedParty = null;
+                    state.otherCharges = [];
                     renderLayout();
+                    
+                    // Update the total charges display to reflect reset
+                    updateTotalOtherCharges();
                 }
             };
         }
@@ -850,6 +1112,7 @@
                     meta: state.meta,
                     party: state.selectedParty,
                     cart: state.cart,
+                    otherCharges: state.otherCharges,
                     user: 'Admin' // or use actual logged-in user
                 };
 
@@ -873,6 +1136,7 @@
                     // Reset the sales tab after successful save
                     state.cart = [];
                     state.selectedParty = null;
+                    state.otherCharges = [];
                     renderLayout();
 
                     alert('Invoice saved successfully! Bill ID: ' + result.billId + '\nInvoice has been exported to Excel.');
@@ -1088,151 +1352,367 @@
             igstAmount = totalTaxAmount;
         }
         
-        const grandTotal = totalTaxable + totalTaxAmount;
+        // Include other charges
+        const otherChargesTotal = getTotalOtherCharges();
+        const grandTotal = totalTaxable + totalTaxAmount + otherChargesTotal;
+        
+        // Calculate final amounts and round off
+        const finalAmount = Math.round(grandTotal);
+        const roundOff = finalAmount - grandTotal;
+        
+        // Calculate GST on other charges
+        let otherChargesGstTotal = 0;
+        let otherChargesSubtotal = 0;
+        const processedOtherCharges = state.otherCharges.map(charge => {
+            const chargeAmount = parseFloat(charge.amount) || 0;
+            const chargeGstRate = parseFloat(charge.gstRate) || 0;
+            const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+            otherChargesSubtotal += chargeAmount;
+            otherChargesGstTotal += chargeGstAmount;
+            
+            return {
+                ...charge,
+                gstAmount: chargeGstAmount,
+                totalAmount: chargeAmount + chargeGstAmount
+            };
+        });
+        
+        // Calculate final tax amounts including other charges GST
+        let finalCgstAmount = cgstAmount;
+        let finalSgstAmount = sgstAmount;
+        let finalIgstAmount = igstAmount;
+        
+        if (state.meta.billType === 'intra-state') {
+            finalCgstAmount = cgstAmount + (otherChargesGstTotal / 2);
+            finalSgstAmount = sgstAmount + (otherChargesGstTotal / 2);
+        } else {
+            finalIgstAmount = igstAmount + otherChargesGstTotal;
+        }
         
         return {
             meta,
             party,
             cart,
+            otherCharges: processedOtherCharges,
             billId,
             totalTaxable,
             totalTaxAmount,
-            cgstAmount,
-            sgstAmount,
-            igstAmount,
-            grandTotal
+            cgstAmount: finalCgstAmount, // Updated with other charges GST
+            sgstAmount: finalSgstAmount, // Updated with other charges GST
+            igstAmount: finalIgstAmount, // Updated with other charges GST
+            otherChargesSubtotal,
+            otherChargesGstTotal,
+            grandTotal,
+            finalAmount,
+            roundOff
         };
     }
     
-    function exportInvoiceToExcel(invoiceData) {
-        // Create a new workbook
-        const wb = XLSX.utils.book_new();
+   function exportInvoiceToExcel(invoiceData) {
+    // 1. Define Professional Styles
+    const borderStyle = { style: "thin", color: { rgb: "000000" } };
+    const styles = {
+        title: {
+            font: { bold: true, sz: 16, color: { rgb: "000000" } },
+            alignment: { horizontal: "center", vertical: "center" }
+        },
+        header: {
+            font: { bold: true, color: { rgb: "000000" } },
+            fill: { fgColor: { rgb: "E0E0E0" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        },
+        cellCenter: {
+            alignment: { horizontal: "center" },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        },
+        cellLeft: {
+            alignment: { horizontal: "left" },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        },
+        cellRight: {
+            alignment: { horizontal: "right" },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        },
+        totalLabel: {
+            font: { bold: true },
+            alignment: { horizontal: "right" },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        },
+        totalValue: {
+            font: { bold: true },
+            alignment: { horizontal: "right" },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        },
+        words: {
+            font: { italic: true, bold: true },
+            alignment: { horizontal: "left", vertical: "top", wrapText: true },
+            border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+        }
+    };
+
+    const createCell = (v, s) => ({ v: v || "", s: s || {} });
+    const ws_data = [];
+
+    // --- TITLE ROW ---
+    ws_data.push([createCell("TAX INVOICE", styles.title)]);
+    ws_data.push([]); // Spacer
+
+    // --- DETAILS SECTION ---
+    ws_data.push([
+        createCell("SELLER:", { font: { bold: true } }), "", "", "", "", "", 
+        createCell("Invoice No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+        createCell(invoiceData.meta.billNo, { alignment: { horizontal: "left" } })
+    ]);
+
+    ws_data.push([
+        createCell("Your Company Name", { font: { bold: true } }), "", "", "", "", "", 
+        createCell("Date:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+        createCell(invoiceData.meta.billDate, { alignment: { horizontal: "left" } })
+    ]);
+
+    ws_data.push([createCell("BUYER (BILL TO):", { font: { bold: true } })]);
+    ws_data.push([createCell(invoiceData.party.firm, { font: { bold: true } })]);
+    ws_data.push([createCell(invoiceData.party.addr || "")]);
+    ws_data.push([createCell("GSTIN: " + (invoiceData.party.gstin || "Unregistered"))]);
+    
+    ws_data.push([]); // Spacer
+
+    // --- TABLE HEADERS ---
+    const headers = ["Sr", "Description", "HSN", "Qty", "Unit", "Rate", "Disc %", "GST %", "Amount"];
+    ws_data.push(headers.map(h => createCell(h, styles.header)));
+
+    // --- TABLE ITEMS ---
+    invoiceData.cart.forEach((item, index) => {
+        const lineTotal = item.qty * item.rate * (1 - (item.disc || 0) / 100);
+        ws_data.push([
+            createCell(index + 1, styles.cellCenter),
+            createCell(item.item, styles.cellLeft),
+            createCell(item.hsn, styles.cellCenter),
+            createCell(item.qty, styles.cellCenter),
+            createCell(item.uom, styles.cellCenter),
+            createCell(item.rate, styles.cellRight),
+            createCell(item.disc || 0, styles.cellRight),
+            createCell(item.grate, styles.cellRight),
+            createCell(lineTotal.toFixed(2), styles.cellRight)
+        ]);
+    });
         
-        // Create data array for single sheet
-        const data = [];
-        
-        // 1. Add Invoice Header
-        data.push(['INVOICE', '', '', '', '', '', '', invoiceData.meta.billNo]);
-        data.push(['', '', '', '', '', '', '', invoiceData.meta.billDate]);
-        data.push([]); // Empty row
-        
-        // 2. Add Seller and Buyer Information
-        data.push(['SELLER:', '', '', '', 'BUYER:', '', '']);
-        data.push(['Company Name', '', '', '', invoiceData.party.firm, '', '']);
-        data.push(['GSTIN', '', '', '', invoiceData.party.gstin || 'UNREGISTERED', '', '']);
-        data.push(['Address', '', '', '', invoiceData.party.addr || '', '', '']);
-        data.push(['State', '', '', '', invoiceData.party.state || '', '', '']);
-        data.push(['State Code', '', '', '', invoiceData.party.state_code || '', '', '']);
-        data.push([]); // Empty row
-        
-        // 3. Add Items Table Header
-        data.push(['Sr.', 'Item Description', 'HSN', 'Qty', 'Unit', 'Rate', 'Disc %', 'GST %', 'Amount']);
-        
-        // 4. Add Items
-        invoiceData.cart.forEach((item, index) => {
-            const lineTotal = item.qty * item.rate * (1 - (item.disc || 0) / 100);
-            data.push([
-                index + 1,
-                item.item,
-                item.hsn,
-                item.qty,
-                item.uom,
-                item.rate,
-                item.disc || 0,
-                item.grate,
-                lineTotal.toFixed(2)
+    // Add other charges if they exist
+    if (invoiceData.otherCharges && invoiceData.otherCharges.length > 0) {
+        // Add other charges as additional line items
+        invoiceData.otherCharges.forEach(charge => {
+            // Add the main charge
+            ws_data.push([
+                createCell("", styles.cellCenter),
+                createCell(`${charge.type} (${charge.name})`, styles.cellLeft),
+                createCell(charge.hsnSac || "", styles.cellCenter), // HSN/SAC
+                createCell("", styles.cellCenter),
+                createCell("", styles.cellCenter),
+                createCell("", styles.cellRight),
+                createCell("", styles.cellRight),
+                createCell(charge.gstRate || 0, styles.cellRight), // GST rate
+                createCell(formatCurrency(charge.amount), styles.cellRight)
             ]);
+            
+            // Add the GST line
+            if (charge.gstAmount > 0) {
+                ws_data.push([
+                    createCell("", styles.cellCenter),
+                    createCell(`GST on ${charge.type} (${charge.name})`, styles.cellLeft),
+                    createCell(charge.hsnSac || "", styles.cellCenter), // HSN/SAC
+                    createCell("", styles.cellCenter),
+                    createCell("", styles.cellCenter),
+                    createCell("", styles.cellRight),
+                    createCell("", styles.cellRight),
+                    createCell(0, styles.cellRight), // No GST on GST
+                    createCell(formatCurrency(charge.gstAmount), styles.cellRight)
+                ]);
+            }
         });
+    }
+    
+    // Min Rows Filler
+    const minRows = 5;
+    for (let i = 0; i < (minRows - invoiceData.cart.length - (invoiceData.otherCharges ? invoiceData.otherCharges.length : 0)); i++) {
+        // Fix: Use Array.from to create unique cell objects, preventing reference bugs
+        const emptyRow = Array.from({length: 9}, () => createCell('', styles.cellCenter));
+        ws_data.push(emptyRow);
+    }
+    
+    // --- FOOTER SECTION ---
         
-        data.push([]); // Empty row
+    // Calculate the same totals as in renderTotals for consistency
+    let totalTaxable = 0;
+    let totalTaxAmount = 0;
         
-        // 5. Add Totals
-        data.push(['', '', '', '', '', 'Taxable Value:', invoiceData.totalTaxable.toFixed(2)]);
+    // Calculate line by line for cart items
+    invoiceData.cart.forEach(item => {
+        const lineValue = item.qty * item.rate * (1 - (item.disc || 0) / 100);
+        const lineTax = lineValue * (item.grate / 100);
+        totalTaxable += lineValue;
+        totalTaxAmount += lineTax;
+    });
         
-        if (invoiceData.meta.billType === 'intra-state') {
-            data.push(['', '', '', '', '', 'CGST:', invoiceData.cgstAmount.toFixed(2)]);
-            data.push(['', '', '', '', '', 'SGST:', invoiceData.sgstAmount.toFixed(2)]);
-        } else {
-            data.push(['', '', '', '', '', 'IGST:', invoiceData.igstAmount.toFixed(2)]);
+    // Calculate GST on other charges
+    let otherChargesGstTotal = 0;
+    let otherChargesSubtotal = 0;
+    if (invoiceData.otherCharges) {
+        invoiceData.otherCharges.forEach(charge => {
+            const chargeAmount = parseFloat(charge.amount) || 0;
+            const chargeGstRate = parseFloat(charge.gstRate) || 0;
+            const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+            otherChargesSubtotal += chargeAmount;
+            otherChargesGstTotal += chargeGstAmount;
+        });
+    }
+        
+    // Calculate final tax amounts including other charges GST
+    let finalCgstAmount = totalTaxAmount / 2;  // From cart items
+    let finalSgstAmount = totalTaxAmount / 2;  // From cart items
+    let finalIgstAmount = totalTaxAmount;      // From cart items
+        
+    if (invoiceData.meta.billType === 'intra-state') {
+        finalCgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
+        finalSgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
+    } else {
+        finalIgstAmount = totalTaxAmount + otherChargesGstTotal;
+    }
+        
+    const addFooterRow = (label, val, isWordsRow = false) => {
+        // Fix: Create unique empty cells for this row
+        const row = Array.from({length: 9}, () => createCell("", {}));
+        
+        if (isWordsRow) {
+            const wordsTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+            const roundedTotal = Math.round(wordsTotal);
+            row[0] = createCell("Amount in Words:\n" + numToIndianRupees(roundedTotal || 0), styles.words);
         }
+
+        // Totals at columns 6, 7 and 8 - merge G and H columns
+        row[6] = createCell(label, styles.totalLabel); // Column G will contain the label
+        row[7] = createCell("", styles.totalLabel); // Column H will be merged with G
+        row[8] = createCell((typeof val === 'number' ? val : 0).toFixed(2), styles.totalValue);
         
-        data.push(['', '', '', '', '', 'Total Tax:', invoiceData.totalTaxAmount.toFixed(2)]);
-        data.push(['', '', '', '', '', 'GRAND TOTAL:', invoiceData.grandTotal.toFixed(2)]);
-        
-        // Create worksheet
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        
-        // Add styling and formatting
-        // Header styling
-        ws['A1'] = { t: 's', v: 'INVOICE', s: { font: { bold: true, sz: 16 }, alignment: { horizontal: 'left' } } };
-        ws['H1'] = { t: 's', v: invoiceData.meta.billNo, s: { font: { bold: true, sz: 14 }, alignment: { horizontal: 'right' } } };
-        ws['H2'] = { t: 's', v: invoiceData.meta.billDate, s: { font: { sz: 12 }, alignment: { horizontal: 'right' } } };
-        
-        // Section headers
-        ws['A4'] = { t: 's', v: 'SELLER:', s: { font: { bold: true, sz: 12 } } };
-        ws['E4'] = { t: 's', v: 'BUYER:', s: { font: { bold: true, sz: 12 } } };
-        
-        // Items header
-        const headerRow = 11;
-        for (let col = 0; col < 9; col++) {
-            const cellRef = XLSX.utils.encode_cell({ r: headerRow - 1, c: col });
-            if (!ws[cellRef]) continue;
-            ws[cellRef].s = {
-                font: { bold: true, sz: 11 },
-                fill: { fgColor: { rgb: 'DDDDDD' } },
-                border: {
-                    top: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    left: { style: 'thin' },
-                    right: { style: 'thin' }
-                }
-            };
-        }
-        
-        // Add borders to all data cells
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let row = range.s.r; row <= range.e.r; row++) {
-            for (let col = range.s.c; col <= range.e.c; col++) {
-                const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-                if (!ws[cellRef]) continue;
-                
-                // Skip cells that already have styling
-                if (ws[cellRef].s) continue;
-                
-                ws[cellRef].s = {
-                    border: {
-                        top: { style: 'thin' },
-                        bottom: { style: 'thin' },
-                        left: { style: 'thin' },
-                        right: { style: 'thin' }
-                    }
-                };
+        return row;
+    };
+
+    // 1. Taxable
+    ws_data.push(addFooterRow("Taxable Value", totalTaxable, true));
+
+    // 2. Taxes
+    if (invoiceData.meta.billType === 'intra-state') {
+        ws_data.push(addFooterRow("CGST", finalCgstAmount));
+        ws_data.push(addFooterRow("SGST", finalSgstAmount));
+    } else {
+        ws_data.push(addFooterRow("IGST", finalIgstAmount));
+    }
+    
+    // 3. Other Charges (if any)
+    if (invoiceData.otherCharges && invoiceData.otherCharges.length > 0) {
+        // Add each other charge
+        invoiceData.otherCharges.forEach(charge => {
+            ws_data.push(addFooterRow(`${charge.type} (${charge.name})`, charge.amount));
+            
+            // Add GST on the charge if applicable
+            if (charge.gstAmount > 0) {
+                ws_data.push(addFooterRow(`GST on ${charge.type} (${charge.name})`, charge.gstAmount));
+            }
+        });
+    }
+
+    // 4. Grand Total
+    const excelGrandTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+    const roundOff = Math.round(excelGrandTotal) - excelGrandTotal;
+    
+    // Add Round Off row
+    ws_data.push(addFooterRow("Round Off", roundOff));
+
+    const rFinal = Array.from({length: 9}, () => createCell("", {}));
+    rFinal[6] = createCell("GRAND TOTAL", styles.header);
+    rFinal[7] = createCell("", styles.header);
+    rFinal[8] = createCell(Math.round(excelGrandTotal).toFixed(2), styles.header);
+    ws_data.push(rFinal);
+
+    // --- GENERATE ---
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    // --- MERGING LOGIC (SAFE) ---
+    const merges = [];
+    
+    // Title Merge
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } });
+
+    // Find "Amount in Words" row index safely
+    const wordsRowIndex = ws_data.findIndex(row => 
+        // FIX: Check if row exists, row[0] exists, and row[0].v is a string before checking startsWith
+        row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v.startsWith("Amount in Words")
+    );
+
+    if (wordsRowIndex > -1) {
+        // Merge Words box (4 rows down, 6 columns wide)
+        merges.push({ s: { r: wordsRowIndex, c: 0 }, e: { r: wordsRowIndex + 3, c: 5 } });
+    }
+    
+    // Find and merge G and H columns for footer rows (totals section)
+    // Footer rows are typically the last few rows with totals
+    for (let i = 0; i < ws_data.length; i++) {
+        const row = ws_data[i];
+        if (row && row[6] && row[6].v && typeof row[6].v === 'string') {
+            // Check if this is a total row (contains labels like "Taxable Value", "CGST", "SGST", "IGST", "Round Off", "GRAND TOTAL")
+            const label = row[6].v;
+            if (label.includes("Taxable Value") || label.includes("CGST") || label.includes("SGST") || 
+                label.includes("IGST") || label.includes("Round Off") || label.includes("GRAND TOTAL") ||
+                label.includes("freight") || label.includes("packing") || label.includes("handling") ||
+                label.includes("insurance") || label.includes("others")) {
+                // Merge columns G (index 6) and H (index 7)
+                merges.push({ s: { r: i, c: 6 }, e: { r: i, c: 7 } });
             }
         }
-        
-        // Set column widths
-        ws['!cols'] = [
-            { wch: 5 },   // Sr.
-            { wch: 40 },  // Item Description
-            { wch: 12 },  // HSN
-            { wch: 8 },   // Qty
-            { wch: 8 },   // Unit
-            { wch: 12 },  // Rate
-            { wch: 10 },  // Disc %
-            { wch: 10 },  // GST %
-            { wch: 15 }   // Amount
-        ];
-        
-        // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
-        
-        // Generate filename with date
-        const dateStr = new Date().toISOString().split('T')[0];
-        const filename = `Invoice_${invoiceData.meta.billNo}_${dateStr}.xlsx`;
-        
-        // Export file
-        XLSX.writeFile(wb, filename);
     }
+
+    ws['!merges'] = merges;
+
+    // --- WIDTHS ---
+    ws['!cols'] = [
+        { wch: 6 }, { wch: 35 }, { wch: 10 }, { wch: 8 }, 
+        { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 15 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Tax Invoice");
+    XLSX.writeFile(wb, `Invoice_${invoiceData.meta.billNo}.xlsx`);
+}
+
+// --- UTIL: NUMBER TO WORDS (INDIAN CURRENCY) ---
+function numToIndianRupees(num) {
+    if (!num) return "";
+    
+    const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    const format = (n) => {
+        if (n < 20) return a[n];
+        const digit = n % 10;
+        return b[Math.floor(n / 10)] + (digit ? " " + a[digit] : "");
+    };
+
+    const convert = (n) => {
+        if (n < 100) return format(n);
+        if (n < 1000) return a[Math.floor(n / 100)] + "Hundred " + (n % 100 ? "and " + convert(n % 100) : "");
+        if (n < 100000) return convert(Math.floor(n / 1000)) + "Thousand " + (n % 1000 ? convert(n % 1000) : "");
+        if (n < 10000000) return convert(Math.floor(n / 100000)) + "Lakh " + (n % 100000 ? convert(n % 100000) : "");
+        return convert(Math.floor(n / 10000000)) + "Crore " + (n % 10000000 ? convert(n % 10000000) : "");
+    };
+
+    const parts = num.toString().split(".");
+    const rupees = convert(parseInt(parts[0]));
+    const paise = parts[1] ? convert(parseInt(parts[1].substring(0, 2).padEnd(2, '0'))) : "";
+
+    let res = "Rupees " + rupees;
+    if (paise) res += "and " + paise + "Paise ";
+    return res + "Only";
+}
 
     // --- INIT ---
     fetchData();

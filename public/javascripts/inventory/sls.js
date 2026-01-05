@@ -18,7 +18,11 @@
             billNo: '',
             billDate: new Date().toISOString().split('T')[0],
             billType: 'intra-state', // 'intra-state' or 'inter-state'
-            reverseCharge: false
+            reverseCharge: false,
+            referenceNo: '',
+            vehicleNo: '',
+            dispatchThrough: '',
+            narration: ''
         },
         otherCharges: []  // Array to store other charges
     };
@@ -151,19 +155,19 @@
                     <div class="p-3 space-y-3">
                          <div>
                             <label class="text-[10px] text-gray-500 font-bold">Reference / PO No</label>
-                            <input type="text" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="e.g. PO-2025-001">
+                            <input type="text" id="reference-no" value="${state.meta.referenceNo}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="e.g. PO-2025-001">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-500 font-bold">Vehicle No</label>
-                            <input type="text" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="XX-00-XX-0000">
+                            <input type="text" id="vehicle-no" value="${state.meta.vehicleNo}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="XX-00-XX-0000">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-500 font-bold">Dispatched Through</label>
-                            <input type="text" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Courier / Transport">
+                            <input type="text" id="dispatch-through" value="${state.meta.dispatchThrough}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Courier / Transport">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-500 font-bold">Narration</label>
-                            <textarea class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none h-20 resize-none" placeholder="Additional notes..."></textarea>
+                            <textarea id="narration" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none h-20 resize-none" placeholder="Additional notes...">${state.meta.narration}</textarea>
                         </div>
                     </div>
                 </div>
@@ -1078,6 +1082,38 @@
                 document.getElementById('totals-section').innerHTML = renderTotals();
             };
         }
+        
+        // Reference/PO No input
+        const referenceNoInput = document.getElementById('reference-no');
+        if (referenceNoInput) {
+            referenceNoInput.oninput = (e) => {
+                state.meta.referenceNo = e.target.value;
+            };
+        }
+        
+        // Vehicle No input
+        const vehicleNoInput = document.getElementById('vehicle-no');
+        if (vehicleNoInput) {
+            vehicleNoInput.oninput = (e) => {
+                state.meta.vehicleNo = e.target.value;
+            };
+        }
+        
+        // Dispatch Through input
+        const dispatchThroughInput = document.getElementById('dispatch-through');
+        if (dispatchThroughInput) {
+            dispatchThroughInput.oninput = (e) => {
+                state.meta.dispatchThrough = e.target.value;
+            };
+        }
+        
+        // Narration textarea
+        const narrationInput = document.getElementById('narration');
+        if (narrationInput) {
+            narrationInput.oninput = (e) => {
+                state.meta.narration = e.target.value;
+            };
+        }
 
         const resetBtn = document.getElementById('btn-reset');
         if (resetBtn) {
@@ -1482,7 +1518,33 @@
         createCell("Date:", { font: { bold: true }, alignment: { horizontal: "right" } }),
         createCell(invoiceData.meta.billDate, { alignment: { horizontal: "left" } })
     ]);
-
+    
+    // PO No and Vehicle No in sequence
+    if (invoiceData.meta.referenceNo) {
+        ws_data.push([
+            createCell("", { font: { bold: true } }), "", "", "", "", "", 
+            createCell("PO No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+            createCell(invoiceData.meta.referenceNo, { alignment: { horizontal: "left" } })
+        ]);
+    }
+    
+    if (invoiceData.meta.vehicleNo) {
+        ws_data.push([
+            createCell("", { font: { bold: true } }), "", "", "", "", "", 
+            createCell("Vehicle No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+            createCell(invoiceData.meta.vehicleNo, { alignment: { horizontal: "left" } })
+        ]);
+    }
+    
+    // Dispatched Through after vehicle info
+    if (invoiceData.meta.dispatchThrough) {
+        ws_data.push([
+            createCell("", { font: { bold: true } }), "", "", "", "", "", 
+            createCell("Dispatched Through:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+            createCell(invoiceData.meta.dispatchThrough, { alignment: { horizontal: "left" } })
+        ]);
+    }
+    
     ws_data.push([createCell("BUYER (BILL TO):", { font: { bold: true } })]);
     ws_data.push([createCell(invoiceData.party.firm, { font: { bold: true } })]);
     ws_data.push([createCell(invoiceData.party.addr || "")]);
@@ -1634,7 +1696,7 @@
         });
     }
 
-    // 4. Grand Total
+    // 4. Grand Total (before HSN Summary for better UI flow)
     const excelGrandTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
     const roundOff = Math.round(excelGrandTotal) - excelGrandTotal;
     
@@ -1646,6 +1708,121 @@
     rFinal[7] = createCell("", styles.header);
     rFinal[8] = createCell(Math.round(excelGrandTotal).toFixed(2), styles.header);
     ws_data.push(rFinal);
+    
+    // 5. HSN Summary Table (Required for Indian GST Compliance)
+    // Group items by HSN code and calculate totals
+    const hsnSummary = {};
+    
+    // Process cart items
+    invoiceData.cart.forEach(item => {
+        const hsn = item.hsn;
+        const taxableValue = item.qty * item.rate * (1 - (item.disc || 0)/100);
+        const taxAmount = taxableValue * (item.grate / 100);
+        
+        if (!hsnSummary[hsn]) {
+            hsnSummary[hsn] = {
+                hsn: hsn,
+                taxableValue: 0,
+                igstAmount: 0,
+                cgstAmount: 0,
+                sgstAmount: 0,
+                taxRate: item.grate
+            };
+        }
+        
+        hsnSummary[hsn].taxableValue += taxableValue;
+        
+        if (invoiceData.meta.billType === 'intra-state') {
+            hsnSummary[hsn].cgstAmount += taxAmount / 2;
+            hsnSummary[hsn].sgstAmount += taxAmount / 2;
+        } else {
+            hsnSummary[hsn].igstAmount += taxAmount;
+        }
+    });
+    
+    // Process other charges and add to HSN summary
+    if (invoiceData.otherCharges) {
+        invoiceData.otherCharges.forEach(charge => {
+            const hsn = charge.hsnSac || "9999"; // Use 9999 as default for services without specific HSN
+            const taxableValue = parseFloat(charge.amount) || 0;
+            const taxRate = parseFloat(charge.gstRate) || 0;
+            const taxAmount = (taxableValue * taxRate) / 100;
+            
+            if (!hsnSummary[hsn]) {
+                hsnSummary[hsn] = {
+                    hsn: hsn,
+                    taxableValue: 0,
+                    igstAmount: 0,
+                    cgstAmount: 0,
+                    sgstAmount: 0,
+                    taxRate: taxRate
+                };
+            }
+            
+            hsnSummary[hsn].taxableValue += taxableValue;
+            
+            if (invoiceData.meta.billType === 'intra-state') {
+                hsnSummary[hsn].cgstAmount += taxAmount / 2;
+                hsnSummary[hsn].sgstAmount += taxAmount / 2;
+            } else {
+                hsnSummary[hsn].igstAmount += taxAmount;
+            }
+        });
+    }
+    
+    // Add HSN Summary header (merged across columns A to I)
+    ws_data.push([]); // Empty row for spacing
+    const hsnHeaderRow = Array.from({length: 9}, () => createCell("", {}));
+    hsnHeaderRow[0] = createCell("HSN Summary", styles.header);
+    hsnHeaderRow[1] = createCell("");
+    hsnHeaderRow[2] = createCell("");
+    hsnHeaderRow[3] = createCell("");
+    hsnHeaderRow[4] = createCell("");
+    hsnHeaderRow[5] = createCell("");
+    hsnHeaderRow[6] = createCell("");
+    hsnHeaderRow[7] = createCell("");
+    hsnHeaderRow[8] = createCell("");
+    ws_data.push(hsnHeaderRow);
+    
+    // HSN Summary table headers
+    const hsnHeadersRow = Array.from({length: 9}, () => createCell("", {}));
+    hsnHeadersRow[0] = createCell("HSN", styles.header);
+    hsnHeadersRow[1] = createCell("Taxable Value", styles.header);
+    hsnHeadersRow[2] = createCell("IGST Amount", styles.header);
+    hsnHeadersRow[3] = createCell("CGST Amount", styles.header);
+    hsnHeadersRow[4] = createCell("SGST Amount", styles.header);
+    hsnHeadersRow[5] = createCell("Total Tax", styles.header);
+    hsnHeadersRow[6] = createCell("");
+    hsnHeadersRow[7] = createCell("");
+    hsnHeadersRow[8] = createCell("");
+    ws_data.push(hsnHeadersRow);
+    
+    // Add HSN Summary rows
+    Object.values(hsnSummary).forEach(hsnData => {
+        const hsnRow = Array.from({length: 9}, () => createCell("", {}));
+        hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN code
+        hsnRow[1] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
+        hsnRow[2] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
+        hsnRow[3] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
+        hsnRow[4] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
+        hsnRow[5] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
+        hsnRow[6] = createCell("");
+        hsnRow[7] = createCell("");
+        hsnRow[8] = createCell("");
+        ws_data.push(hsnRow);
+    });
+    
+    // Add Narration at the bottom if it exists
+    if (invoiceData.meta.narration) {
+        ws_data.push([]); // Empty row for spacing
+        const narrationRow = Array.from({length: 9}, () => createCell("", {}));
+        narrationRow[0] = createCell("Narration: " + (invoiceData.meta.narration || ""), { font: { bold: true }, alignment: { horizontal: "left", vertical: "top", wrapText: true } });
+        // Span the narration across all 9 columns
+        for (let i = 1; i < 9; i++) {
+            narrationRow[i] = createCell("");
+        }
+        ws_data.push(narrationRow);
+    }
 
     // --- GENERATE ---
     const wb = XLSX.utils.book_new();
@@ -1666,6 +1843,24 @@
     if (wordsRowIndex > -1) {
         // Merge Words box (4 rows down, 6 columns wide)
         merges.push({ s: { r: wordsRowIndex, c: 0 }, e: { r: wordsRowIndex + 3, c: 5 } });
+    }
+    
+    // Find and merge HSN Summary header row (merge A to I columns)
+    for (let i = 0; i < ws_data.length; i++) {
+        const row = ws_data[i];
+        if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v === "HSN Summary") {
+            // Merge columns A (index 0) to I (index 8)
+            merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
+        }
+    }
+    
+    // Find and merge Narration row (merge A to I columns)
+    for (let i = 0; i < ws_data.length; i++) {
+        const row = ws_data[i];
+        if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v.startsWith("Narration: ")) {
+            // Merge columns A (index 0) to I (index 8)
+            merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
+        }
     }
     
     // Find and merge G and H columns for footer rows (totals section)

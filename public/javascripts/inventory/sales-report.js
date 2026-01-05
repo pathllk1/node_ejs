@@ -129,6 +129,7 @@
                     <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${bill.bno || ''}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${bill.bdate || ''}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">${bill.firm || ''}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${bill.order_no || ''}</td>
                     <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(bill.gtot || 0)}</td>
                     <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(taxAmount)}</td>
                     <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(otherChargesTotal)}</td>
@@ -172,7 +173,7 @@
         ws_data.push([]);
         
         // Column headers
-        ws_data.push(['Bill No', 'Date', 'Party', 'Taxable', 'Tax', 'Other Charges', 'Total']);
+        ws_data.push(['Bill No', 'Date', 'Party', 'Ref/PO No', 'Taxable', 'Tax', 'Other Charges', 'Total']);
         
         // Data rows
         filteredData.forEach(bill => {
@@ -193,6 +194,7 @@
                 bill.bno || '',
                 bill.bdate || '',
                 bill.firm || '',
+                bill.order_no || '',
                 bill.gtot || 0,
                 taxAmount,
                 otherChargesTotal,
@@ -202,7 +204,7 @@
 
         // Summary row
         ws_data.push([]);
-        ws_data.push(['TOTALS:', '', '', 
+        ws_data.push(['TOTALS:', '', '', '', 
             filteredData.reduce((sum, bill) => sum + (bill.gtot || 0), 0),
             filteredData.reduce((sum, bill) => {
                 // Calculate tax amount: ntot - gtot = total tax amount (Indian GST standard)
@@ -227,7 +229,7 @@
         
         // Set column widths
         ws['!cols'] = [
-            { wch: 15 }, { wch: 12 }, { wch: 25 }, 
+            { wch: 15 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
             { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
         ];
 

@@ -208,11 +208,11 @@ exports.createBill = (req, res) => {
             INSERT INTO bills (
                 bno, bdate, supply, addr, gstin, state, 
                 gtot, ntot, btype, usern, firm, 
-                party_id, oth_chg_json, created_at, updated_at
+                party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at
             ) VALUES (
                 @bno, @bdate, @supply, @addr, @gstin, @state,
                 @gtot, @ntot, @btype, @usern, @firm,
-                @party_id, @oth_chg_json, @created_at, @updated_at
+                @party_id, @oth_chg_json, @order_no, @vehicle_no, @dispatch_through, @narration, @created_at, @updated_at
             )
         `);
 
@@ -237,6 +237,10 @@ exports.createBill = (req, res) => {
                     firm: party.firm,
                     party_id: party.id || null,
                     oth_chg_json: otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
+                    order_no: meta.referenceNo || null,
+                    vehicle_no: meta.vehicleNo || null,
+                    dispatch_through: meta.dispatchThrough || null,
+                    narration: meta.narration || null,
                     created_at: now(),
                     updated_at: now()
                 });

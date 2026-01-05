@@ -339,6 +339,45 @@ exports.createBill = (req, res) => {
         console.error("Transaction Error:", err);
         res.status(500).json({ error: "Failed to save bill: " + err.message });
     }
+}
+
+// Get complete bill details by ID
+exports.getBillById = (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Get bill header information
+        if (!id) {
+            return res.status(400).json({ error: 'Bill ID is required' });
+        }
+        
+        const billStmt = db.prepare('SELECT * FROM bills WHERE id = ?');
+        let bill = billStmt.get(id);
+        
+        if (!bill) {
+            return res.status(404).json({ error: 'Bill not found' });
+        }
+        
+        // Parse other charges if exists
+        if (bill.oth_chg_json) {
+            try {
+                bill.otherCharges = JSON.parse(bill.oth_chg_json);
+            } catch (e) {
+                console.warn('Failed to parse other charges for bill', bill.id, e.message);
+                bill.otherCharges = [];
+            }
+        } else {
+            bill.otherCharges = [];
+        }
+        
+        // Get bill items from stock_reg table
+        const itemsStmt = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ? ORDER BY created_at');
+        bill.items = itemsStmt.all(id);
+        
+        res.json(bill);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 };
 
 exports.getAllBills = (req, res) => {

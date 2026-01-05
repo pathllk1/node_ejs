@@ -8,6 +8,8 @@ router.get('/stocks', controller.renderStocksPage);
 
 router.get('/bills', controller.renderBillsPage);
 
+router.get('/sales-report', controller.renderSalesReportPage);
+
 // API Routes
 router.get('/api/stocks', controller.getAllStocks);
 router.post('/api/stocks', controller.createStock);

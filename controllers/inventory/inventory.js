@@ -14,6 +14,12 @@ exports.renderBillsPage = (req, res) => {
 };
 
 
+exports.renderSalesReportPage = (req, res) => {
+    // You can pass the logged-in user here if available in req.user
+    res.render('inventory/sales-report', { title: 'Sales Report', user: req.user || { username: 'Guest' } });
+};
+
+
 exports.getAllStocks = (req, res) => {
     try {
         const stmt = db.prepare('SELECT * FROM stocks ORDER BY created_at DESC');
@@ -163,8 +169,8 @@ exports.createBill = (req, res) => {
     }
 
     // 1. Calculate Header Totals
-    let gtot = 0; // Taxable Total
-    let totalTax = 0;
+    let gtot = 0; // Taxable Total (items + other charges)
+    let totalTax = 0; // Tax on items only
 
     cart.forEach(item => {
         const lineVal = item.qty * item.rate * (1 - (item.disc || 0)/100);
@@ -173,7 +179,26 @@ exports.createBill = (req, res) => {
         totalTax += lineTax;
     });
 
-    const ntot = gtot + totalTax; // Grand Total
+    // Calculate other charges total and their GST
+    let otherChargesTotal = 0;
+    let otherChargesGstTotal = 0;
+    
+    if (otherCharges && otherCharges.length > 0) {
+        otherCharges.forEach(charge => {
+            const chargeAmount = parseFloat(charge.amount) || 0;
+            const chargeGstRate = parseFloat(charge.gstRate) || 0;
+            const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+            otherChargesTotal += chargeAmount;
+            otherChargesGstTotal += chargeGstAmount;
+        });
+    }
+    
+    // According to Indian GST Standards:
+    // gtot = taxable value of items + other charges (total taxable amount)
+    gtot = gtot + otherChargesTotal;
+    
+    // ntot = gtot + tax on items + tax on other charges (total including all taxes)
+    const ntot = gtot + totalTax + otherChargesGstTotal; // Grand Total
     const supplyState = party.state || 'Local';
 
     // 2. Perform Transaction (Insert Bill -> Insert Items -> Deduct Stock)

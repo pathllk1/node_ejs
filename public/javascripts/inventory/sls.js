@@ -1353,8 +1353,20 @@
         }
         
         // Include other charges
-        const otherChargesTotal = getTotalOtherCharges();
-        const grandTotal = totalTaxable + totalTaxAmount + otherChargesTotal;
+        let tempOtherChargesTotal = 0;
+        let tempOtherChargesGstTotal = 0;
+        
+        if (state.otherCharges) {
+            state.otherCharges.forEach(charge => {
+                const chargeAmount = parseFloat(charge.amount) || 0;
+                const chargeGstRate = parseFloat(charge.gstRate) || 0;
+                const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+                tempOtherChargesTotal += chargeAmount;
+                tempOtherChargesGstTotal += chargeGstAmount;
+            });
+        }
+        
+        const grandTotal = totalTaxable + totalTaxAmount + tempOtherChargesTotal + tempOtherChargesGstTotal;
         
         // Calculate final amounts and round off
         const finalAmount = Math.round(grandTotal);
@@ -1597,8 +1609,9 @@
         return row;
     };
 
-    // 1. Taxable
-    ws_data.push(addFooterRow("Taxable Value", totalTaxable, true));
+    // 1. Taxable (items + other charges per Indian GST standard)
+    const totalTaxableValue = totalTaxable + otherChargesSubtotal;
+    ws_data.push(addFooterRow("Taxable Value", totalTaxableValue, true));
 
     // 2. Taxes
     if (invoiceData.meta.billType === 'intra-state') {

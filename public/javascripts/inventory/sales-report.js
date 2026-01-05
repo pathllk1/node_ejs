@@ -220,12 +220,475 @@
     }
     
     function exportBillToExcel(bill) {
-        // This would require the same logic as in sls.js to generate a proper invoice
-        // For now, let's just alert that this functionality would be implemented
-        alert('This would export the full invoice to Excel with all details. This functionality would use the same exportInvoiceToExcel function from sls.js with the complete bill data.');
+        // Generate a simplified invoice data structure from the bill
+        const invoiceData = {
+            meta: {
+                billNo: bill.bno,
+                billDate: bill.bdate,
+                billType: bill.supply && bill.supply.toLowerCase().includes('intra') ? 'intra-state' : 'inter-state',
+                referenceNo: bill.order_no || '',
+                vehicleNo: bill.vehicle_no || '',
+                dispatchThrough: bill.dispatch_through || '',
+                narration: bill.narration || ''
+            },
+            party: {
+                firm: bill.firm,
+                addr: bill.addr,
+                gstin: bill.gstin,
+                state: bill.state
+            },
+            cart: bill.items || [],
+            otherCharges: bill.otherCharges || [],
+            billId: bill.id,
+            totalTaxable: bill.gtot || 0,
+            // Calculate tax amounts based on the stored values
+            cgstAmount: bill.cgst || 0,
+            sgstAmount: bill.sgst || 0,
+            igstAmount: bill.igst || 0,
+            grandTotal: bill.ntot || 0,
+            finalAmount: Math.round(bill.ntot || 0),
+            roundOff: (bill.ntot || 0) - Math.round(bill.ntot || 0)
+        };
         
-        // In a real implementation, we would need to fetch the complete bill data including cart items
-        // This would require a new API endpoint to get complete bill details
+        // Use the same Excel export logic as in sls.js
+        exportInvoiceToExcelFromBill(invoiceData);
+    }
+    
+    function exportInvoiceToExcelFromBill(invoiceData) {
+        // 1. Define Professional Styles
+        const borderStyle = { style: "thin", color: { rgb: "000000" } };
+        const styles = {
+            title: {
+                font: { bold: true, sz: 16, color: { rgb: "000000" } },
+                alignment: { horizontal: "center", vertical: "center" }
+            },
+            header: {
+                font: { bold: true, color: { rgb: "000000" } },
+                fill: { fgColor: { rgb: "E0E0E0" } },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            },
+            cellCenter: {
+                alignment: { horizontal: "center" },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            },
+            cellLeft: {
+                alignment: { horizontal: "left" },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            },
+            cellRight: {
+                alignment: { horizontal: "right" },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            },
+            totalLabel: {
+                font: { bold: true },
+                alignment: { horizontal: "right" },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            },
+            totalValue: {
+                font: { bold: true },
+                alignment: { horizontal: "right" },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            },
+            words: {
+                font: { italic: true, bold: true },
+                alignment: { horizontal: "left", vertical: "top", wrapText: true },
+                border: { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle }
+            }
+        };
+
+        const createCell = (v, s) => ({ v: v || "", s: s || {} });
+        const ws_data = [];
+
+        // --- TITLE ROW ---
+        ws_data.push([createCell("TAX INVOICE", styles.title)]);
+        ws_data.push([]); // Spacer
+
+        // --- DETAILS SECTION ---
+        ws_data.push([
+            createCell("SELLER:", { font: { bold: true } }), "", "", "", "", "", 
+            createCell("Invoice No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+            createCell(invoiceData.meta.billNo, { alignment: { horizontal: "left" } })
+        ]);
+
+        ws_data.push([
+            createCell("Your Company Name", { font: { bold: true } }), "", "", "", "", "", 
+            createCell("Date:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+            createCell(invoiceData.meta.billDate, { alignment: { horizontal: "left" } })
+        ]);
+        
+        // PO No and Vehicle No in sequence
+        if (invoiceData.meta.referenceNo) {
+            ws_data.push([
+                createCell("", { font: { bold: true } }), "", "", "", "", "", 
+                createCell("PO No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+                createCell(invoiceData.meta.referenceNo, { alignment: { horizontal: "left" } })
+            ]);
+        }
+        
+        if (invoiceData.meta.vehicleNo) {
+            ws_data.push([
+                createCell("", { font: { bold: true } }), "", "", "", "", "", 
+                createCell("Vehicle No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+                createCell(invoiceData.meta.vehicleNo, { alignment: { horizontal: "left" } })
+            ]);
+        }
+        
+        // Dispatched Through after vehicle info
+        if (invoiceData.meta.dispatchThrough) {
+            ws_data.push([
+                createCell("", { font: { bold: true } }), "", "", "", "", "", 
+                createCell("Dispatched Through:", { font: { bold: true }, alignment: { horizontal: "right" } }),
+                createCell(invoiceData.meta.dispatchThrough, { alignment: { horizontal: "left" } })
+            ]);
+        }
+        
+        ws_data.push([createCell("BUYER (BILL TO):", { font: { bold: true } })]);
+        ws_data.push([createCell(invoiceData.party.firm, { font: { bold: true } })]);
+        ws_data.push([createCell(invoiceData.party.addr || "")]);
+        ws_data.push([createCell("GSTIN: " + (invoiceData.party.gstin || "Unregistered"))]);
+        
+        ws_data.push([]); // Spacer
+
+        // --- TABLE HEADERS ---
+        const headers = ["Sr", "Description", "HSN", "Qty", "Unit", "Rate", "Disc %", "GST %", "Amount"];
+        ws_data.push(headers.map(h => createCell(h, styles.header)));
+
+        // --- TABLE ITEMS ---
+        (invoiceData.cart || []).forEach((item, index) => {
+            const lineTotal = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0) / 100);
+            ws_data.push([
+                createCell(index + 1, styles.cellCenter),
+                createCell(item.item, styles.cellLeft),
+                createCell(item.hsn, styles.cellCenter),
+                createCell(item.qty, styles.cellCenter),
+                createCell(item.uom, styles.cellCenter),
+                createCell(item.rate, styles.cellRight),
+                createCell(item.disc || 0, styles.cellRight),
+                createCell(item.grate, styles.cellRight),
+                createCell(lineTotal.toFixed(2), styles.cellRight)
+            ]);
+        });
+        
+        // Add other charges if they exist
+        if (invoiceData.otherCharges && invoiceData.otherCharges.length > 0) {
+            // Add other charges as additional line items
+            invoiceData.otherCharges.forEach(charge => {
+                // Add the main charge
+                ws_data.push([
+                    createCell("", styles.cellCenter),
+                    createCell(`${charge.type} (${charge.name})`, styles.cellLeft),
+                    createCell(charge.hsnSac || "", styles.cellCenter), // HSN/SAC
+                    createCell("", styles.cellCenter),
+                    createCell("", styles.cellCenter),
+                    createCell("", styles.cellRight),
+                    createCell("", styles.cellRight),
+                    createCell(charge.gstRate || 0, styles.cellRight), // GST rate
+                    createCell((charge.amount || 0).toFixed(2), styles.cellRight)
+                ]);
+                
+                // Add the GST line
+                if (charge.gstAmount > 0) {
+                    ws_data.push([
+                        createCell("", styles.cellCenter),
+                        createCell(`GST on ${charge.type} (${charge.name})`, styles.cellLeft),
+                        createCell(charge.hsnSac || "", styles.cellCenter), // HSN/SAC
+                        createCell("", styles.cellCenter),
+                        createCell("", styles.cellCenter),
+                        createCell("", styles.cellRight),
+                        createCell("", styles.cellRight),
+                        createCell(0, styles.cellRight), // No GST on GST
+                        createCell((charge.gstAmount || 0).toFixed(2), styles.cellRight)
+                    ]);
+                }
+            });
+        }
+        
+        // Min Rows Filler
+        const minRows = 5;
+        const totalRows = (invoiceData.cart || []).length + (invoiceData.otherCharges ? invoiceData.otherCharges.length * 2 : 0);
+        for (let i = 0; i < (minRows - totalRows); i++) {
+            // Fix: Use Array.from to create unique cell objects, preventing reference bugs
+            const emptyRow = Array.from({length: 9}, () => createCell('', styles.cellCenter));
+            ws_data.push(emptyRow);
+        }
+        
+        // --- FOOTER SECTION ---
+        
+        // Calculate the same totals as in renderTotals for consistency
+        let totalTaxable = 0;
+        let totalTaxAmount = 0;
+        
+        // Calculate line by line for cart items
+        (invoiceData.cart || []).forEach(item => {
+            const lineValue = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0) / 100);
+            const lineTax = lineValue * (item.grate / 100);
+            totalTaxable += lineValue;
+            totalTaxAmount += lineTax;
+        });
+        
+        // Calculate GST on other charges
+        let otherChargesGstTotal = 0;
+        let otherChargesSubtotal = 0;
+        if (invoiceData.otherCharges) {
+            invoiceData.otherCharges.forEach(charge => {
+                const chargeAmount = parseFloat(charge.amount) || 0;
+                const chargeGstRate = parseFloat(charge.gstRate) || 0;
+                const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+                otherChargesSubtotal += chargeAmount;
+                otherChargesGstTotal += chargeGstAmount;
+            });
+        }
+        
+        // Calculate final tax amounts including other charges GST
+        let finalCgstAmount = totalTaxAmount / 2;  // From cart items
+        let finalSgstAmount = totalTaxAmount / 2;  // From cart items
+        let finalIgstAmount = totalTaxAmount;      // From cart items
+        
+        if (invoiceData.meta.billType === 'intra-state') {
+            finalCgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
+            finalSgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
+        } else {
+            finalIgstAmount = totalTaxAmount + otherChargesGstTotal;
+        }
+        
+        const addFooterRow = (label, val, isWordsRow = false) => {
+            // Fix: Create unique empty cells for this row
+            const row = Array.from({length: 9}, () => createCell("", {}));
+            
+            if (isWordsRow) {
+                const wordsTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+                const roundedTotal = Math.round(wordsTotal);
+                row[0] = createCell("Amount in Words:\n" + numToIndianRupees(roundedTotal || 0), styles.words);
+            }
+
+            // Totals at columns 6, 7 and 8 - merge G and H columns
+            row[6] = createCell(label, styles.totalLabel); // Column G will contain the label
+            row[7] = createCell("", styles.totalLabel); // Column H will be merged with G
+            row[8] = createCell((typeof val === 'number' ? val : 0).toFixed(2), styles.totalValue);
+            
+            return row;
+        };
+
+        // 1. Taxable (items + other charges per Indian GST standard)
+        const totalTaxableValue = totalTaxable + otherChargesSubtotal;
+        ws_data.push(addFooterRow("Taxable Value", totalTaxableValue, true));
+
+        // 2. Taxes
+        if (invoiceData.meta.billType === 'intra-state') {
+            ws_data.push(addFooterRow("CGST", finalCgstAmount));
+            ws_data.push(addFooterRow("SGST", finalSgstAmount));
+        } else {
+            ws_data.push(addFooterRow("IGST", finalIgstAmount));
+        }
+        
+        // 3. Other Charges (if any)
+        if (invoiceData.otherCharges && invoiceData.otherCharges.length > 0) {
+            // Add each other charge
+            invoiceData.otherCharges.forEach(charge => {
+                ws_data.push(addFooterRow(`${charge.type} (${charge.name})`, charge.amount));
+                
+                // Add GST on the charge if applicable
+                if (charge.gstAmount > 0) {
+                    ws_data.push(addFooterRow(`GST on ${charge.type} (${charge.name})`, charge.gstAmount));
+                }
+            });
+        }
+
+        // 4. Grand Total (before HSN Summary for better UI flow)
+        const excelGrandTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+        const roundOff = Math.round(excelGrandTotal) - excelGrandTotal;
+        
+        // Add Round Off row
+        ws_data.push(addFooterRow("Round Off", roundOff));
+
+        const rFinal = Array.from({length: 9}, () => createCell("", {}));
+        rFinal[6] = createCell("GRAND TOTAL", styles.header);
+        rFinal[7] = createCell("", styles.header);
+        rFinal[8] = createCell(Math.round(excelGrandTotal).toFixed(2), styles.header);
+        ws_data.push(rFinal);
+        
+        // 5. HSN Summary Table (Required for Indian GST Compliance)
+        // Group items by HSN code and calculate totals
+        const hsnSummary = {};
+        
+        // Process cart items
+        (invoiceData.cart || []).forEach(item => {
+            const hsn = item.hsn;
+            const taxableValue = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0)/100);
+            const taxAmount = taxableValue * (item.grate / 100);
+            
+            if (!hsnSummary[hsn]) {
+                hsnSummary[hsn] = {
+                    hsn: hsn,
+                    taxableValue: 0,
+                    igstAmount: 0,
+                    cgstAmount: 0,
+                    sgstAmount: 0,
+                    taxRate: item.grate
+                };
+            }
+            
+            hsnSummary[hsn].taxableValue += taxableValue;
+            
+            if (invoiceData.meta.billType === 'intra-state') {
+                hsnSummary[hsn].cgstAmount += taxAmount / 2;
+                hsnSummary[hsn].sgstAmount += taxAmount / 2;
+            } else {
+                hsnSummary[hsn].igstAmount += taxAmount;
+            }
+        });
+        
+        // Process other charges and add to HSN summary
+        if (invoiceData.otherCharges) {
+            invoiceData.otherCharges.forEach(charge => {
+                const hsn = charge.hsnSac || "9999"; // Use 9999 as default for services without specific HSN
+                const taxableValue = parseFloat(charge.amount) || 0;
+                const taxRate = parseFloat(charge.gstRate) || 0;
+                const taxAmount = (taxableValue * taxRate) / 100;
+                
+                if (!hsnSummary[hsn]) {
+                    hsnSummary[hsn] = {
+                        hsn: hsn,
+                        taxableValue: 0,
+                        igstAmount: 0,
+                        cgstAmount: 0,
+                        sgstAmount: 0,
+                        taxRate: taxRate
+                    };
+                }
+                
+                hsnSummary[hsn].taxableValue += taxableValue;
+                
+                if (invoiceData.meta.billType === 'intra-state') {
+                    hsnSummary[hsn].cgstAmount += taxAmount / 2;
+                    hsnSummary[hsn].sgstAmount += taxAmount / 2;
+                } else {
+                    hsnSummary[hsn].igstAmount += taxAmount;
+                }
+            });
+        }
+        
+        // Add HSN Summary header (merged across columns A to I)
+        ws_data.push([]); // Empty row for spacing
+        const hsnHeaderRow = Array.from({length: 9}, () => createCell("", {}));
+        hsnHeaderRow[0] = createCell("HSN Summary", styles.header);
+        hsnHeaderRow[1] = createCell("");
+        hsnHeaderRow[2] = createCell("");
+        hsnHeaderRow[3] = createCell("");
+        hsnHeaderRow[4] = createCell("");
+        hsnHeaderRow[5] = createCell("");
+        hsnHeaderRow[6] = createCell("");
+        hsnHeaderRow[7] = createCell("");
+        hsnHeaderRow[8] = createCell("");
+        ws_data.push(hsnHeaderRow);
+        
+        // HSN Summary table headers
+        const hsnHeadersRow = Array.from({length: 9}, () => createCell("", {}));
+        hsnHeadersRow[0] = createCell("HSN", styles.header);
+        hsnHeadersRow[1] = createCell("Taxable Value", styles.header);
+        hsnHeadersRow[2] = createCell("IGST Amount", styles.header);
+        hsnHeadersRow[3] = createCell("CGST Amount", styles.header);
+        hsnHeadersRow[4] = createCell("SGST Amount", styles.header);
+        hsnHeadersRow[5] = createCell("Total Tax", styles.header);
+        hsnHeadersRow[6] = createCell("");
+        hsnHeadersRow[7] = createCell("");
+        hsnHeadersRow[8] = createCell("");
+        ws_data.push(hsnHeadersRow);
+        
+        // Add HSN Summary rows
+        Object.values(hsnSummary).forEach(hsnData => {
+            const hsnRow = Array.from({length: 9}, () => createCell("", {}));
+            hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN code
+            hsnRow[1] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
+            hsnRow[2] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
+            hsnRow[3] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
+            hsnRow[4] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
+            hsnRow[5] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
+            hsnRow[6] = createCell("");
+            hsnRow[7] = createCell("");
+            hsnRow[8] = createCell("");
+            ws_data.push(hsnRow);
+        });
+        
+        // Add Narration at the bottom if it exists
+        if (invoiceData.meta.narration) {
+            ws_data.push([]); // Empty row for spacing
+            const narrationRow = Array.from({length: 9}, () => createCell("", {}));
+            narrationRow[0] = createCell("Narration: " + (invoiceData.meta.narration || ""), { font: { bold: true }, alignment: { horizontal: "left", vertical: "top", wrapText: true } });
+            // Span the narration across all 9 columns
+            for (let i = 1; i < 9; i++) {
+                narrationRow[i] = createCell("");
+            }
+            ws_data.push(narrationRow);
+        }
+
+        // --- GENERATE ---
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+        // --- MERGING LOGIC (SAFE) ---
+        const merges = [];
+        
+        // Title Merge
+        merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } });
+
+        // Find "Amount in Words" row index safely
+        const wordsRowIndex = ws_data.findIndex(row => 
+            // FIX: Check if row exists, row[0] exists, and row[0].v is a string before checking startsWith
+            row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v.startsWith("Amount in Words")
+        );
+
+        if (wordsRowIndex > -1) {
+            // Merge Words box (4 rows down, 6 columns wide)
+            merges.push({ s: { r: wordsRowIndex, c: 0 }, e: { r: wordsRowIndex + 3, c: 5 } });
+        }
+        
+        // Find and merge HSN Summary header row (merge A to I columns)
+        for (let i = 0; i < ws_data.length; i++) {
+            const row = ws_data[i];
+            if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v === "HSN Summary") {
+                // Merge columns A (index 0) to I (index 8)
+                merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
+            }
+        }
+        
+        // Find and merge Narration row (merge A to I columns)
+        for (let i = 0; i < ws_data.length; i++) {
+            const row = ws_data[i];
+            if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v.startsWith("Narration: ")) {
+                // Merge columns A (index 0) to I (index 8)
+                merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
+            }
+        }
+        
+        // Find and merge G and H columns for footer rows (totals section)
+        // Footer rows are typically the last few rows with totals
+        for (let i = 0; i < ws_data.length; i++) {
+            const row = ws_data[i];
+            if (row && row[6] && row[6].v && typeof row[6].v === 'string') {
+                // Check if this is a total row (contains labels like "Taxable Value", "CGST", "SGST", "IGST", "Round Off", "GRAND TOTAL")
+                const label = row[6].v;
+                if (label.includes("Taxable Value") || label.includes("CGST") || label.includes("SGST") || 
+                    label.includes("IGST") || label.includes("Round Off") || label.includes("GRAND TOTAL") ||
+                    label.includes("freight") || label.includes("packing") || label.includes("handling") ||
+                    label.includes("insurance") || label.includes("others")) {
+                    // Merge columns G (index 6) and H (index 7)
+                    merges.push({ s: { r: i, c: 6 }, e: { r: i, c: 7 } });
+                }
+            }
+        }
+
+        ws['!merges'] = merges;
+
+        // --- WIDTHS ---
+        ws['!cols'] = [
+            { wch: 6 }, { wch: 35 }, { wch: 10 }, { wch: 8 }, 
+            { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 15 }
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Tax Invoice");
+        XLSX.writeFile(wb, `Invoice_${invoiceData.meta.billNo}.xlsx`);
     }
     
     function showBillDetailsModal(bill) {
@@ -450,6 +913,36 @@
 
         XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
         XLSX.writeFile(wb, `Sales_Report_${startDateInput.value}_to_${endDateInput.value}.xlsx`);
+    }
+    
+    // --- UTIL: NUMBER TO WORDS (INDIAN CURRENCY) ---
+    function numToIndianRupees(num) {
+        if (!num) return "";
+        
+        const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        
+        const format = (n) => {
+            if (n < 20) return a[n];
+            const digit = n % 10;
+            return b[Math.floor(n / 10)] + (digit ? " " + a[digit] : "");
+        };
+
+        const convert = (n) => {
+            if (n < 100) return format(n);
+            if (n < 1000) return a[Math.floor(n / 100)] + "Hundred " + (n % 100 ? "and " + convert(n % 100) : "");
+            if (n < 100000) return convert(Math.floor(n / 1000)) + "Thousand " + (n % 1000 ? convert(n % 1000) : "");
+            if (n < 10000000) return convert(Math.floor(n / 100000)) + "Lakh " + (n % 100000 ? convert(n % 100000) : "");
+            return convert(Math.floor(n / 10000000)) + "Crore " + (n % 10000000 ? convert(n % 10000000) : "");
+        };
+
+        const parts = num.toString().split(".");
+        const rupees = convert(parseInt(parts[0]));
+        const paise = parts[1] ? convert(parseInt(parts[1].substring(0, 2).padEnd(2, '0'))) : "";
+
+        let res = "Rupees " + rupees;
+        if (paise) res += "and " + paise + "Paise ";
+        return res + "Only";
     }
 
     // Event Listeners

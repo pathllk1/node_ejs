@@ -168,6 +168,7 @@ db.exec(`
         -- JSON Fields for complex objects
         oth_chg_json TEXT,               -- Stores Array<IOtherCharge> as JSON
         gst_selection_json TEXT,         -- Stores IGSTSelection object as JSON
+        reverse_charge INTEGER DEFAULT 0, -- Boolean: 0=false, 1=true
         
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -219,6 +220,20 @@ db.exec(`
         FOREIGN KEY(bill_id) REFERENCES bills(id)
     ) STRICT;
 `);
+
+// StockReg Table Migration for item_narration
+try {
+    db.exec(`ALTER TABLE stock_reg ADD COLUMN item_narration TEXT;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for item_narration:', err.message);
+}
+
+// Bills Table Migration for reverse_charge
+try {
+    db.exec(`ALTER TABLE bills ADD COLUMN reverse_charge INTEGER DEFAULT 0;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for reverse_charge:', err.message);
+}
 
 // Indexes for performance
 try {

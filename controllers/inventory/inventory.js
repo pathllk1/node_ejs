@@ -3,6 +3,8 @@ const db = require('../../config/db');
 // Helper to get current ISO time
 const now = () => new Date().toISOString();
 
+const getActorUsername = (req) => (req && req.user && req.user.username ? req.user.username : null);
+
 exports.renderStocksPage = (req, res) => {
     // You can pass the logged-in user here if available in req.user
     res.render('inventory/stocks', { title: 'Stock Management', user: req.user || { username: 'Guest' } });
@@ -13,12 +15,10 @@ exports.renderBillsPage = (req, res) => {
     res.render('inventory/bills', { title: 'Inventory Bills', user: req.user || { username: 'Guest' } });
 };
 
-
 exports.renderSalesReportPage = (req, res) => {
     // You can pass the logged-in user here if available in req.user
     res.render('inventory/sales-report', { title: 'Sales Report', user: req.user || { username: 'Guest' } });
 };
-
 
 exports.getAllStocks = (req, res) => {
     try {
@@ -30,9 +30,67 @@ exports.getAllStocks = (req, res) => {
     }
 };
 
+exports.getPartyItemHistory = (req, res) => {
+    try {
+        const partyId = parseInt(req.query.partyId);
+        const stockId = parseInt(req.query.stockId);
+        const limit = req.query.limit === 'all' ? null : Math.min(parseInt(req.query.limit) || 10, 500);
+
+        if (!partyId || !stockId) {
+            return res.status(400).json({ error: 'partyId and stockId are required' });
+        }
+
+        let query = `
+            SELECT 
+                sr.id as reg_id,
+                sr.stock_id,
+                sr.item,
+                sr.batch,
+                sr.hsn,
+                sr.qty,
+                sr.uom,
+                sr.rate,
+                sr.grate,
+                sr.disc,
+                sr.total,
+                sr.bno,
+                sr.bdate,
+                sr.created_at,
+                b.id as bill_id,
+                b.party_id,
+                b.firm,
+                b.usern
+            FROM stock_reg sr
+            JOIN bills b ON b.id = sr.bill_id
+            WHERE b.party_id = ?
+              AND sr.stock_id = ?
+              AND sr.type = 'SALE'
+            ORDER BY COALESCE(sr.bdate, b.bdate, sr.created_at) DESC
+        `;
+        
+        const params = [partyId, stockId];
+        
+        if (limit !== null) {
+            query += ' LIMIT ?';
+            params.push(limit);
+        }
+
+        const stmt = db.prepare(query);
+        const rows = stmt.all(...params);
+        res.json({ partyId, stockId, rows });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 exports.createStock = (req, res) => {
     try {
-        const { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate, user } = req.body;
+        const { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate } = req.body;
+
+        const actorUsername = getActorUsername(req);
+        if (!actorUsername) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
         
         // Calculate total
         const total = parseFloat(qty) * parseFloat(rate);
@@ -55,7 +113,7 @@ exports.createStock = (req, res) => {
             total,
             mrp: mrp ? parseFloat(mrp) : null,
             expiryDate: expiryDate || null,
-            user: user || 'system',
+            user: actorUsername,
             created_at: now(),
             updated_at: now()
         });
@@ -69,7 +127,12 @@ exports.createStock = (req, res) => {
 exports.updateStock = (req, res) => {
     try {
         const { id } = req.params;
-        const { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate, user } = req.body;
+        const { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate } = req.body;
+
+        const actorUsername = getActorUsername(req);
+        if (!actorUsername) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
         
         const total = parseFloat(qty) * parseFloat(rate);
 
@@ -95,7 +158,7 @@ exports.updateStock = (req, res) => {
             total,
             mrp: mrp ? parseFloat(mrp) : null,
             expiryDate: expiryDate || null,
-            user: user || 'system',
+            user: actorUsername,
             updated_at: now()
         });
 
@@ -130,7 +193,12 @@ exports.getAllParties = (req, res) => {
 
 exports.createParty = (req, res) => {
     try {
-        const { firm, gstin, contact, state, state_code, addr, pin, pan, user } = req.body;
+        const { firm, gstin, contact, state, state_code, addr, pin, pan } = req.body;
+
+        const actorUsername = getActorUsername(req);
+        if (!actorUsername) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
         
         const stmt = db.prepare(`
             INSERT INTO parties (firm, gstin, contact, state, state_code, addr, pin, pan, usern, supply, created_at, updated_at)
@@ -146,7 +214,7 @@ exports.createParty = (req, res) => {
             addr: addr || null,
             pin: pin || null,
             pan: pan || null,
-            user: user || 'system',
+            user: actorUsername,
             supply: state || '', // Assuming place of supply is state
             created_at: now(),
             updated_at: now()
@@ -162,7 +230,12 @@ exports.createParty = (req, res) => {
 
 exports.createBill = (req, res) => {
     // Expects: { meta: {}, party: {}, cart: [], otherCharges: [], user: '' }
-    const { meta, party, cart, otherCharges, user } = req.body; 
+    const { meta, party, cart, otherCharges } = req.body; 
+
+    const actorUsername = getActorUsername(req);
+    if (!actorUsername) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     if (!cart || cart.length === 0) {
         return res.status(400).json({ error: "Cart cannot be empty" });
@@ -197,8 +270,19 @@ exports.createBill = (req, res) => {
     // gtot = taxable value of items + other charges (total taxable amount)
     gtot = gtot + otherChargesTotal;
     
-    // ntot = gtot + tax on items + tax on other charges (total including all taxes)
-    const ntot = gtot + totalTax + otherChargesGstTotal; // Grand Total
+    // Calculate tax amounts for CGST/SGST or IGST based on supply type
+    let cgst = 0, sgst = 0, igst = 0;
+    
+    if (meta.billType === 'intra-state') {
+        cgst = (totalTax / 2) + (otherChargesGstTotal / 2); // CGST on items + other charges
+        sgst = (totalTax / 2) + (otherChargesGstTotal / 2); // SGST on items + other charges
+    } else {
+        igst = totalTax + otherChargesGstTotal; // IGST on items + other charges
+    }
+    
+    // For reverse charge, tax is calculated but not added to ntot (grand total)
+    // The tax liability shifts to the recipient
+    const ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
     const supplyState = party.state || 'Local';
 
     // 2. Perform Transaction (Insert Bill -> Insert Items -> Deduct Stock)
@@ -208,11 +292,13 @@ exports.createBill = (req, res) => {
             INSERT INTO bills (
                 bno, bdate, supply, addr, gstin, state, 
                 gtot, ntot, btype, usern, firm, 
-                party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at
+                party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at, reverse_charge,
+                cgst, sgst, igst
             ) VALUES (
                 @bno, @bdate, @supply, @addr, @gstin, @state,
                 @gtot, @ntot, @btype, @usern, @firm,
-                @party_id, @oth_chg_json, @order_no, @vehicle_no, @dispatch_through, @narration, @created_at, @updated_at
+                @party_id, @oth_chg_json, @order_no, @vehicle_no, @dispatch_through, @narration, @created_at, @updated_at, @reverse_charge,
+                @cgst, @sgst, @igst
             )
         `);
 
@@ -233,7 +319,7 @@ exports.createBill = (req, res) => {
                     gtot: gtot,
                     ntot: ntot,
                     btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
-                    usern: user || 'system',
+                    usern: actorUsername,
                     firm: party.firm,
                     party_id: party.id || null,
                     oth_chg_json: otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
@@ -242,7 +328,11 @@ exports.createBill = (req, res) => {
                     dispatch_through: meta.dispatchThrough || null,
                     narration: meta.narration || null,
                     created_at: now(),
-                    updated_at: now()
+                    updated_at: now(),
+                    reverse_charge: meta.reverseCharge || 0, // Store reverse charge flag in database
+                    cgst: cgst,
+                    sgst: sgst,
+                    igst: igst
                 });
                 break; // Success, exit the loop
             } catch (error) {
@@ -283,11 +373,11 @@ exports.createBill = (req, res) => {
         // B. Prepare Statements for Line Items
         const insertReg = db.prepare(`
             INSERT INTO stock_reg (
-                type, bno, bdate, supply, item, batch, hsn, 
+                type, bno, bdate, supply, item, item_narration, batch, hsn, 
                 qty, uom, rate, grate, disc, total, 
                 stock_id, bill_id, user, firm, created_at, updated_at, qtyh
             ) VALUES (
-                'SALE', @bno, @bdate, @supply, @item, @batch, @hsn,
+                'SALE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
                 @qty, @uom, @rate, @grate, @disc, @total,
                 @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0
             )
@@ -306,6 +396,7 @@ exports.createBill = (req, res) => {
                 bdate: meta.billDate,
                 supply: supplyState,
                 item: item.item,
+                item_narration: item.narration || null,  // Add item narration if available
                 batch: item.batch || null,
                 hsn: item.hsn,
                 qty: item.qty,
@@ -316,7 +407,7 @@ exports.createBill = (req, res) => {
                 total: lineTotal,
                 stock_id: item.stockId,
                 bill_id: billId,
-                user: user || 'system',
+                user: actorUsername,
                 firm: party.firm,
                 created_at: now(),
                 updated_at: now()
@@ -370,8 +461,16 @@ exports.getBillById = (req, res) => {
             bill.otherCharges = [];
         }
         
+        // Add reverse charge information to the meta object
+        bill.reverseCharge = bill.reverse_charge || false;
+        
+        // Add stored tax amounts
+        bill.cgst = bill.cgst || 0;
+        bill.sgst = bill.sgst || 0;
+        bill.igst = bill.igst || 0;
+        
         // Get bill items from stock_reg table
-        const itemsStmt = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ? ORDER BY created_at');
+        const itemsStmt = db.prepare('SELECT *, item_narration FROM stock_reg WHERE bill_id = ? ORDER BY created_at');
         bill.items = itemsStmt.all(id);
         
         res.json(bill);
@@ -397,11 +496,63 @@ exports.getAllBills = (req, res) => {
             } else {
                 bill.otherCharges = [];
             }
+            
+            // Add reverse charge information
+            bill.reverseCharge = bill.reverse_charge || false;
+            
+            // Add stored tax amounts
+            bill.cgst = bill.cgst || 0;
+            bill.sgst = bill.sgst || 0;
+            bill.igst = bill.igst || 0;
+            
             return bill;
         });
         
         res.json(processedBills);
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Function to get unique other charges types for auto-complete
+exports.getOtherChargesTypes = (req, res) => {
+    try {
+        // Query to get unique charge types from bills table
+        const query = `SELECT DISTINCT json_extract(oth_chg_json, '$[0].type') as type,
+                                  json_extract(oth_chg_json, '$[0].name') as name,
+                                  json_extract(oth_chg_json, '$[0].hsnSac') as hsnSac,
+                                  json_extract(oth_chg_json, '$[0].gstRate') as gstRate
+                           FROM bills 
+                           WHERE oth_chg_json IS NOT NULL 
+                           AND oth_chg_json != 'null'
+                           AND oth_chg_json != ''
+                           ORDER BY json_extract(oth_chg_json, '$[0].type')`;
+        
+        const stmt = db.prepare(query);
+        const results = stmt.all();
+        
+        // Process results to extract unique combinations
+        const uniqueCharges = [];
+        const seen = new Set();
+        
+        results.forEach(row => {
+            if (row.type) {
+                const key = `${row.type}-${row.name || ''}-${row.hsnSac || ''}-${row.gstRate || ''}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueCharges.push({
+                        type: row.type,
+                        name: row.name || '',
+                        hsnSac: row.hsnSac || '',
+                        gstRate: row.gstRate ? parseFloat(row.gstRate) : 0
+                    });
+                }
+            }
+        });
+        
+        res.json(uniqueCharges);
+    } catch (err) {
+        console.error('Error fetching other charges types:', err);
         res.status(500).json({ error: err.message });
     }
 };

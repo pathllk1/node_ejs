@@ -26,6 +26,12 @@ router.post('/api/bills', controller.createBill);
 router.get('/api/bills/next-number', controller.getNextBillNumber);
 router.get('/api/bills/:id', controller.getBillById);
 
+// --- API Routes: History ---
+router.get('/api/history/party-item', controller.getPartyItemHistory);
+
+// --- API Routes: Other Charges ---
+router.get('/api/other-charges/types', controller.getOtherChargesTypes);
+
 router.get('/api/gst-lookup', controller.lookupGST);
 
 module.exports = router;

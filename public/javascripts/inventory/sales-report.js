@@ -135,6 +135,9 @@
                     <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(otherChargesTotal)}</td>
                     <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">${formatCurrency(bill.ntot || 0)}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">
+                        ${bill.reverseCharge ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Yes</span>' : '<span class="text-gray-400 text-xs">No</span>'}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500">
                         <button class="view-btn text-blue-600 hover:text-blue-900 font-medium" data-id="${bill.id}">View</button>
                     </td>
                 </tr>
@@ -159,7 +162,7 @@
     async function fetchBillDetails(billId) {
         try {
             // Use direct fetch instead of window.api.get to avoid potential parameter issues
-            const response = await fetch(`/inventory/api/bills/${billId}`, {
+            const response = await window.api.get(`/inventory/api/bills/${billId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -221,15 +224,35 @@
     
     function exportBillToExcel(bill) {
         // Generate a simplified invoice data structure from the bill
+        // Process cart items to ensure narration is properly mapped
+        const processedCart = (bill.items || []).map(item => ({
+            ...item,
+            narration: item.item_narration || ''  // Map the database field name to the expected field name
+        }));
+
+        const billTypeSource = (bill.btype || bill.billType || '').toString().toLowerCase();
+        let resolvedBillType;
+        if (billTypeSource.includes('intra')) {
+            resolvedBillType = 'intra-state';
+        } else if (billTypeSource.includes('inter')) {
+            resolvedBillType = 'inter-state';
+        } else {
+            const cgst = Number(bill.cgst) || 0;
+            const sgst = Number(bill.sgst) || 0;
+            const igst = Number(bill.igst) || 0;
+            resolvedBillType = (cgst > 0 || sgst > 0) ? 'intra-state' : (igst > 0 ? 'inter-state' : 'inter-state');
+        }
+        
         const invoiceData = {
             meta: {
                 billNo: bill.bno,
                 billDate: bill.bdate,
-                billType: bill.supply && bill.supply.toLowerCase().includes('intra') ? 'intra-state' : 'inter-state',
+                billType: resolvedBillType,
                 referenceNo: bill.order_no || '',
                 vehicleNo: bill.vehicle_no || '',
                 dispatchThrough: bill.dispatch_through || '',
-                narration: bill.narration || ''
+                narration: bill.narration || '',
+                reverseCharge: bill.reverseCharge || false
             },
             party: {
                 firm: bill.firm,
@@ -237,7 +260,7 @@
                 gstin: bill.gstin,
                 state: bill.state
             },
-            cart: bill.items || [],
+            cart: processedCart,  // Use the processed cart with narration
             otherCharges: bill.otherCharges || [],
             billId: bill.id,
             totalTaxable: bill.gtot || 0,
@@ -304,6 +327,9 @@
         ws_data.push([createCell("TAX INVOICE", styles.title)]);
         ws_data.push([]); // Spacer
 
+        // Check if reverse charge applies
+        const isReverseCharge = invoiceData.meta.reverseCharge;
+
         // --- DETAILS SECTION ---
         ws_data.push([
             createCell("SELLER:", { font: { bold: true } }), "", "", "", "", "", 
@@ -316,6 +342,13 @@
             createCell("Date:", { font: { bold: true }, alignment: { horizontal: "right" } }),
             createCell(invoiceData.meta.billDate, { alignment: { horizontal: "left" } })
         ]);
+        
+        // Show reverse charge notice if applicable
+        if (isReverseCharge) {
+            ws_data.push([
+                createCell("REVERSE CHARGE APPLIES", { font: { bold: true, color: { rgb: "FF0000" } }, alignment: { horizontal: "center" } }), "", "", "", "", "", "", ""
+            ]);
+        }
         
         // PO No and Vehicle No in sequence
         if (invoiceData.meta.referenceNo) {
@@ -351,7 +384,7 @@
         ws_data.push([]); // Spacer
 
         // --- TABLE HEADERS ---
-        const headers = ["Sr", "Description", "HSN", "Qty", "Unit", "Rate", "Disc %", "GST %", "Amount"];
+        const headers = ["Sr", "Description", "HSN/SAC", "Qty", "Unit", "Rate", "Disc %", "GST %", "Amount"];
         ws_data.push(headers.map(h => createCell(h, styles.header)));
 
         // --- TABLE ITEMS ---
@@ -368,6 +401,21 @@
                 createCell(item.grate, styles.cellRight),
                 createCell(lineTotal.toFixed(2), styles.cellRight)
             ]);
+            
+            // Add narration row if it exists
+            if (item.item_narration) {
+                ws_data.push([
+                    createCell('', styles.cellCenter),
+                    createCell('Narration: ' + item.item_narration, styles.cellLeft),
+                    createCell('', styles.cellCenter),
+                    createCell('', styles.cellCenter),
+                    createCell('', styles.cellCenter),
+                    createCell('', styles.cellRight),
+                    createCell('', styles.cellRight),
+                    createCell('', styles.cellRight),
+                    createCell('', styles.cellRight)
+                ]);
+            }
         });
         
         // Add other charges if they exist
@@ -415,41 +463,37 @@
         
         // --- FOOTER SECTION ---
         
+        // Use the stored tax amounts from invoiceData instead of recalculating
+        let finalCgstAmount = invoiceData.cgstAmount || 0;
+        let finalSgstAmount = invoiceData.sgstAmount || 0;
+        let finalIgstAmount = invoiceData.igstAmount || 0;
+        
+        // For reverse charge, tax amounts are set to 0 for display
+        if (isReverseCharge) {
+            finalCgstAmount = 0;
+            finalSgstAmount = 0;
+            finalIgstAmount = 0;
+        }
+        
         // Calculate the same totals as in renderTotals for consistency
         let totalTaxable = 0;
-        let totalTaxAmount = 0;
         
         // Calculate line by line for cart items
         (invoiceData.cart || []).forEach(item => {
             const lineValue = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0) / 100);
-            const lineTax = lineValue * (item.grate / 100);
             totalTaxable += lineValue;
-            totalTaxAmount += lineTax;
         });
         
-        // Calculate GST on other charges
-        let otherChargesGstTotal = 0;
+        // Calculate other charges subtotal and GST total
         let otherChargesSubtotal = 0;
+        let otherChargesGstTotal = 0;
         if (invoiceData.otherCharges) {
             invoiceData.otherCharges.forEach(charge => {
                 const chargeAmount = parseFloat(charge.amount) || 0;
-                const chargeGstRate = parseFloat(charge.gstRate) || 0;
-                const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+                const chargeGstAmount = parseFloat(charge.gstAmount) || 0;
                 otherChargesSubtotal += chargeAmount;
                 otherChargesGstTotal += chargeGstAmount;
             });
-        }
-        
-        // Calculate final tax amounts including other charges GST
-        let finalCgstAmount = totalTaxAmount / 2;  // From cart items
-        let finalSgstAmount = totalTaxAmount / 2;  // From cart items
-        let finalIgstAmount = totalTaxAmount;      // From cart items
-        
-        if (invoiceData.meta.billType === 'intra-state') {
-            finalCgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
-            finalSgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
-        } else {
-            finalIgstAmount = totalTaxAmount + otherChargesGstTotal;
         }
         
         const addFooterRow = (label, val, isWordsRow = false) => {
@@ -457,7 +501,7 @@
             const row = Array.from({length: 9}, () => createCell("", {}));
             
             if (isWordsRow) {
-                const wordsTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+                const wordsTotal = totalTaxable + (isReverseCharge ? 0 : (finalCgstAmount + finalSgstAmount + finalIgstAmount)) + otherChargesSubtotal + (isReverseCharge ? 0 : otherChargesGstTotal);
                 const roundedTotal = Math.round(wordsTotal);
                 row[0] = createCell("Amount in Words:\n" + numToIndianRupees(roundedTotal || 0), styles.words);
             }
@@ -496,7 +540,7 @@
         }
 
         // 4. Grand Total (before HSN Summary for better UI flow)
-        const excelGrandTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+        const excelGrandTotal = totalTaxable + (isReverseCharge ? 0 : (finalCgstAmount + finalSgstAmount + finalIgstAmount)) + otherChargesSubtotal + (isReverseCharge ? 0 : otherChargesGstTotal);
         const roundOff = Math.round(excelGrandTotal) - excelGrandTotal;
         
         // Add Round Off row
@@ -509,14 +553,13 @@
         ws_data.push(rFinal);
         
         // 5. HSN Summary Table (Required for Indian GST Compliance)
-        // Group items by HSN code and calculate totals
+        // Group items by HSN/SAC code and calculate totals
         const hsnSummary = {};
         
         // Process cart items
         (invoiceData.cart || []).forEach(item => {
             const hsn = item.hsn;
             const taxableValue = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0)/100);
-            const taxAmount = taxableValue * (item.grate / 100);
             
             if (!hsnSummary[hsn]) {
                 hsnSummary[hsn] = {
@@ -531,11 +574,14 @@
             
             hsnSummary[hsn].taxableValue += taxableValue;
             
-            if (invoiceData.meta.billType === 'intra-state') {
-                hsnSummary[hsn].cgstAmount += taxAmount / 2;
-                hsnSummary[hsn].sgstAmount += taxAmount / 2;
-            } else {
-                hsnSummary[hsn].igstAmount += taxAmount;
+            // Use stored tax amounts instead of recalculating
+            // For items, we'll estimate the tax split based on the original calculation
+            const itemTaxAmount = taxableValue * (item.grate / 100);
+            if (invoiceData.meta.billType === 'intra-state' && !isReverseCharge) {
+                hsnSummary[hsn].cgstAmount += itemTaxAmount / 2;
+                hsnSummary[hsn].sgstAmount += itemTaxAmount / 2;
+            } else if (!isReverseCharge) {
+                hsnSummary[hsn].igstAmount += itemTaxAmount;
             }
         });
         
@@ -544,8 +590,6 @@
             invoiceData.otherCharges.forEach(charge => {
                 const hsn = charge.hsnSac || "9999"; // Use 9999 as default for services without specific HSN
                 const taxableValue = parseFloat(charge.amount) || 0;
-                const taxRate = parseFloat(charge.gstRate) || 0;
-                const taxAmount = (taxableValue * taxRate) / 100;
                 
                 if (!hsnSummary[hsn]) {
                     hsnSummary[hsn] = {
@@ -554,17 +598,18 @@
                         igstAmount: 0,
                         cgstAmount: 0,
                         sgstAmount: 0,
-                        taxRate: taxRate
+                        taxRate: charge.gstRate || 0
                     };
                 }
                 
                 hsnSummary[hsn].taxableValue += taxableValue;
                 
-                if (invoiceData.meta.billType === 'intra-state') {
-                    hsnSummary[hsn].cgstAmount += taxAmount / 2;
-                    hsnSummary[hsn].sgstAmount += taxAmount / 2;
-                } else {
-                    hsnSummary[hsn].igstAmount += taxAmount;
+                // Use stored GST amount for other charges instead of recalculating
+                if (invoiceData.meta.billType === 'intra-state' && !isReverseCharge && charge.gstAmount) {
+                    hsnSummary[hsn].cgstAmount += (charge.gstAmount || 0) / 2;
+                    hsnSummary[hsn].sgstAmount += (charge.gstAmount || 0) / 2;
+                } else if (!isReverseCharge && charge.gstAmount) {
+                    hsnSummary[hsn].igstAmount += charge.gstAmount || 0;
                 }
             });
         }
@@ -572,7 +617,7 @@
         // Add HSN Summary header (merged across columns A to I)
         ws_data.push([]); // Empty row for spacing
         const hsnHeaderRow = Array.from({length: 9}, () => createCell("", {}));
-        hsnHeaderRow[0] = createCell("HSN Summary", styles.header);
+        hsnHeaderRow[0] = createCell("HSN/SAC Summary", styles.header);
         hsnHeaderRow[1] = createCell("");
         hsnHeaderRow[2] = createCell("");
         hsnHeaderRow[3] = createCell("");
@@ -585,28 +630,28 @@
         
         // HSN Summary table headers
         const hsnHeadersRow = Array.from({length: 9}, () => createCell("", {}));
-        hsnHeadersRow[0] = createCell("HSN", styles.header);
-        hsnHeadersRow[1] = createCell("Taxable Value", styles.header);
-        hsnHeadersRow[2] = createCell("IGST Amount", styles.header);
-        hsnHeadersRow[3] = createCell("CGST Amount", styles.header);
-        hsnHeadersRow[4] = createCell("SGST Amount", styles.header);
-        hsnHeadersRow[5] = createCell("Total Tax", styles.header);
-        hsnHeadersRow[6] = createCell("");
-        hsnHeadersRow[7] = createCell("");
+        hsnHeadersRow[0] = createCell("HSN/SAC", styles.header);
+        hsnHeadersRow[1] = createCell("");
+        hsnHeadersRow[2] = createCell("Taxable Value", styles.header);
+        hsnHeadersRow[3] = createCell("");
+        hsnHeadersRow[4] = createCell("IGST Amount", styles.header);
+        hsnHeadersRow[5] = createCell("CGST Amount", styles.header);
+        hsnHeadersRow[6] = createCell("SGST Amount", styles.header);
+        hsnHeadersRow[7] = createCell("Total Tax", styles.header);
         hsnHeadersRow[8] = createCell("");
         ws_data.push(hsnHeadersRow);
         
         // Add HSN Summary rows
         Object.values(hsnSummary).forEach(hsnData => {
             const hsnRow = Array.from({length: 9}, () => createCell("", {}));
-            hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN code
-            hsnRow[1] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
-            hsnRow[2] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
-            hsnRow[3] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
-            hsnRow[4] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
-            hsnRow[5] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
-            hsnRow[6] = createCell("");
-            hsnRow[7] = createCell("");
+            hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN/SAC code
+            hsnRow[1] = createCell("");
+            hsnRow[2] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
+            hsnRow[3] = createCell("");
+            hsnRow[4] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
+            hsnRow[5] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
+            hsnRow[6] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
+            hsnRow[7] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
             hsnRow[8] = createCell("");
             ws_data.push(hsnRow);
         });
@@ -647,9 +692,27 @@
         // Find and merge HSN Summary header row (merge A to I columns)
         for (let i = 0; i < ws_data.length; i++) {
             const row = ws_data[i];
-            if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v === "HSN Summary") {
+            if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v === "HSN/SAC Summary") {
                 // Merge columns A (index 0) to I (index 8)
                 merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
+
+                // Merge HSN Summary table columns to use full width:
+                // A-B (HSN/SAC), C-D (Taxable Value), H-I (Total Tax)
+                const headerRowIndex = i + 1;
+                merges.push({ s: { r: headerRowIndex, c: 0 }, e: { r: headerRowIndex, c: 1 } });
+                merges.push({ s: { r: headerRowIndex, c: 2 }, e: { r: headerRowIndex, c: 3 } });
+                merges.push({ s: { r: headerRowIndex, c: 7 }, e: { r: headerRowIndex, c: 8 } });
+
+                // Apply same merges for each data row until a non-data row is reached
+                for (let r = i + 2; r < ws_data.length; r++) {
+                    const dataRow = ws_data[r];
+                    if (!dataRow || !dataRow[0] || !dataRow[0].v) break;
+                    if (typeof dataRow[0].v === 'string' && dataRow[0].v.startsWith('Narration: ')) break;
+
+                    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 1 } });
+                    merges.push({ s: { r: r, c: 2 }, e: { r: r, c: 3 } });
+                    merges.push({ s: { r: r, c: 7 }, e: { r: r, c: 8 } });
+                }
             }
         }
         
@@ -661,18 +724,21 @@
                 merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
             }
         }
-        
+
         // Find and merge G and H columns for footer rows (totals section)
         // Footer rows are typically the last few rows with totals
         for (let i = 0; i < ws_data.length; i++) {
             const row = ws_data[i];
             if (row && row[6] && row[6].v && typeof row[6].v === 'string') {
                 // Check if this is a total row (contains labels like "Taxable Value", "CGST", "SGST", "IGST", "Round Off", "GRAND TOTAL")
-                const label = row[6].v;
-                if (label.includes("Taxable Value") || label.includes("CGST") || label.includes("SGST") || 
-                    label.includes("IGST") || label.includes("Round Off") || label.includes("GRAND TOTAL") ||
-                    label.includes("freight") || label.includes("packing") || label.includes("handling") ||
-                    label.includes("insurance") || label.includes("others")) {
+                const label = row[6].v.trim();
+                const lower = label.toLowerCase();
+                const isExactFooterLabel = label === "Taxable Value" || label === "CGST" || label === "SGST" ||
+                    label === "IGST" || label === "Round Off" || label === "GRAND TOTAL";
+                const isOtherChargeLabel = lower.includes("freight") || lower.includes("packing") || lower.includes("handling") ||
+                    lower.includes("insurance") || lower.includes("others");
+
+                if (isExactFooterLabel || isOtherChargeLabel) {
                     // Merge columns G (index 6) and H (index 7)
                     merges.push({ s: { r: i, c: 6 }, e: { r: i, c: 7 } });
                 }
@@ -680,6 +746,23 @@
         }
 
         ws['!merges'] = merges;
+
+        // --- PRINT / PAGE SETUP ---
+        // Aim: minimal margins + fit to A4 width (1 page wide)
+        ws['!pageSetup'] = {
+            paperSize: 9, // A4
+            orientation: 'portrait',
+            fitToWidth: 1,
+            fitToHeight: 0
+        };
+        ws['!margins'] = {
+            left: 0.2,
+            right: 0.2,
+            top: 0.2,
+            bottom: 0.2,
+            header: 0.1,
+            footer: 0.1
+        };
 
         // --- WIDTHS ---
         ws['!cols'] = [
@@ -707,6 +790,10 @@
         modalHtml += '<p class="text-sm text-gray-600">Party: <span class="font-medium">' + (bill.firm || 'N/A') + '</span></p>';
         modalHtml += '<p class="text-sm text-gray-600">GSTIN: <span class="font-medium">' + (bill.gstin || 'N/A') + '</span></p>';
         modalHtml += '<p class="text-sm text-gray-600">State: <span class="font-medium">' + (bill.state || 'N/A') + '</span></p>';
+        // Add reverse charge indicator if applicable
+        if (bill.reverseCharge) {
+            modalHtml += '<p class="text-sm text-red-600 font-bold mt-1">REVERSE CHARGE APPLIES</p>';
+        }
         modalHtml += '</div>';
         modalHtml += '<div>';
         modalHtml += '<p class="text-sm text-gray-600">PO No: <span class="font-medium">' + (bill.order_no || 'N/A') + '</span></p>';
@@ -722,7 +809,16 @@
         modalHtml += '</div>';
         modalHtml += '<div class="bg-gray-50 p-3 rounded">';
         modalHtml += '<p class="text-xs text-gray-500">Tax Amount</p>';
-        modalHtml += '<p class="font-bold">' + formatCurrency((bill.ntot || 0) - (bill.gtot || 0)) + '</p>';
+                
+        // Display tax amounts based on bill type (CGST+SGST for intra-state, IGST for inter-state)
+        let taxAmount = 0;
+        if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
+            taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
+        } else {
+            taxAmount = bill.igst || 0;
+        }
+                
+        modalHtml += '<p class="font-bold">' + formatCurrency(taxAmount) + '</p>';
         modalHtml += '</div>';
         modalHtml += '<div class="bg-gray-50 p-3 rounded">';
         modalHtml += '<p class="text-xs text-gray-500">Other Charges</p>';
@@ -820,8 +916,9 @@
     }
     
     function renderItemsTable(items) {
-        return items.map(item => {
-            return '<tr>' +
+        let html = '';
+        items.forEach(item => {
+            html += '<tr>' +
                 '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">' + (item.item || '') + '</td>' +
                 '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">' + (item.hsn || '') + '</td>' +
                 '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">' + (item.qty || 0) + '</td>' +
@@ -831,7 +928,16 @@
                 '<td class="px-3 py-2 text-sm text-gray-900 text-right">' + (item.grate || 0) + '%</td>' +
                 '<td class="px-3 py-2 text-sm text-gray-900 text-right">' + formatCurrency(item.total || 0) + '</td>' +
                 '</tr>';
-        }).join('');
+            
+            // Add narration row if narration exists
+            if (item.item_narration) {
+                html += '<tr>' +
+                    '<td colspan="2" class="px-3 py-1 text-sm text-gray-500 font-medium">Narration:</td>' +
+                    '<td colspan="6" class="px-3 py-1 text-sm text-gray-700">' + (item.item_narration || '') + '</td>' +
+                    '</tr>';
+            }
+        });
+        return html;
     }
 
     // Export to Excel
@@ -851,7 +957,7 @@
         ws_data.push([]);
         
         // Column headers
-        ws_data.push(['Bill No', 'Date', 'Party', 'Ref/PO No', 'Taxable', 'Tax', 'Other Charges', 'Total']);
+        ws_data.push(['Bill No', 'Date', 'Party', 'Ref/PO No', 'Taxable', 'Tax', 'Other Charges', 'Total', 'Reverse Charge']);
         
         // Data rows
         filteredData.forEach(bill => {
@@ -865,8 +971,13 @@
                 }
             }
             
-            // Calculate tax amount: ntot - gtot = total tax amount (Indian GST standard)
-            const taxAmount = (bill.ntot || 0) - (bill.gtot || 0);
+            // Calculate tax amount using stored values: CGST+SGST for intra-state, IGST for inter-state
+            let taxAmount = 0;
+            if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
+                taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
+            } else {
+                taxAmount = bill.igst || 0;
+            }
 
             ws_data.push([
                 bill.bno || '',
@@ -876,7 +987,8 @@
                 bill.gtot || 0,
                 taxAmount,
                 otherChargesTotal,
-                bill.ntot || 0
+                bill.ntot || 0,
+                bill.reverseCharge ? 'Yes' : 'No'
             ]);
         });
 
@@ -898,7 +1010,8 @@
                 }
                 return sum + otherChargesTotal;
             }, 0),
-            filteredData.reduce((sum, bill) => sum + (bill.ntot || 0), 0)
+            filteredData.reduce((sum, bill) => sum + (bill.ntot || 0), 0),
+            '' // Placeholder for reverse charge column in totals row
         ]);
 
         // Create worksheet
@@ -908,7 +1021,7 @@
         // Set column widths
         ws['!cols'] = [
             { wch: 15 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
-            { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
+            { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, "Sales Report");

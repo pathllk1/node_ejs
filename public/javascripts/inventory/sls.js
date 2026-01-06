@@ -14,6 +14,7 @@
         parties: [],    // Mock Data
         cart: [],       // Current Bill Items
         selectedParty: null,
+        historyCache: {},
         meta: {
             billNo: '',
             billDate: new Date().toISOString().split('T')[0],
@@ -29,7 +30,8 @@
 
     // --- UTILS ---
     const formatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
-    
+    const getHistoryCacheKey = (partyId, stockId) => `${partyId}:${stockId}`;
+
     // --- OTHER CHARGES MANAGEMENT ---
     function addOtherCharge(charge) {
         // Add default GST rate if not provided
@@ -128,6 +130,13 @@
                             <option value="inter-state" ${state.meta.billType === 'inter-state' ? 'selected' : ''}>Inter-State (IGST)</option>
                         </select>
                     </div>
+                    
+                    <div class="flex items-center pt-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="reverse-charge-toggle" ${state.meta.reverseCharge ? 'checked' : ''} class="form-checkbox h-4 w-4 text-blue-600 rounded">
+                            <span class="ml-2 text-[10px] uppercase text-gray-500 font-bold tracking-wider">Reverse Charge</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="flex gap-2">
@@ -224,8 +233,11 @@
                 
                 <div class="p-6">
                     <div class="flex gap-4 mb-4">
-                        <input type="text" id="charge-name" placeholder="Charge Name" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
-                        <input type="text" id="charge-hsn" placeholder="HSN/SAC" class="w-24 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <div class="relative flex-1">
+                            <input type="text" id="charge-name" placeholder="Charge Name" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                            <div id="charge-name-suggestions" class="absolute z-10 w-full min-w-[400px] bg-white border border-gray-300 rounded shadow-lg mt-1 max-h-40 overflow-y-auto hidden"></div>
+                        </div>
+                        <input type="text" id="charge-hsn" placeholder="HSN/SAC" class="w-24 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" title="Enter HSN for goods or SAC for services">
                         <input type="number" id="charge-amount" placeholder="Amount" step="0.01" class="w-32 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
                         <input type="number" id="charge-gst" placeholder="GST %" step="0.01" class="w-24 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
                         <select id="charge-type" class="w-40 border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none bg-white">
@@ -369,6 +381,12 @@
                     <button data-idx="${index}" class="btn-remove text-gray-300 hover:text-red-500 transition-colors font-bold text-lg leading-none">&times;</button>
                 </div>
             </div>
+            <div class="flex items-center border-b border-gray-100 text-xs text-gray-700 h-8 group bg-white pl-20 pr-2">
+                <div class="flex-1 text-[10px] text-gray-500 uppercase tracking-wide">Item Narration</div>
+                <div class="flex-1 p-1 border-l border-transparent group-hover:border-blue-100">
+                    <input type="text" data-idx="${index}" data-field="narration" value="${item.narration || ''}" class="w-full text-xs bg-transparent border-b border-transparent focus:bg-white focus:border-blue-500 outline-none px-1" placeholder="Add narration for this item">
+                </div>
+            </div>
             `;
         }).join('');
     }
@@ -421,7 +439,15 @@
             finalIgstAmount = igstAmount + otherChargesGstTotal;
         }
         
-        const grandTotal = totalTaxable + totalTaxAmount + otherChargesSubtotal + otherChargesGstTotal;
+        // For reverse charge, tax is still calculated but liability shifts to recipient
+        // The invoice still shows the tax amounts but indicates reverse charge
+        if (state.meta.reverseCharge) {
+            finalCgstAmount = 0;
+            finalSgstAmount = 0;
+            finalIgstAmount = 0;
+        }
+        
+        const grandTotal = totalTaxable + (state.meta.reverseCharge ? 0 : totalTaxAmount) + otherChargesSubtotal + (state.meta.reverseCharge ? 0 : otherChargesGstTotal);
 
         return `
         <div class="flex justify-between items-start">
@@ -430,6 +456,7 @@
                     <span>Total Items: <b class="text-gray-600">${state.cart.length}</b></span>
                     <span>Total Quantity: <b class="text-gray-600">${state.cart.reduce((a, b) => a + Number(b.qty), 0).toFixed(2)}</b></span>
                 </div>
+                ${state.meta.reverseCharge ? '<div class="text-red-600 font-bold mt-1">REVERSE CHARGE APPLIES</div>' : ''}
                 <div class="text-gray-400 italic mt-2">* Rates are inclusive of discounts before tax</div>
             </div>
 
@@ -525,6 +552,15 @@
         }
 
         document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
+        
+        // Reverse charge toggle
+        const reverseChargeToggle = document.getElementById('reverse-charge-toggle');
+        if (reverseChargeToggle) {
+            reverseChargeToggle.onchange = (e) => {
+                state.meta.reverseCharge = e.target.checked;
+                refreshTable();
+            };
+        }
         document.getElementById('btn-create-stock').onclick = openCreateStockModal;
     }
 
@@ -546,10 +582,23 @@
                 <td class="p-3 text-right font-mono">${stock.rate}</td>
                 <td class="p-3 text-right text-gray-500">${stock.grate}%</td>
                 <td class="p-3 text-center">
-                    <button class="btn-select-stock bg-white border border-blue-200 text-blue-600 px-3 py-1.5 rounded text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm" 
-                        data-stock='${JSON.stringify(stock).replace(/'/g, "&apos;")}'>
-                        ADD +
-                    </button>
+                    <div class="flex items-center justify-center gap-2">
+                        <button class="btn-edit-stock bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded text-[10px] font-bold hover:bg-gray-100 transition-colors shadow-sm"
+                            data-stock='${JSON.stringify(stock).replace(/'/g, "&apos;")}'
+                            type="button">
+                            EDIT
+                        </button>
+                        <button class="btn-history-stock bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded text-[10px] font-bold hover:bg-amber-50 transition-colors shadow-sm"
+                            data-stock='${JSON.stringify(stock).replace(/'/g, "&apos;")}'
+                            type="button">
+                            HISTORY
+                        </button>
+                        <button class="btn-select-stock bg-white border border-blue-200 text-blue-600 px-3 py-1.5 rounded text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm" 
+                            data-stock='${JSON.stringify(stock).replace(/'/g, "&apos;")}'
+                            type="button">
+                            ADD +
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -561,6 +610,275 @@
                 document.getElementById('modal-backdrop').classList.add('hidden');
             });
         });
+
+        tbody.querySelectorAll('.btn-edit-stock').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const stock = JSON.parse(e.target.getAttribute('data-stock'));
+                openEditStockModal(stock);
+            });
+        });
+
+        tbody.querySelectorAll('.btn-history-stock').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const stock = JSON.parse(e.target.getAttribute('data-stock'));
+                openPartyItemHistoryModal(stock);
+            });
+        });
+    }
+
+    async function fetchPartyItemHistory(partyId, stockId, limit = 'all') {
+        const key = getHistoryCacheKey(partyId, stockId);
+        if (state.historyCache[key]) return state.historyCache[key];
+
+        const res = await window.api.get(`/inventory/api/history/party-item?partyId=${partyId}&stockId=${stockId}&limit=${limit}`);
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to fetch history');
+        }
+        state.historyCache[key] = data;
+        return data;
+    }
+
+    function addItemToCartWithOverrides(stockItem, overrides = {}) {
+        const existing = state.cart.find(i => i.stockId === stockItem.id);
+        const resolvedRate = overrides.rate !== undefined ? parseFloat(overrides.rate) : parseFloat(stockItem.rate);
+        const resolvedDisc = overrides.disc !== undefined ? parseFloat(overrides.disc) : 0;
+
+        if (existing) {
+            existing.qty += 1;
+            if (!isNaN(resolvedRate)) existing.rate = resolvedRate;
+            if (!isNaN(resolvedDisc)) existing.disc = resolvedDisc;
+        } else {
+            state.cart.push({
+                stockId: stockItem.id,
+                item: stockItem.item,
+                narration: '',
+                batch: stockItem.batch,
+                oem: stockItem.oem,
+                hsn: stockItem.hsn,
+                qty: 1,
+                uom: stockItem.uom,
+                rate: isNaN(resolvedRate) ? parseFloat(stockItem.rate) : resolvedRate,
+                grate: parseFloat(stockItem.grate),
+                disc: isNaN(resolvedDisc) ? 0 : resolvedDisc
+            });
+        }
+        refreshTable();
+    }
+
+    function openPartyItemHistoryModal(stock) {
+        if (!state.selectedParty || !state.selectedParty.id) {
+            alert('Please select a party first to view history.');
+            return;
+        }
+
+        const subModal = document.getElementById('sub-modal-backdrop');
+        const subContent = document.getElementById('sub-modal-content');
+        if (!subModal || !subContent) return;
+
+        subModal.classList.remove('hidden');
+
+        const partyName = state.selectedParty.firm || 'Selected Party';
+        subContent.innerHTML = `
+            <div class="bg-amber-700 p-4 flex justify-between items-center text-white">
+                <div class="min-w-0">
+                    <div class="text-[10px] uppercase tracking-wider opacity-80">Previous History</div>
+                    <div class="font-bold text-sm truncate">${partyName} / ${stock.item}</div>
+                </div>
+                <button id="close-history-modal" class="hover:text-amber-200 text-lg transition-colors">&times;</button>
+            </div>
+
+            <div class="p-4" id="history-loading">
+                <div class="text-sm text-amber-800 font-semibold">Loading history...</div>
+            </div>
+
+            <div class="p-4 hidden" id="history-body">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div class="text-xs text-gray-600">Showing <span id="history-count" class="font-bold"></span> of <span id="total-records" class="font-bold"></span> transactions</div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-use-last-history" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded text-[11px] font-bold">USE LAST & ADD</button>
+                        <button id="btn-close-history" class="bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded text-[11px] font-bold hover:bg-gray-50">CLOSE</button>
+                    </div>
+                </div>
+
+                <div class="overflow-auto border border-gray-200 rounded max-h-60">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-50 text-[11px] font-bold text-gray-600 uppercase sticky top-0">
+                            <tr>
+                                <th class="p-2">Date</th>
+                                <th class="p-2">Bill No</th>
+                                <th class="p-2 text-right">Qty</th>
+                                <th class="p-2 text-right">Rate</th>
+                                <th class="p-2 text-right">Disc%</th>
+                                <th class="p-2 text-right">Line Total</th>
+                                <th class="p-2 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-rows" class="text-xs text-gray-700 divide-y divide-gray-100 bg-white"></tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Controls -->
+                <div id="pagination-controls" class="mt-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <button id="prev-page" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-[11px] font-bold hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">&lt; Prev</button>
+                        <span id="page-info" class="text-xs text-gray-600">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+                        <button id="next-page" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-[11px] font-bold hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">Next &gt;</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-600">Items per page:</span>
+                        <select id="items-per-page" class="border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="history-empty" class="hidden text-center text-gray-400 italic py-10">No previous sales found for this party and item.</div>
+            </div>
+        `;
+
+        document.getElementById('close-history-modal').onclick = closeCreateStockModal;
+        const closeBtn = document.getElementById('btn-close-history');
+        if (closeBtn) closeBtn.onclick = closeCreateStockModal;
+
+        // Pagination state
+        const paginationState = {
+            currentPage: 1,
+            itemsPerPage: 20,
+            allData: [],
+            filteredData: []
+        };
+
+        (async () => {
+            try {
+                const history = await fetchPartyItemHistory(state.selectedParty.id, stock.id, 'all');
+                const rows = Array.isArray(history.rows) ? history.rows : [];
+                
+                // Store all data for pagination
+                paginationState.allData = rows;
+                paginationState.filteredData = [...rows];
+
+                const loadingEl = document.getElementById('history-loading');
+                const bodyEl = document.getElementById('history-body');
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (bodyEl) bodyEl.classList.remove('hidden');
+
+                // Initialize pagination
+                updatePaginationInfo();
+                renderPage();
+
+                function updatePaginationInfo() {
+                    const totalRecords = paginationState.filteredData.length;
+                    const totalPages = Math.ceil(totalRecords / paginationState.itemsPerPage);
+                    
+                    document.getElementById('total-records').textContent = totalRecords;
+                    document.getElementById('total-pages').textContent = totalPages;
+                    document.getElementById('current-page').textContent = paginationState.currentPage;
+                    document.getElementById('history-count').textContent = Math.min(
+                        paginationState.itemsPerPage, 
+                        totalRecords - ((paginationState.currentPage - 1) * paginationState.itemsPerPage)
+                    );
+                    
+                    // Update button states
+                    const prevBtn = document.getElementById('prev-page');
+                    const nextBtn = document.getElementById('next-page');
+                    
+                    if (prevBtn) prevBtn.disabled = paginationState.currentPage <= 1;
+                    if (nextBtn) nextBtn.disabled = paginationState.currentPage >= totalPages || totalPages === 0;
+                }
+
+                function renderPage() {
+                    const startIdx = (paginationState.currentPage - 1) * paginationState.itemsPerPage;
+                    const endIdx = Math.min(startIdx + paginationState.itemsPerPage, paginationState.filteredData.length);
+                    const pageData = paginationState.filteredData.slice(startIdx, endIdx);
+
+                    const tbody = document.getElementById('history-rows');
+                    const empty = document.getElementById('history-empty');
+                    if (!tbody || !empty) return;
+
+                    if (pageData.length === 0) {
+                        empty.classList.remove('hidden');
+                        tbody.innerHTML = '';
+                        return;
+                    }
+
+                    empty.classList.add('hidden');
+                    tbody.innerHTML = pageData.map((r, idx) => {
+                        const d = r.bdate || (r.created_at ? r.created_at.split('T')[0] : '');
+                        const rate = Number(r.rate || 0);
+                        const disc = Number(r.disc || 0);
+                        const qty = Number(r.qty || 0);
+                        const total = Number(r.total || (qty * rate * (1 - (disc / 100))));
+                        return `
+                            <tr>
+                                <td class="p-2 text-gray-600">${d}</td>
+                                <td class="p-2 font-mono text-gray-700">${r.bno || ''}</td>
+                                <td class="p-2 text-right font-mono">${qty.toFixed(2)}</td>
+                                <td class="p-2 text-right font-mono">${rate.toFixed(2)}</td>
+                                <td class="p-2 text-right font-mono">${disc.toFixed(2)}</td>
+                                <td class="p-2 text-right font-mono font-bold">${total.toFixed(2)}</td>
+                                <td class="p-2 text-center">
+                                    <button class="btn-use-history bg-white border border-amber-200 text-amber-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-50" data-idx="${startIdx + idx}">USE</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    // Add event listeners to the use buttons
+                    tbody.querySelectorAll('.btn-use-history').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const originalIdx = parseInt(e.target.getAttribute('data-idx'));
+                            const row = paginationState.filteredData[originalIdx];
+                            if (!row) return;
+                            addItemToCartWithOverrides(stock, { rate: row.rate, disc: row.disc });
+                            document.getElementById('modal-backdrop').classList.add('hidden');
+                            closeCreateStockModal();
+                        });
+                    });
+
+                    const useLastBtn = document.getElementById('btn-use-last-history');
+                    if (useLastBtn && paginationState.filteredData.length > 0) {
+                        useLastBtn.onclick = () => {
+                            const row = paginationState.filteredData[0]; // Most recent
+                            addItemToCartWithOverrides(stock, { rate: row.rate, disc: row.disc });
+                            document.getElementById('modal-backdrop').classList.add('hidden');
+                            closeCreateStockModal();
+                        };
+                    }
+                }
+
+                // Add pagination event listeners
+                document.getElementById('prev-page').addEventListener('click', () => {
+                    if (paginationState.currentPage > 1) {
+                        paginationState.currentPage--;
+                        updatePaginationInfo();
+                        renderPage();
+                    }
+                });
+
+                document.getElementById('next-page').addEventListener('click', () => {
+                    const totalPages = Math.ceil(paginationState.filteredData.length / paginationState.itemsPerPage);
+                    if (paginationState.currentPage < totalPages) {
+                        paginationState.currentPage++;
+                        updatePaginationInfo();
+                        renderPage();
+                    }
+                });
+
+                document.getElementById('items-per-page').addEventListener('change', (e) => {
+                    paginationState.itemsPerPage = parseInt(e.target.value);
+                    paginationState.currentPage = 1; // Reset to first page
+                    updatePaginationInfo();
+                    renderPage();
+                });
+            } catch (err) {
+                console.error(err);
+                alert('Error loading history: ' + err.message);
+                closeCreateStockModal();
+            }
+        })();
     }
 
     // --- MODAL: OTHER CHARGES ---
@@ -582,6 +900,83 @@
         
         // Attach event listeners for remove buttons
         attachOtherChargesListeners();
+        
+        // Auto-complete functionality for charge name
+        const chargeNameInput = document.getElementById('charge-name');
+        const suggestionsContainer = document.getElementById('charge-name-suggestions');
+        
+        // Load existing other charges types for auto-complete
+        let existingCharges = [];
+        
+        async function loadExistingCharges() {
+            try {
+                const response = await window.api.get('/inventory/api/other-charges/types');
+                existingCharges = await response.json();
+            } catch (error) {
+                console.error('Error loading existing charges:', error);
+            }
+        }
+        
+        // Initialize existing charges
+        loadExistingCharges();
+        
+        chargeNameInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            
+            if (query.length === 0) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+            
+            // Filter existing charges based on query
+            const filteredCharges = existingCharges.filter(charge => 
+                charge.name.toLowerCase().includes(query) || 
+                charge.type.toLowerCase().includes(query)
+            );
+            
+            if (filteredCharges.length > 0) {
+                suggestionsContainer.innerHTML = filteredCharges.map(charge => {
+                    return `<div class="charge-suggestion-item p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-100" 
+                            data-name="${charge.name}" 
+                            data-type="${charge.type}" 
+                            data-hsnSac="${charge.hsnSac || ''}" 
+                            data-gstRate="${charge.gstRate || 0}">
+                            <div class="font-medium truncate">${charge.name || charge.type}</div>
+                            <div class="text-xs text-gray-500 truncate">Type: ${charge.type} | HSN/SAC: ${charge.hsnSac || 'N/A'} | GST: ${charge.gstRate || 0}%</div>
+                        </div>`;
+                }).join('');
+                
+                // Add event listeners to suggestion items
+                suggestionsContainer.querySelectorAll('.charge-suggestion-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const name = this.getAttribute('data-name');
+                        const type = this.getAttribute('data-type');
+                        const hsnSac = this.getAttribute('data-hsnSac');
+                        const gstRate = this.getAttribute('data-gstRate');
+                        
+                        // Fill the form with selected values
+                        if (name) document.getElementById('charge-name').value = name;
+                        if (type) document.getElementById('charge-type').value = type;
+                        if (hsnSac) document.getElementById('charge-hsn').value = hsnSac;
+                        if (gstRate) document.getElementById('charge-gst').value = gstRate;
+                        
+                        // Hide suggestions
+                        suggestionsContainer.classList.add('hidden');
+                    });
+                });
+                
+                suggestionsContainer.classList.remove('hidden');
+            } else {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!suggestionsContainer.contains(e.target) && e.target !== chargeNameInput) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
         
         // Add charge button
         document.getElementById('add-charge-btn').onclick = () => {
@@ -614,6 +1009,9 @@
             document.getElementById('charge-hsn').value = '';
             document.getElementById('charge-amount').value = '';
             document.getElementById('charge-gst').value = '';
+            
+            // Hide suggestions if visible
+            suggestionsContainer.classList.add('hidden');
             
             // Update the display
             if (chargesList) {
@@ -676,7 +1074,6 @@
             </div>
             
             <form id="create-stock-form" class="p-6 grid grid-cols-2 gap-x-6 gap-y-4">
-                
                 <div class="col-span-2">
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Item Description *</label>
                     <input type="text" name="item" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="e.g. Dell Monitor 24 inch">
@@ -696,8 +1093,8 @@
                     <input type="text" name="oem" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">HSN Code *</label>
-                    <input type="text" name="hsn" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">HSN/SAC Code *</label>
+                    <input type="text" name="hsn" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="Enter HSN for goods or SAC for services">
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
@@ -747,12 +1144,11 @@
 
                 <div class="col-span-2 pt-6 border-t border-gray-100 flex justify-end gap-3 mt-2">
                     <button type="button" id="cancel-create-stock" class="px-5 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium hover:bg-gray-100 rounded">Cancel</button>
-                    <button type="submit" class="px-6 py-2 bg-slate-800 text-white text-sm font-bold rounded shadow hover:bg-slate-900 transition-colors">SAVE & SELECT</button>
+                    <button type="submit" class="px-6 py-2 bg-slate-800 text-white text-sm font-bold rounded shadow hover:bg-slate-900 transition-colors">SAVE</button>
                 </div>
             </form>
         `;
 
-        // Listeners
         document.getElementById('close-sub-modal').onclick = closeCreateStockModal;
         document.getElementById('cancel-create-stock').onclick = closeCreateStockModal;
 
@@ -761,8 +1157,6 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
 
-            // Logic aligned with stocks.js submit handler
-            data.user = 'Admin';
             data.total = (parseFloat(data.qty) * parseFloat(data.rate)).toFixed(2);
             data.created_at = new Date().toISOString();
             data.updated_at = new Date().toISOString();
@@ -775,19 +1169,169 @@
 
                 closeCreateStockModal();
 
+                const refreshRes = await window.api.get('/inventory/api/stocks');
+                const newData = await refreshRes.json();
+                state.stocks = Array.isArray(newData) ? newData : [];
+
+                // If stock selection modal is open, refresh its list
+                const searchInput = document.getElementById('stock-search');
+                const term = searchInput ? (searchInput.value || '').toLowerCase() : '';
+                const filtered = term
+                    ? state.stocks.filter(s =>
+                        (s.item && s.item.toLowerCase().includes(term)) ||
+                        (s.batch && s.batch.toLowerCase().includes(term)) ||
+                        (s.oem && s.oem.toLowerCase().includes(term)) ||
+                        (s.hsn && s.hsn.toLowerCase().includes(term))
+                    )
+                    : state.stocks;
+                renderStockRows(filtered);
+            } catch (err) {
+                console.error(err);
+                alert("Error creating stock: " + err.message);
+            }
+        });
+    }
+
+    function openEditStockModal(stock) {
+        const subModal = document.getElementById('sub-modal-backdrop');
+        const subContent = document.getElementById('sub-modal-content');
+        if (!subModal || !subContent) return;
+
+        if (!stock || !stock.id) {
+            alert('Invalid stock item.');
+            return;
+        }
+
+        subModal.classList.remove('hidden');
+
+        subContent.innerHTML = `
+            <div class="bg-slate-800 p-4 flex justify-between items-center text-white">
+                <h3 class="font-bold text-sm tracking-wide">EDIT STOCK ITEM</h3>
+                <button id="close-sub-modal" class="hover:text-red-300 text-lg transition-colors">&times;</button>
+            </div>
+            
+            <form id="edit-stock-form" class="p-6 grid grid-cols-2 gap-x-6 gap-y-4">
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Item Description *</label>
+                    <input type="text" name="item" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.item || '').replace(/"/g, '&quot;')}">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Batch No</label>
+                    <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.batch || '').replace(/"/g, '&quot;')}">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Part No (P/No)</label>
+                    <input type="text" name="pno" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.pno || '').replace(/"/g, '&quot;')}">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">OEM / Brand</label>
+                    <input type="text" name="oem" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.oem || '').replace(/"/g, '&quot;')}">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">HSN/SAC Code *</label>
+                    <input type="text" name="hsn" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.hsn || '').replace(/"/g, '&quot;')}">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Qty *</label>
+                        <input type="number" step="0.01" name="qty" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${Number(stock.qty || 0)}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">UOM *</label>
+                        <select name="uom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none bg-white">
+                            <option value="NOS" ${stock.uom === 'NOS' ? 'selected' : ''}>NOS</option>
+                            <option value="PCS" ${stock.uom === 'PCS' ? 'selected' : ''}>PCS</option>
+                            <option value="SET" ${stock.uom === 'SET' ? 'selected' : ''}>SET</option>
+                            <option value="BOX" ${stock.uom === 'BOX' ? 'selected' : ''}>BOX</option>
+                            <option value="MTR" ${stock.uom === 'MTR' ? 'selected' : ''}>MTR</option>
+                            <option value="KGS" ${stock.uom === 'KGS' ? 'selected' : ''}>KGS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Selling Rate (₹) *</label>
+                    <input type="number" step="0.01" name="rate" required class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${Number(stock.rate || 0)}">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">GST % *</label>
+                        <select name="grate" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none bg-white">
+                            <option value="18" ${Number(stock.grate) === 18 ? 'selected' : ''}>18%</option>
+                            <option value="12" ${Number(stock.grate) === 12 ? 'selected' : ''}>12%</option>
+                            <option value="5" ${Number(stock.grate) === 5 ? 'selected' : ''}>5%</option>
+                            <option value="28" ${Number(stock.grate) === 28 ? 'selected' : ''}>28%</option>
+                            <option value="0" ${Number(stock.grate) === 0 ? 'selected' : ''}>0%</option>
+                        </select>
+                    </div>
+                    <div>
+                         <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">MRP</label>
+                         <input type="number" step="0.01" name="mrp" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${stock.mrp ? Number(stock.mrp) : ''}">
+                    </div>
+                </div>
+
+                <div>
+                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Expiry Date</label>
+                     <input type="date" name="expiryDate" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${stock.expiryDate || ''}">
+                </div>
+
+                <div class="col-span-2 pt-6 border-t border-gray-100 flex justify-end gap-3 mt-2">
+                    <button type="button" id="cancel-edit-stock" class="px-5 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium hover:bg-gray-100 rounded">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-slate-800 text-white text-sm font-bold rounded shadow hover:bg-slate-900 transition-colors">UPDATE</button>
+                </div>
+            </form>
+        `;
+
+        document.getElementById('close-sub-modal').onclick = closeCreateStockModal;
+        document.getElementById('cancel-edit-stock').onclick = closeCreateStockModal;
+
+        document.getElementById('edit-stock-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            data.total = (parseFloat(data.qty) * parseFloat(data.rate)).toFixed(2);
+            data.updated_at = new Date().toISOString();
+
+            try {
+                const res = await fetch(`/inventory/api/stocks/${stock.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Failed to update stock');
+
+                closeCreateStockModal();
+
                 // Refresh main list safely
                 const refreshRes = await window.api.get('/inventory/api/stocks');
                 const newData = await refreshRes.json();
                 state.stocks = Array.isArray(newData) ? newData : [];
 
-                renderStockRows(state.stocks);
+                // Keep current filtered view if user is searching
+                const searchInput = document.getElementById('stock-search');
+                const term = searchInput ? (searchInput.value || '').toLowerCase() : '';
+                const filtered = term
+                    ? state.stocks.filter(s =>
+                        (s.item && s.item.toLowerCase().includes(term)) ||
+                        (s.batch && s.batch.toLowerCase().includes(term)) ||
+                        (s.oem && s.oem.toLowerCase().includes(term)) ||
+                        (s.hsn && s.hsn.toLowerCase().includes(term))
+                    )
+                    : state.stocks;
 
-                // Optionally show a small toast or alert
-                // alert("Stock created successfully!"); 
+                renderStockRows(filtered);
 
             } catch (err) {
                 console.error(err);
-                alert("Error creating stock: " + err.message);
+                alert("Error updating stock: " + err.message);
             }
         });
     }
@@ -857,6 +1401,7 @@
                 div.addEventListener('click', () => {
                     const id = parseInt(div.getAttribute('data-id'));
                     state.selectedParty = state.parties.find(p => p.id === id);
+                    state.historyCache = {};
                     document.getElementById('modal-backdrop').classList.add('hidden');
 
                     const partyContainer = document.getElementById('party-display');
@@ -995,7 +1540,6 @@
 
             data.supply = data.state;
             data.gstin = data.gstin || 'UNREGISTERED';
-            data.usern = 'Admin';
             data.created_at = new Date().toISOString();
             data.updated_at = new Date().toISOString();
 
@@ -1013,6 +1557,7 @@
 
                 // Select and Update
                 state.selectedParty = state.parties.find(p => p.firm === data.firm);
+                state.historyCache = {};
                 const partyContainer = document.getElementById('party-display');
                 if (partyContainer) partyContainer.innerHTML = renderPartyCard();
                 document.getElementById('modal-backdrop').classList.add('hidden');
@@ -1034,6 +1579,7 @@
             state.cart.push({
                 stockId: stockItem.id,
                 item: stockItem.item,
+                narration: '',  // Initialize with empty narration
                 batch: stockItem.batch,
                 oem: stockItem.oem,
                 hsn: stockItem.hsn,
@@ -1062,7 +1608,7 @@
         if (partyBtn) partyBtn.onclick = openPartyModal;
 
         const changePartyBtn = document.getElementById('btn-change-party');
-        if (changePartyBtn) changePartyBtn.onclick = openPartyModal;
+        if (changePartyBtn) changePartyBtn.addEventListener('click', openPartyModal);
         
         // Other charges button
         const otherChargesBtn = document.getElementById('btn-other-charges');
@@ -1121,6 +1667,7 @@
                 if (confirm("Clear current invoice details?")) {
                     state.cart = [];
                     state.selectedParty = null;
+                    state.historyCache = {};
                     state.otherCharges = [];
                     renderLayout();
                     
@@ -1148,8 +1695,7 @@
                     meta: state.meta,
                     party: state.selectedParty,
                     cart: state.cart,
-                    otherCharges: state.otherCharges,
-                    user: 'Admin' // or use actual logged-in user
+                    otherCharges: state.otherCharges
                 };
 
                 try {
@@ -1211,6 +1757,19 @@
 
                 // Recalculate Footer
                 document.getElementById('totals-section').innerHTML = renderTotals();
+            };
+        });
+        
+        // Narration inputs
+        document.querySelectorAll('input[data-field="narration"]').forEach(input => {
+            input.oninput = (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                const field = e.target.dataset.field;
+                const val = e.target.value;
+
+                if (state.cart[idx]) {
+                    state.cart[idx][field] = val;
+                }
             };
         });
 
@@ -1402,7 +1961,8 @@
             });
         }
         
-        const grandTotal = totalTaxable + totalTaxAmount + tempOtherChargesTotal + tempOtherChargesGstTotal;
+        // For reverse charge, tax is calculated but not added to grand total
+        const grandTotal = totalTaxable + (meta.reverseCharge ? 0 : totalTaxAmount) + tempOtherChargesTotal + (meta.reverseCharge ? 0 : tempOtherChargesGstTotal);
         
         // Calculate final amounts and round off
         const finalAmount = Math.round(grandTotal);
@@ -1437,10 +1997,23 @@
             finalIgstAmount = igstAmount + otherChargesGstTotal;
         }
         
+        // For reverse charge, tax amounts are calculated but set to 0 for display
+        if (meta.reverseCharge) {
+            finalCgstAmount = 0;
+            finalSgstAmount = 0;
+            finalIgstAmount = 0;
+        }
+        
+        // Process cart items to ensure narration is preserved
+        const processedCart = cart.map(item => ({
+            ...item,
+            narration: item.narration || ''  // Ensure narration is included in the export
+        }));
+        
         return {
             meta,
             party,
-            cart,
+            cart: processedCart,  // Use the processed cart with narration
             otherCharges: processedOtherCharges,
             billId,
             totalTaxable,
@@ -1570,6 +2143,21 @@
             createCell(item.grate, styles.cellRight),
             createCell(lineTotal.toFixed(2), styles.cellRight)
         ]);
+        
+        // Add narration row if it exists
+        if (item.narration) {
+            ws_data.push([
+                createCell('', styles.cellCenter),
+                createCell('Narration: ' + item.narration, styles.cellLeft),
+                createCell('', styles.cellCenter),
+                createCell('', styles.cellCenter),
+                createCell('', styles.cellCenter),
+                createCell('', styles.cellRight),
+                createCell('', styles.cellRight),
+                createCell('', styles.cellRight),
+                createCell('', styles.cellRight)
+            ]);
+        }
     });
         
     // Add other charges if they exist
@@ -1615,7 +2203,7 @@
     }
     
     // --- FOOTER SECTION ---
-        
+            
     // Calculate the same totals as in renderTotals for consistency
     let totalTaxable = 0;
     let totalTaxAmount = 0;
@@ -1651,6 +2239,13 @@
         finalSgstAmount = (totalTaxAmount / 2) + (otherChargesGstTotal / 2);
     } else {
         finalIgstAmount = totalTaxAmount + otherChargesGstTotal;
+    }
+        
+    // For reverse charge, tax amounts are calculated but set to 0 for display
+    if (invoiceData.meta.reverseCharge) {
+        finalCgstAmount = 0;
+        finalSgstAmount = 0;
+        finalIgstAmount = 0;
     }
         
     const addFooterRow = (label, val, isWordsRow = false) => {
@@ -1710,7 +2305,7 @@
     ws_data.push(rFinal);
     
     // 5. HSN Summary Table (Required for Indian GST Compliance)
-    // Group items by HSN code and calculate totals
+    // Group items by HSN/SAC code and calculate totals
     const hsnSummary = {};
     
     // Process cart items
@@ -1732,10 +2327,10 @@
         
         hsnSummary[hsn].taxableValue += taxableValue;
         
-        if (invoiceData.meta.billType === 'intra-state') {
+        if (invoiceData.meta.billType === 'intra-state' && !invoiceData.meta.reverseCharge) {
             hsnSummary[hsn].cgstAmount += taxAmount / 2;
             hsnSummary[hsn].sgstAmount += taxAmount / 2;
-        } else {
+        } else if (!invoiceData.meta.reverseCharge) {
             hsnSummary[hsn].igstAmount += taxAmount;
         }
     });
@@ -1761,10 +2356,10 @@
             
             hsnSummary[hsn].taxableValue += taxableValue;
             
-            if (invoiceData.meta.billType === 'intra-state') {
+            if (invoiceData.meta.billType === 'intra-state' && !invoiceData.meta.reverseCharge) {
                 hsnSummary[hsn].cgstAmount += taxAmount / 2;
                 hsnSummary[hsn].sgstAmount += taxAmount / 2;
-            } else {
+            } else if (!invoiceData.meta.reverseCharge) {
                 hsnSummary[hsn].igstAmount += taxAmount;
             }
         });
@@ -1787,13 +2382,13 @@
     // HSN Summary table headers
     const hsnHeadersRow = Array.from({length: 9}, () => createCell("", {}));
     hsnHeadersRow[0] = createCell("HSN", styles.header);
-    hsnHeadersRow[1] = createCell("Taxable Value", styles.header);
-    hsnHeadersRow[2] = createCell("IGST Amount", styles.header);
-    hsnHeadersRow[3] = createCell("CGST Amount", styles.header);
-    hsnHeadersRow[4] = createCell("SGST Amount", styles.header);
-    hsnHeadersRow[5] = createCell("Total Tax", styles.header);
-    hsnHeadersRow[6] = createCell("");
-    hsnHeadersRow[7] = createCell("");
+    hsnHeadersRow[1] = createCell("");
+    hsnHeadersRow[2] = createCell("Taxable Value", styles.header);
+    hsnHeadersRow[3] = createCell("");
+    hsnHeadersRow[4] = createCell("IGST Amount", styles.header);
+    hsnHeadersRow[5] = createCell("CGST Amount", styles.header);
+    hsnHeadersRow[6] = createCell("SGST Amount", styles.header);
+    hsnHeadersRow[7] = createCell("Total Tax", styles.header);
     hsnHeadersRow[8] = createCell("");
     ws_data.push(hsnHeadersRow);
     
@@ -1801,13 +2396,13 @@
     Object.values(hsnSummary).forEach(hsnData => {
         const hsnRow = Array.from({length: 9}, () => createCell("", {}));
         hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN code
-        hsnRow[1] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
-        hsnRow[2] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
-        hsnRow[3] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
-        hsnRow[4] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
-        hsnRow[5] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
-        hsnRow[6] = createCell("");
-        hsnRow[7] = createCell("");
+        hsnRow[1] = createCell("");
+        hsnRow[2] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
+        hsnRow[3] = createCell("");
+        hsnRow[4] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
+        hsnRow[5] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
+        hsnRow[6] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
+        hsnRow[7] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
         hsnRow[8] = createCell("");
         ws_data.push(hsnRow);
     });
@@ -1851,6 +2446,24 @@
         if (row && row[0] && row[0].v && typeof row[0].v === 'string' && row[0].v === "HSN Summary") {
             // Merge columns A (index 0) to I (index 8)
             merges.push({ s: { r: i, c: 0 }, e: { r: i, c: 8 } });
+
+            // Merge HSN Summary table columns to use full width:
+            // A-B (HSN), C-D (Taxable Value), H-I (Total Tax)
+            const headerRowIndex = i + 1;
+            merges.push({ s: { r: headerRowIndex, c: 0 }, e: { r: headerRowIndex, c: 1 } });
+            merges.push({ s: { r: headerRowIndex, c: 2 }, e: { r: headerRowIndex, c: 3 } });
+            merges.push({ s: { r: headerRowIndex, c: 7 }, e: { r: headerRowIndex, c: 8 } });
+
+            // Apply same merges for each data row until a non-data row is reached
+            for (let r = i + 2; r < ws_data.length; r++) {
+                const dataRow = ws_data[r];
+                if (!dataRow || !dataRow[0] || !dataRow[0].v) break;
+                if (typeof dataRow[0].v === 'string' && dataRow[0].v.startsWith('Narration: ')) break;
+
+                merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 1 } });
+                merges.push({ s: { r: r, c: 2 }, e: { r: r, c: 3 } });
+                merges.push({ s: { r: r, c: 7 }, e: { r: r, c: 8 } });
+            }
         }
     }
     
@@ -1869,11 +2482,14 @@
         const row = ws_data[i];
         if (row && row[6] && row[6].v && typeof row[6].v === 'string') {
             // Check if this is a total row (contains labels like "Taxable Value", "CGST", "SGST", "IGST", "Round Off", "GRAND TOTAL")
-            const label = row[6].v;
-            if (label.includes("Taxable Value") || label.includes("CGST") || label.includes("SGST") || 
-                label.includes("IGST") || label.includes("Round Off") || label.includes("GRAND TOTAL") ||
-                label.includes("freight") || label.includes("packing") || label.includes("handling") ||
-                label.includes("insurance") || label.includes("others")) {
+            const label = row[6].v.trim();
+            const lower = label.toLowerCase();
+            const isExactFooterLabel = label === "Taxable Value" || label === "CGST" || label === "SGST" ||
+                label === "IGST" || label === "Round Off" || label === "GRAND TOTAL";
+            const isOtherChargeLabel = lower.includes("freight") || lower.includes("packing") || lower.includes("handling") ||
+                lower.includes("insurance") || lower.includes("others");
+
+            if (isExactFooterLabel || isOtherChargeLabel) {
                 // Merge columns G (index 6) and H (index 7)
                 merges.push({ s: { r: i, c: 6 }, e: { r: i, c: 7 } });
             }
@@ -1881,6 +2497,23 @@
     }
 
     ws['!merges'] = merges;
+
+    // --- PRINT / PAGE SETUP ---
+    // Aim: minimal margins + fit to A4 width (1 page wide)
+    ws['!pageSetup'] = {
+        paperSize: 9, // A4
+        orientation: 'portrait',
+        fitToWidth: 1,
+        fitToHeight: 0
+    };
+    ws['!margins'] = {
+        left: 0.2,
+        right: 0.2,
+        top: 0.2,
+        bottom: 0.2,
+        header: 0.1,
+        footer: 0.1
+    };
 
     // --- WIDTHS ---
     ws['!cols'] = [

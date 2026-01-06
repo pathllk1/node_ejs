@@ -178,3 +178,23 @@
     96.4% { opacity: 0; }
     100% { opacity: 0; }
 }
+
+/* Auto-complete suggestions styles */
+.charge-suggestion-item {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.charge-suggestion-item:hover {
+    background-color: #f0f9ff !important;
+}
+
+#charge-name-suggestions {
+    min-width: 400px;
+}
+
+.charge-suggestion-item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -1,0 +1,5 @@
+"watch:python": "cd python_service && ./venv/bin/python -m uvicorn main:app --reload --port 5200",
+
+
+
+"watch:python": "cd python_service && venv\\Scripts\\python -m uvicorn main:app --reload --port 5200",

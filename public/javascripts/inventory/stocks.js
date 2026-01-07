@@ -188,8 +188,18 @@ function setupEventListeners() {
         const gstPercent = parseFloat(gstInput.value) || 0;
 
         const basicTotal = qty * rate;
-        const taxAmount = basicTotal * (gstPercent / 100);
-        const grandTotal = basicTotal + taxAmount;
+        
+        // Check GST status to determine if tax should be calculated
+        // We'll try to fetch the GST status from the server, defaulting to enabled if unavailable
+        const gstEnabled = window.gstEnabled !== undefined ? window.gstEnabled : true;
+        
+        let taxAmount = 0;
+        let grandTotal = basicTotal; // Default to basic total if GST is disabled
+        
+        if (gstEnabled) {
+            taxAmount = basicTotal * (gstPercent / 100);
+            grandTotal = basicTotal + taxAmount;
+        }
 
         // Update UI
         displayTotal.textContent = basicTotal.toFixed(2);
@@ -438,25 +448,56 @@ function updatePaginationInfo(totalItems) {
 
 // Modal Functions
 function openModal() {
-    const form = document.getElementById('stockForm');
-    form.reset();
-    document.getElementById('stockId').value = '';
-    document.getElementById('modalTitle').innerText = 'Add New Stock';
-    
-    document.getElementById('displayTotal').innerText = '0.00';
-    document.getElementById('calcTax').innerText = '0.00';
-    document.getElementById('calcGrandTotal').innerText = '0.00';
-    
-    // Reset hidden fields
-    document.getElementById('stockData').value = '';
-    document.getElementById('selectedBatchIndex').value = '';
-    
-    // Reset the batch field to original state to ensure clean state
-    resetBatchFieldToOriginal();
-    
-    const modal = document.getElementById('stockModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    // Fetch GST status to determine if tax calculations should be shown
+    window.api.get('/admin/gst-status')
+        .then(response => response.json())
+        .then(gstData => {
+            window.gstEnabled = gstData.gst_enabled;
+            
+            const form = document.getElementById('stockForm');
+            form.reset();
+            document.getElementById('stockId').value = '';
+            document.getElementById('modalTitle').innerText = 'Add New Stock';
+            
+            document.getElementById('displayTotal').innerText = '0.00';
+            document.getElementById('calcTax').innerText = '0.00';
+            document.getElementById('calcGrandTotal').innerText = '0.00';
+            
+            // Reset hidden fields
+            document.getElementById('stockData').value = '';
+            document.getElementById('selectedBatchIndex').value = '';
+            
+            // Reset the batch field to original state to ensure clean state
+            resetBatchFieldToOriginal();
+            
+            const modal = document.getElementById('stockModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        })
+        .catch(error => {
+            console.warn('Could not fetch GST status, defaulting to enabled', error);
+            window.gstEnabled = true; // Default to enabled if API fails
+            
+            const form = document.getElementById('stockForm');
+            form.reset();
+            document.getElementById('stockId').value = '';
+            document.getElementById('modalTitle').innerText = 'Add New Stock';
+            
+            document.getElementById('displayTotal').innerText = '0.00';
+            document.getElementById('calcTax').innerText = '0.00';
+            document.getElementById('calcGrandTotal').innerText = '0.00';
+            
+            // Reset hidden fields
+            document.getElementById('stockData').value = '';
+            document.getElementById('selectedBatchIndex').value = '';
+            
+            // Reset the batch field to original state to ensure clean state
+            resetBatchFieldToOriginal();
+            
+            const modal = document.getElementById('stockModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        });
 }
 
 function closeModal() {
@@ -503,77 +544,194 @@ function resetBatchFieldToOriginal() {
 }
 
 function editStock(stock) {
-    openModal();
-    document.getElementById('modalTitle').innerText = 'Edit Stock';
-    document.getElementById('stockId').value = stock.id;
-    
-    const form = document.getElementById('stockForm');
-    form.item.value = stock.item;
-    form.pno.value = stock.pno || '';
-    form.oem.value = stock.oem || '';
-    form.hsn.value = stock.hsn;
-    form.qty.value = stock.qty;
-    form.uom.value = stock.uom;
-    form.rate.value = stock.rate;
-    form.grate.value = stock.grate;
-    
-    // Initialize MRP and expiry date from main stock object first
-    // This ensures they show initially even if batch logic modifies them later
-    form.mrp.value = '';
-    form.expiryDate.value = '';
-    
-    // Set initial values based on main stock object if available
-    if (stock.mrp !== undefined && stock.mrp !== null) {
-        form.mrp.value = stock.mrp;
-    }
-    if (stock.expiryDate) {
-        form.expiryDate.value = stock.expiryDate.split('T')[0];
-    }
-    
-    // Handle batch information - show batch selection if multiple batches exist
-    if (stock.batches && Array.isArray(stock.batches) && stock.batches.length > 0) {
-        // Store the original stock data for batch operations
-        document.getElementById('stockData').value = JSON.stringify(stock);
-        
-        if (stock.batches.length > 1) {
-            // Show batch selection dropdown
-            showBatchSelectionForEdit(stock);
-        } else {
-            // Only one batch, load it directly
-            const firstBatch = stock.batches[0];
-            form.batch.value = firstBatch.batch || '';
+    // Fetch GST status to determine if tax calculations should be shown
+    fetch('/admin/gst-status')
+        .then(response => response.json())
+        .then(gstData => {
+            window.gstEnabled = gstData.gst_enabled;
             
-            // Override with batch values if they exist
-            if (firstBatch.mrp !== undefined && firstBatch.mrp !== null) {
-                form.mrp.value = firstBatch.mrp;
+            // Open modal but ensure it's set to edit mode
+            const form = document.getElementById('stockForm');
+            form.reset();
+            document.getElementById('stockId').value = stock.id;
+            document.getElementById('modalTitle').innerText = 'Edit Stock';
+            
+            document.getElementById('displayTotal').innerText = '0.00';
+            document.getElementById('calcTax').innerText = '0.00';
+            document.getElementById('calcGrandTotal').innerText = '0.00';
+            
+            // Reset hidden fields
+            document.getElementById('stockData').value = '';
+            document.getElementById('selectedBatchIndex').value = '';
+            
+            // Reset the batch field to original state to ensure clean state
+            resetBatchFieldToOriginal();
+            
+            const modal = document.getElementById('stockModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Now populate the form with stock data
+            form.item.value = stock.item;
+            form.pno.value = stock.pno || '';
+            form.oem.value = stock.oem || '';
+            form.hsn.value = stock.hsn;
+            form.qty.value = stock.qty;
+            form.uom.value = stock.uom;
+            form.rate.value = stock.rate;
+            form.grate.value = stock.grate;
+            
+            // Initialize MRP and expiry date from main stock object first
+            // This ensures they show initially even if batch logic modifies them later
+            form.mrp.value = '';
+            form.expiryDate.value = '';
+            
+            // Set initial values based on main stock object if available
+            if (stock.mrp !== undefined && stock.mrp !== null) {
+                form.mrp.value = stock.mrp;
             }
-            if (firstBatch.expiry) {
-                form.expiryDate.value = firstBatch.expiry.split('T')[0];
+            if (stock.expiryDate) {
+                form.expiryDate.value = stock.expiryDate.split('T')[0];
             }
             
-            // Also update qty and rate if they came from the batch
-            if (firstBatch.qty !== undefined) {
-                form.qty.value = firstBatch.qty;
-                // Trigger calculation update for qty
-                form.qty.dispatchEvent(new Event('input', { bubbles: true }));
+            // Handle batch information - show batch selection if multiple batches exist
+            if (stock.batches && Array.isArray(stock.batches) && stock.batches.length > 0) {
+                // Store the original stock data for batch operations
+                document.getElementById('stockData').value = JSON.stringify(stock);
+                
+                if (stock.batches.length > 1) {
+                    // Show batch selection dropdown
+                    showBatchSelectionForEdit(stock);
+                } else {
+                    // Only one batch, load it directly
+                    const firstBatch = stock.batches[0];
+                    form.batch.value = firstBatch.batch || '';
+                    
+                    // Override with batch values if they exist
+                    if (firstBatch.mrp !== undefined && firstBatch.mrp !== null) {
+                        form.mrp.value = firstBatch.mrp;
+                    }
+                    if (firstBatch.expiry) {
+                        form.expiryDate.value = firstBatch.expiry.split('T')[0];
+                    }
+                    
+                    // Also update qty and rate if they came from the batch
+                    if (firstBatch.qty !== undefined) {
+                        form.qty.value = firstBatch.qty;
+                        // Trigger calculation update for qty
+                        form.qty.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    if (firstBatch.rate !== undefined) {
+                        form.rate.value = firstBatch.rate;
+                        // Trigger calculation update for rate
+                        form.rate.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            } else {
+                // Fallback to old fields
+                form.batch.value = stock.batch || '';
+                form.mrp.value = stock.mrp || '';
+                form.expiryDate.value = stock.expiryDate ? stock.expiryDate.split('T')[0] : '';
             }
-            if (firstBatch.rate !== undefined) {
-                form.rate.value = firstBatch.rate;
-                // Trigger calculation update for rate
-                form.rate.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Trigger calculation update
+            setTimeout(() => {
+                form.qty.dispatchEvent(new Event('input'));
+            }, 0); // Use timeout to ensure DOM is updated first
+        })
+        .catch(error => {
+            console.warn('Could not fetch GST status, defaulting to enabled', error);
+            window.gstEnabled = true; // Default to enabled if API fails
+            
+            // Open modal but ensure it's set to edit mode
+            const form = document.getElementById('stockForm');
+            form.reset();
+            document.getElementById('stockId').value = stock.id;
+            document.getElementById('modalTitle').innerText = 'Edit Stock';
+            
+            document.getElementById('displayTotal').innerText = '0.00';
+            document.getElementById('calcTax').innerText = '0.00';
+            document.getElementById('calcGrandTotal').innerText = '0.00';
+            
+            // Reset hidden fields
+            document.getElementById('stockData').value = '';
+            document.getElementById('selectedBatchIndex').value = '';
+            
+            // Reset the batch field to original state to ensure clean state
+            resetBatchFieldToOriginal();
+            
+            const modal = document.getElementById('stockModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Now populate the form with stock data
+            form.item.value = stock.item;
+            form.pno.value = stock.pno || '';
+            form.oem.value = stock.oem || '';
+            form.hsn.value = stock.hsn;
+            form.qty.value = stock.qty;
+            form.uom.value = stock.uom;
+            form.rate.value = stock.rate;
+            form.grate.value = stock.grate;
+            
+            // Initialize MRP and expiry date from main stock object first
+            // This ensures they show initially even if batch logic modifies them later
+            form.mrp.value = '';
+            form.expiryDate.value = '';
+            
+            // Set initial values based on main stock object if available
+            if (stock.mrp !== undefined && stock.mrp !== null) {
+                form.mrp.value = stock.mrp;
             }
-        }
-    } else {
-        // Fallback to old fields
-        form.batch.value = stock.batch || '';
-        form.mrp.value = stock.mrp || '';
-        form.expiryDate.value = stock.expiryDate ? stock.expiryDate.split('T')[0] : '';
-    }
-    
-    // Trigger calculation update
-    setTimeout(() => {
-        form.qty.dispatchEvent(new Event('input'));
-    }, 0); // Use timeout to ensure DOM is updated first
+            if (stock.expiryDate) {
+                form.expiryDate.value = stock.expiryDate.split('T')[0];
+            }
+            
+            // Handle batch information - show batch selection if multiple batches exist
+            if (stock.batches && Array.isArray(stock.batches) && stock.batches.length > 0) {
+                // Store the original stock data for batch operations
+                document.getElementById('stockData').value = JSON.stringify(stock);
+                
+                if (stock.batches.length > 1) {
+                    // Show batch selection dropdown
+                    showBatchSelectionForEdit(stock);
+                } else {
+                    // Only one batch, load it directly
+                    const firstBatch = stock.batches[0];
+                    form.batch.value = firstBatch.batch || '';
+                    
+                    // Override with batch values if they exist
+                    if (firstBatch.mrp !== undefined && firstBatch.mrp !== null) {
+                        form.mrp.value = firstBatch.mrp;
+                    }
+                    if (firstBatch.expiry) {
+                        form.expiryDate.value = firstBatch.expiry.split('T')[0];
+                    }
+                    
+                    // Also update qty and rate if they came from the batch
+                    if (firstBatch.qty !== undefined) {
+                        form.qty.value = firstBatch.qty;
+                        // Trigger calculation update for qty
+                        form.qty.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    if (firstBatch.rate !== undefined) {
+                        form.rate.value = firstBatch.rate;
+                        // Trigger calculation update for rate
+                        form.rate.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            } else {
+                // Fallback to old fields
+                form.batch.value = stock.batch || '';
+                form.mrp.value = stock.mrp || '';
+                form.expiryDate.value = stock.expiryDate ? stock.expiryDate.split('T')[0] : '';
+            }
+            
+            // Trigger calculation update
+            setTimeout(() => {
+                form.qty.dispatchEvent(new Event('input'));
+            }, 0); // Use timeout to ensure DOM is updated first
+        });
 }
 
 // Show batch selection dropdown when multiple batches exist for editing
@@ -656,8 +814,17 @@ function showBatchSelectionForEdit(stock) {
             const gst = parseFloat(form.grate.value) || 0;
             
             const basicTotal = qty * rate;
-            const taxAmount = basicTotal * (gst / 100);
-            const grandTotal = basicTotal + taxAmount;
+            
+            // Use GST status to determine if tax should be calculated
+            const gstEnabled = window.gstEnabled !== undefined ? window.gstEnabled : true;
+            
+            let taxAmount = 0;
+            let grandTotal = basicTotal; // Default to basic total if GST is disabled
+            
+            if (gstEnabled) {
+                taxAmount = basicTotal * (gst / 100);
+                grandTotal = basicTotal + taxAmount;
+            }
             
             document.getElementById('displayTotal').textContent = basicTotal.toFixed(2);
             document.getElementById('calcTax').textContent = taxAmount.toFixed(2);

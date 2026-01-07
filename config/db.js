@@ -195,6 +195,62 @@ db.exec(`
     ) STRICT;
 `);
 
+// 8. Settings Table
+// Stores global application settings including GST enable/disable status
+db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY,
+        setting_key TEXT NOT NULL UNIQUE,
+        setting_value TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    ) STRICT;
+`);
+
+// Insert default GST setting if not exists
+try {
+    db.prepare(`INSERT OR IGNORE INTO settings (setting_key, setting_value, description, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, ?)`).run(
+        'gst_enabled', 
+        'true', 
+        'Global GST calculation toggle', 
+        new Date().toISOString(), 
+        new Date().toISOString()
+    );
+} catch (e) {
+    console.error('Error inserting default GST setting:', e.message);
+}
+
+// Bills Table Migration for reverse_charge
+try {
+    db.exec(`ALTER TABLE bills ADD COLUMN reverse_charge INTEGER DEFAULT 0;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for reverse_charge:', err.message);
+}
+
+// Indexes for performance
+try {
+    // Lookup bills by number
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_bno ON bills(bno);`);
+    
+    // Create unique constraint for bill numbers (add if not exists)
+    try {
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bills_bno_unique ON bills(bno);`);
+    } catch (e) {
+        console.warn('Warning: Could not create unique bill number index - possible duplicates exist:', e.message);
+    }
+    // Lookup stock registers by bill number or item
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_bno ON stock_reg(bno);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_item ON stock_reg(item);`);
+    // Lookup parties by GSTIN
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_parties_gstin ON parties(gstin);`);
+    // Lookup bills by Party ID (Reverse relation)
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_party_id ON bills(party_id);`);
+} catch (e) {
+    console.error("Index creation error:", e.message);
+}
+
 // 7. StockReg Table (Transaction Register)
 db.exec(`
     CREATE TABLE IF NOT EXISTS stock_reg (

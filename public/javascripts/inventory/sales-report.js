@@ -154,7 +154,7 @@
     }
 
     // View bill details
-    function viewBillDetails(billId) {
+    async function viewBillDetails(billId) {
         // Fetch complete bill details from the API
         fetchBillDetails(billId);
     }
@@ -177,8 +177,18 @@
             
             const bill = await response.json();
             
+            // Fetch GST status to include in the invoice data
+            let gstEnabled = true; // Default to true
+            try {
+                const gstResponse = await window.api.get('/admin/gst-status');
+                const gstData = await gstResponse.json();
+                gstEnabled = gstData.gst_enabled;
+            } catch (error) {
+                console.warn('Could not fetch GST status, defaulting to enabled:', error);
+            }
+            
             // Create and show bill details modal
-            showBillDetailsModal(bill);
+            showBillDetailsModal(bill, gstEnabled);
         } catch (error) {
             console.error('Error fetching bill details:', error);
             alert('Error fetching bill details: ' + error.message);
@@ -222,7 +232,17 @@
         }
     }
     
-    function exportBillToExcel(bill) {
+    async function exportBillToExcel(bill) {
+        // Fetch GST status to determine if taxes should be calculated
+        let gstEnabled = true; // Default to true
+        try {
+            const gstResponse = await window.api.get('/admin/gst-status');
+            const gstData = await gstResponse.json();
+            gstEnabled = gstData.gst_enabled;
+        } catch (error) {
+            console.warn('Could not fetch GST status, defaulting to enabled:', error);
+        }
+        
         // Generate a simplified invoice data structure from the bill
         // Process cart items to ensure narration is properly mapped
         const processedCart = (bill.items || []).map(item => ({
@@ -265,12 +285,13 @@
             billId: bill.id,
             totalTaxable: bill.gtot || 0,
             // Calculate tax amounts based on the stored values
-            cgstAmount: bill.cgst || 0,
-            sgstAmount: bill.sgst || 0,
-            igstAmount: bill.igst || 0,
-            grandTotal: bill.ntot || 0,
-            finalAmount: Math.round(bill.ntot || 0),
-            roundOff: (bill.ntot || 0) - Math.round(bill.ntot || 0)
+            cgstAmount: gstEnabled ? (bill.cgst || 0) : 0,
+            sgstAmount: gstEnabled ? (bill.sgst || 0) : 0,
+            igstAmount: gstEnabled ? (bill.igst || 0) : 0,
+            grandTotal: gstEnabled ? (bill.ntot || 0) : (bill.gtot || 0), // When GST is disabled, use taxable amount as total
+            finalAmount: gstEnabled ? Math.round(bill.ntot || 0) : Math.round(bill.gtot || 0),
+            roundOff: gstEnabled ? ((bill.ntot || 0) - Math.round(bill.ntot || 0)) : ((bill.gtot || 0) - Math.round(bill.gtot || 0)),
+            gstEnabled: gstEnabled // Include GST status in the invoice data
         };
         
         // Use the same Excel export logic as in sls.js
@@ -463,13 +484,16 @@
         
         // --- FOOTER SECTION ---
         
+        // Check if GST was enabled when the bill was created
+        const gstEnabled = invoiceData.gstEnabled !== undefined ? invoiceData.gstEnabled : true; // Default to enabled if not set
+        
         // Use the stored tax amounts from invoiceData instead of recalculating
-        let finalCgstAmount = invoiceData.cgstAmount || 0;
-        let finalSgstAmount = invoiceData.sgstAmount || 0;
-        let finalIgstAmount = invoiceData.igstAmount || 0;
+        let finalCgstAmount = gstEnabled ? (invoiceData.cgstAmount || 0) : 0;
+        let finalSgstAmount = gstEnabled ? (invoiceData.sgstAmount || 0) : 0;
+        let finalIgstAmount = gstEnabled ? (invoiceData.igstAmount || 0) : 0;
         
         // For reverse charge, tax amounts are set to 0 for display
-        if (isReverseCharge) {
+        if (isReverseCharge && gstEnabled) {
             finalCgstAmount = 0;
             finalSgstAmount = 0;
             finalIgstAmount = 0;
@@ -490,7 +514,7 @@
         if (invoiceData.otherCharges) {
             invoiceData.otherCharges.forEach(charge => {
                 const chargeAmount = parseFloat(charge.amount) || 0;
-                const chargeGstAmount = parseFloat(charge.gstAmount) || 0;
+                const chargeGstAmount = gstEnabled ? parseFloat(charge.gstAmount) || 0 : 0;
                 otherChargesSubtotal += chargeAmount;
                 otherChargesGstTotal += chargeGstAmount;
             });
@@ -576,12 +600,14 @@
             
             // Use stored tax amounts instead of recalculating
             // For items, we'll estimate the tax split based on the original calculation
-            const itemTaxAmount = taxableValue * (item.grate / 100);
-            if (invoiceData.meta.billType === 'intra-state' && !isReverseCharge) {
-                hsnSummary[hsn].cgstAmount += itemTaxAmount / 2;
-                hsnSummary[hsn].sgstAmount += itemTaxAmount / 2;
-            } else if (!isReverseCharge) {
-                hsnSummary[hsn].igstAmount += itemTaxAmount;
+            if (gstEnabled && !isReverseCharge) {
+                const itemTaxAmount = taxableValue * (item.grate / 100);
+                if (invoiceData.meta.billType === 'intra-state') {
+                    hsnSummary[hsn].cgstAmount += itemTaxAmount / 2;
+                    hsnSummary[hsn].sgstAmount += itemTaxAmount / 2;
+                } else {
+                    hsnSummary[hsn].igstAmount += itemTaxAmount;
+                }
             }
         });
         
@@ -605,11 +631,13 @@
                 hsnSummary[hsn].taxableValue += taxableValue;
                 
                 // Use stored GST amount for other charges instead of recalculating
-                if (invoiceData.meta.billType === 'intra-state' && !isReverseCharge && charge.gstAmount) {
-                    hsnSummary[hsn].cgstAmount += (charge.gstAmount || 0) / 2;
-                    hsnSummary[hsn].sgstAmount += (charge.gstAmount || 0) / 2;
-                } else if (!isReverseCharge && charge.gstAmount) {
-                    hsnSummary[hsn].igstAmount += charge.gstAmount || 0;
+                if (gstEnabled && !isReverseCharge && charge.gstAmount) {
+                    if (invoiceData.meta.billType === 'intra-state') {
+                        hsnSummary[hsn].cgstAmount += (charge.gstAmount || 0) / 2;
+                        hsnSummary[hsn].sgstAmount += (charge.gstAmount || 0) / 2;
+                    } else {
+                        hsnSummary[hsn].igstAmount += charge.gstAmount || 0;
+                    }
                 }
             });
         }
@@ -774,7 +802,7 @@
         XLSX.writeFile(wb, `Invoice_${invoiceData.meta.billNo}.xlsx`);
     }
     
-    function showBillDetailsModal(bill) {
+    function showBillDetailsModal(bill, gstEnabled = true) {
         // Create modal HTML
         let modalHtml = '<div id="bill-details-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">';
         modalHtml += '<div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">';
@@ -794,6 +822,10 @@
         if (bill.reverseCharge) {
             modalHtml += '<p class="text-sm text-red-600 font-bold mt-1">REVERSE CHARGE APPLIES</p>';
         }
+        // Add GST status indicator
+        if (gstEnabled === false) {
+            modalHtml += '<p class="text-sm text-orange-600 font-bold mt-1">GST DISABLED</p>';
+        }
         modalHtml += '</div>';
         modalHtml += '<div>';
         modalHtml += '<p class="text-sm text-gray-600">PO No: <span class="font-medium">' + (bill.order_no || 'N/A') + '</span></p>';
@@ -812,10 +844,14 @@
                 
         // Display tax amounts based on bill type (CGST+SGST for intra-state, IGST for inter-state)
         let taxAmount = 0;
-        if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
-            taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
+        if (gstEnabled) {
+            if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
+                taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
+            } else {
+                taxAmount = bill.igst || 0;
+            }
         } else {
-            taxAmount = bill.igst || 0;
+            taxAmount = 0; // No tax when GST is disabled
         }
                 
         modalHtml += '<p class="font-bold">' + formatCurrency(taxAmount) + '</p>';
@@ -826,7 +862,9 @@
         modalHtml += '</div>';
         modalHtml += '<div class="bg-blue-50 p-3 rounded">';
         modalHtml += '<p class="text-xs text-gray-500">Total Amount</p>';
-        modalHtml += '<p class="font-bold text-blue-700">' + formatCurrency(bill.ntot || 0) + '</p>';
+        // Show total based on GST status
+        const totalAmount = gstEnabled ? (bill.ntot || 0) : (bill.gtot || 0);
+        modalHtml += '<p class="font-bold text-blue-700">' + formatCurrency(totalAmount) + '</p>';
         modalHtml += '</div>';
         modalHtml += '</div>';
         
@@ -941,10 +979,20 @@
     }
 
     // Export to Excel
-    function exportToExcel() {
+    async function exportToExcel() {
         if (filteredData.length === 0) {
             alert('No data to export');
             return;
+        }
+
+        // Fetch GST status to determine if taxes should be calculated
+        let gstEnabled = true; // Default to true
+        try {
+            const gstResponse = await window.api.get('/admin/gst-status');
+            const gstData = await gstResponse.json();
+            gstEnabled = gstData.gst_enabled;
+        } catch (error) {
+            console.warn('Could not fetch GST status, defaulting to enabled:', error);
         }
 
         // Create Excel data
@@ -971,12 +1019,15 @@
                 }
             }
             
-            // Calculate tax amount using stored values: CGST+SGST for intra-state, IGST for inter-state
+            // Calculate tax amount based on GST status
             let taxAmount = 0;
-            if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
-                taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
-            } else {
-                taxAmount = bill.igst || 0;
+            if (gstEnabled) {
+                // Calculate tax amount using stored values: CGST+SGST for intra-state, IGST for inter-state
+                if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
+                    taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
+                } else {
+                    taxAmount = bill.igst || 0;
+                }
             }
 
             ws_data.push([
@@ -997,8 +1048,12 @@
         ws_data.push(['TOTALS:', '', '', '', 
             filteredData.reduce((sum, bill) => sum + (bill.gtot || 0), 0),
             filteredData.reduce((sum, bill) => {
-                // Calculate tax amount: ntot - gtot = total tax amount (Indian GST standard)
-                return sum + ((bill.ntot || 0) - (bill.gtot || 0));
+                // Calculate tax amount based on GST status: ntot - gtot = total tax amount (Indian GST standard)
+                if (gstEnabled) {
+                    return sum + ((bill.ntot || 0) - (bill.gtot || 0));
+                } else {
+                    return sum; // No tax when GST is disabled
+                }
             }, 0),
             filteredData.reduce((sum, bill) => {
                 let otherChargesTotal = 0;
@@ -1010,7 +1065,15 @@
                 }
                 return sum + otherChargesTotal;
             }, 0),
-            filteredData.reduce((sum, bill) => sum + (bill.ntot || 0), 0),
+            filteredData.reduce((sum, bill) => {
+                // Calculate total based on GST status
+                if (gstEnabled) {
+                    return sum + (bill.ntot || 0);
+                } else {
+                    // When GST is disabled, the net total should equal the gross total
+                    return sum + (bill.gtot || 0);
+                }
+            }, 0),
             '' // Placeholder for reverse charge column in totals row
         ]);
 

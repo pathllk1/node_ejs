@@ -26,3 +26,11 @@ exports.viewLogs = async (req, res) => {
         });
     }
 };
+
+// Render settings page
+exports.viewSettings = (req, res) => {
+    res.render('admin/settings', { 
+        layout: 'layouts/main',
+        title: 'System Settings'
+    });
+};

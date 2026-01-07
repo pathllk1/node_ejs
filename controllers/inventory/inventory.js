@@ -356,15 +356,21 @@ exports.createBill = (req, res) => {
         return res.status(400).json({ error: "Cart cannot be empty" });
     }
 
+    // Check GST status to determine if tax calculations should be performed
+    const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+    const gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+
     // 1. Calculate Header Totals
     let gtot = 0; // Taxable Total (items + other charges)
     let totalTax = 0; // Tax on items only
 
     cart.forEach(item => {
         const lineVal = item.qty * item.rate * (1 - (item.disc || 0)/100);
-        const lineTax = lineVal * (item.grate / 100);
+        if (gstEnabled) {
+            const lineTax = lineVal * (item.grate / 100);
+            totalTax += lineTax;
+        }
         gtot += lineVal;
-        totalTax += lineTax;
     });
 
     // Calculate other charges total and their GST
@@ -374,29 +380,33 @@ exports.createBill = (req, res) => {
     if (otherCharges && otherCharges.length > 0) {
         otherCharges.forEach(charge => {
             const chargeAmount = parseFloat(charge.amount) || 0;
-            const chargeGstRate = parseFloat(charge.gstRate) || 0;
-            const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
             otherChargesTotal += chargeAmount;
-            otherChargesGstTotal += chargeGstAmount;
+            
+            if (gstEnabled) {
+                const chargeGstRate = parseFloat(charge.gstRate) || 0;
+                const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+                otherChargesGstTotal += chargeGstAmount;
+            }
         });
     }
     
-    // According to Indian GST Standards:
+    // According to Indian GST Standards (when GST is enabled):
     // gtot = taxable value of items + other charges (total taxable amount)
     gtot = gtot + otherChargesTotal;
     
-    // Calculate tax amounts for CGST/SGST or IGST based on supply type
+    // Calculate tax amounts for CGST/SGST or IGST based on supply type (only when GST is enabled)
     let cgst = 0, sgst = 0, igst = 0;
     
-    if (meta.billType === 'intra-state') {
+    if (gstEnabled && meta.billType === 'intra-state') {
         cgst = (totalTax / 2) + (otherChargesGstTotal / 2); // CGST on items + other charges
         sgst = (totalTax / 2) + (otherChargesGstTotal / 2); // SGST on items + other charges
-    } else {
+    } else if (gstEnabled) {
         igst = totalTax + otherChargesGstTotal; // IGST on items + other charges
     }
     
     // For reverse charge, tax is calculated but not added to ntot (grand total)
     // The tax liability shifts to the recipient
+    // When GST is disabled, tax values are 0, so ntot = gtot only
     const ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
     const supplyState = party.state || 'Local';
 
@@ -617,6 +627,10 @@ exports.getBillById = (req, res) => {
         bill.sgst = bill.sgst || 0;
         bill.igst = bill.igst || 0;
         
+        // Check GST status to determine if tax calculations were enabled when the bill was created
+        const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+        bill.gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+        
         // Get bill items from stock_reg table
         const itemsStmt = db.prepare('SELECT *, item_narration FROM stock_reg WHERE bill_id = ? ORDER BY created_at');
         bill.items = itemsStmt.all(id);
@@ -631,6 +645,10 @@ exports.getAllBills = (req, res) => {
     try {
         const stmt = db.prepare('SELECT * FROM bills ORDER BY created_at DESC');
         const bills = stmt.all();
+        
+        // Check GST status to determine if tax calculations were enabled when the bills were created
+        const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+        const gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
         
         // Parse the oth_chg_json field for each bill
         const processedBills = bills.map(bill => {
@@ -652,6 +670,9 @@ exports.getAllBills = (req, res) => {
             bill.cgst = bill.cgst || 0;
             bill.sgst = bill.sgst || 0;
             bill.igst = bill.igst || 0;
+            
+            // Add GST enabled status
+            bill.gstEnabled = gstEnabled;
             
             return bill;
         });

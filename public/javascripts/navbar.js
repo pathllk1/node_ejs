@@ -45,9 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const mInventoryBtn = document.getElementById('mobile-inventory-btn');
-    const mInventoryMenu = document.getElementById('mobile-inventory-menu');
-    if (mInventoryBtn && mInventoryMenu) {
-        mInventoryBtn.addEventListener('click', () => mInventoryMenu.classList.toggle('hidden'));
+    const mInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
+    if (mInventoryBtn && mInventoryDropdown) {
+        mInventoryBtn.addEventListener('click', () => mInventoryDropdown.classList.toggle('hidden'));
     }
 });
 
@@ -86,6 +86,9 @@ document.addEventListener('click', async (e) => {
     }
 
     else if (path === '/inventory/sales-report') {
+        shouldIntercept = true;
+    }
+    else if (path === '/admin/settings') {
         shouldIntercept = true;
     }
 
@@ -178,9 +181,7 @@ function closeAllMenus() {
     if (toolsDropdown) toolsDropdown.classList.add('hidden');
     if (inventoryDropdown) inventoryDropdown.classList.add('hidden');
 
-    const mobileInventoryMenu = document.getElementById('mobile-inventory-menu');
     const mobileInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
-    if (mobileInventoryMenu) mobileInventoryMenu.classList.add('hidden');
     if (mobileInventoryDropdown) mobileInventoryDropdown.classList.add('hidden');
 }
 // Handle Back/Forward buttons

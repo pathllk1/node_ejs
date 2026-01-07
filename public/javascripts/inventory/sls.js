@@ -2225,9 +2225,15 @@
         
         // 3. Extract State Name
         // The API returns 'state_jurisdiction' or we can derive it from the address object
-        let stateName = partyData.state_jurisdiction || '';
-        if(!stateName && partyData.place_of_business_principal?.address?.state) {
+        let stateName = '';
+        if (partyData.place_of_business_principal?.address?.state) {
             stateName = partyData.place_of_business_principal.address.state;
+        } else {
+            stateName = partyData.state_jurisdiction || '';
+        }
+        stateName = String(stateName || '').trim();
+        if (stateName.includes(' - ')) {
+            stateName = stateName.split(' - ')[0].trim();
         }
 
         // --- POPULATE UI ---

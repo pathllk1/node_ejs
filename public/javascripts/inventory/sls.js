@@ -2760,54 +2760,54 @@
     
     // Add HSN Summary header (merged across columns A to I)
     ws_data.push([]); // Empty row for spacing
-    const hsnHeaderRow = Array.from({length: 9}, () => createCell("", {}));
+    const hsnHeaderRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
     hsnHeaderRow[0] = createCell("HSN Summary", styles.header);
-    hsnHeaderRow[1] = createCell("");
-    hsnHeaderRow[2] = createCell("");
-    hsnHeaderRow[3] = createCell("");
-    hsnHeaderRow[4] = createCell("");
-    hsnHeaderRow[5] = createCell("");
-    hsnHeaderRow[6] = createCell("");
-    hsnHeaderRow[7] = createCell("");
-    hsnHeaderRow[8] = createCell("");
+    hsnHeaderRow[1] = createCell("", styles.cellCenter);
+    hsnHeaderRow[2] = createCell("", styles.cellCenter);
+    hsnHeaderRow[3] = createCell("", styles.cellCenter);
+    hsnHeaderRow[4] = createCell("", styles.cellCenter);
+    hsnHeaderRow[5] = createCell("", styles.cellCenter);
+    hsnHeaderRow[6] = createCell("", styles.cellCenter);
+    hsnHeaderRow[7] = createCell("", styles.cellCenter);
+    hsnHeaderRow[8] = createCell("", styles.cellCenter);
     ws_data.push(hsnHeaderRow);
     
     // HSN Summary table headers
-    const hsnHeadersRow = Array.from({length: 9}, () => createCell("", {}));
+    const hsnHeadersRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
     hsnHeadersRow[0] = createCell("HSN", styles.header);
-    hsnHeadersRow[1] = createCell("");
+    hsnHeadersRow[1] = createCell("", styles.cellCenter);
     hsnHeadersRow[2] = createCell("Taxable Value", styles.header);
-    hsnHeadersRow[3] = createCell("");
+    hsnHeadersRow[3] = createCell("", styles.cellCenter);
     hsnHeadersRow[4] = createCell("IGST Amount", styles.header);
     hsnHeadersRow[5] = createCell("CGST Amount", styles.header);
     hsnHeadersRow[6] = createCell("SGST Amount", styles.header);
     hsnHeadersRow[7] = createCell("Total Tax", styles.header);
-    hsnHeadersRow[8] = createCell("");
+    hsnHeadersRow[8] = createCell("", styles.cellCenter);
     ws_data.push(hsnHeadersRow);
     
     // Add HSN Summary rows
     Object.values(hsnSummary).forEach(hsnData => {
-        const hsnRow = Array.from({length: 9}, () => createCell("", {}));
+        const hsnRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
         hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN code
-        hsnRow[1] = createCell("");
+        hsnRow[1] = createCell("", styles.cellCenter);
         hsnRow[2] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
-        hsnRow[3] = createCell("");
+        hsnRow[3] = createCell("", styles.cellCenter);
         hsnRow[4] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
         hsnRow[5] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
         hsnRow[6] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
         hsnRow[7] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
-        hsnRow[8] = createCell("");
+        hsnRow[8] = createCell("", styles.cellCenter);
         ws_data.push(hsnRow);
     });
     
     // Add Narration at the bottom if it exists
     if (invoiceData.meta.narration) {
         ws_data.push([]); // Empty row for spacing
-        const narrationRow = Array.from({length: 9}, () => createCell("", {}));
+        const narrationRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
         narrationRow[0] = createCell("Narration: " + (invoiceData.meta.narration || ""), { font: { bold: true }, alignment: { horizontal: "left", vertical: "top", wrapText: true } });
         // Span the narration across all 9 columns
         for (let i = 1; i < 9; i++) {
-            narrationRow[i] = createCell("");
+            narrationRow[i] = createCell("", styles.cellCenter);
         }
         ws_data.push(narrationRow);
     }

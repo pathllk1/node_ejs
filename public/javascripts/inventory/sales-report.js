@@ -487,7 +487,7 @@
         // Check if GST was enabled when the bill was created
         const gstEnabled = invoiceData.gstEnabled !== undefined ? invoiceData.gstEnabled : true; // Default to enabled if not set
         
-        // Use the stored tax amounts from invoiceData instead of recalculating
+        // Use the stored tax amounts from invoiceData, but respect current GST status
         let finalCgstAmount = gstEnabled ? (invoiceData.cgstAmount || 0) : 0;
         let finalSgstAmount = gstEnabled ? (invoiceData.sgstAmount || 0) : 0;
         let finalIgstAmount = gstEnabled ? (invoiceData.igstAmount || 0) : 0;
@@ -501,11 +501,14 @@
         
         // Calculate the same totals as in renderTotals for consistency
         let totalTaxable = 0;
+        let totalTaxAmount = 0;
         
         // Calculate line by line for cart items
         (invoiceData.cart || []).forEach(item => {
             const lineValue = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0) / 100);
+            const lineTax = lineValue * (item.grate / 100);
             totalTaxable += lineValue;
+            totalTaxAmount += lineTax;
         });
         
         // Calculate other charges subtotal and GST total
@@ -525,7 +528,7 @@
             const row = Array.from({length: 9}, () => createCell("", {}));
             
             if (isWordsRow) {
-                const wordsTotal = totalTaxable + (isReverseCharge ? 0 : (finalCgstAmount + finalSgstAmount + finalIgstAmount)) + otherChargesSubtotal + (isReverseCharge ? 0 : otherChargesGstTotal);
+                const wordsTotal = totalTaxable + (gstEnabled && !isReverseCharge ? totalTaxAmount : 0) + otherChargesSubtotal + (gstEnabled && !isReverseCharge ? otherChargesGstTotal : 0);
                 const roundedTotal = Math.round(wordsTotal);
                 row[0] = createCell("Amount in Words:\n" + numToIndianRupees(roundedTotal || 0), styles.words);
             }
@@ -544,10 +547,10 @@
 
         // 2. Taxes
         if (invoiceData.meta.billType === 'intra-state') {
-            ws_data.push(addFooterRow("CGST", finalCgstAmount));
-            ws_data.push(addFooterRow("SGST", finalSgstAmount));
+            ws_data.push(addFooterRow("CGST", gstEnabled && !isReverseCharge ? totalTaxAmount / 2 : 0));
+            ws_data.push(addFooterRow("SGST", gstEnabled && !isReverseCharge ? totalTaxAmount / 2 : 0));
         } else {
-            ws_data.push(addFooterRow("IGST", finalIgstAmount));
+            ws_data.push(addFooterRow("IGST", gstEnabled && !isReverseCharge ? totalTaxAmount : 0));
         }
         
         // 3. Other Charges (if any)
@@ -564,7 +567,7 @@
         }
 
         // 4. Grand Total (before HSN Summary for better UI flow)
-        const excelGrandTotal = totalTaxable + (isReverseCharge ? 0 : (finalCgstAmount + finalSgstAmount + finalIgstAmount)) + otherChargesSubtotal + (isReverseCharge ? 0 : otherChargesGstTotal);
+        const excelGrandTotal = totalTaxable + (gstEnabled && !isReverseCharge ? totalTaxAmount : 0) + otherChargesSubtotal + (gstEnabled && !isReverseCharge ? otherChargesGstTotal : 0);
         const roundOff = Math.round(excelGrandTotal) - excelGrandTotal;
         
         // Add Round Off row
@@ -644,54 +647,54 @@
         
         // Add HSN Summary header (merged across columns A to I)
         ws_data.push([]); // Empty row for spacing
-        const hsnHeaderRow = Array.from({length: 9}, () => createCell("", {}));
+        const hsnHeaderRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
         hsnHeaderRow[0] = createCell("HSN/SAC Summary", styles.header);
-        hsnHeaderRow[1] = createCell("");
-        hsnHeaderRow[2] = createCell("");
-        hsnHeaderRow[3] = createCell("");
-        hsnHeaderRow[4] = createCell("");
-        hsnHeaderRow[5] = createCell("");
-        hsnHeaderRow[6] = createCell("");
-        hsnHeaderRow[7] = createCell("");
-        hsnHeaderRow[8] = createCell("");
+        hsnHeaderRow[1] = createCell("", styles.cellCenter);
+        hsnHeaderRow[2] = createCell("", styles.cellCenter);
+        hsnHeaderRow[3] = createCell("", styles.cellCenter);
+        hsnHeaderRow[4] = createCell("", styles.cellCenter);
+        hsnHeaderRow[5] = createCell("", styles.cellCenter);
+        hsnHeaderRow[6] = createCell("", styles.cellCenter);
+        hsnHeaderRow[7] = createCell("", styles.cellCenter);
+        hsnHeaderRow[8] = createCell("", styles.cellCenter);
         ws_data.push(hsnHeaderRow);
         
         // HSN Summary table headers
-        const hsnHeadersRow = Array.from({length: 9}, () => createCell("", {}));
+        const hsnHeadersRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
         hsnHeadersRow[0] = createCell("HSN/SAC", styles.header);
-        hsnHeadersRow[1] = createCell("");
+        hsnHeadersRow[1] = createCell("", styles.cellCenter);
         hsnHeadersRow[2] = createCell("Taxable Value", styles.header);
-        hsnHeadersRow[3] = createCell("");
+        hsnHeadersRow[3] = createCell("", styles.cellCenter);
         hsnHeadersRow[4] = createCell("IGST Amount", styles.header);
         hsnHeadersRow[5] = createCell("CGST Amount", styles.header);
         hsnHeadersRow[6] = createCell("SGST Amount", styles.header);
         hsnHeadersRow[7] = createCell("Total Tax", styles.header);
-        hsnHeadersRow[8] = createCell("");
+        hsnHeadersRow[8] = createCell("", styles.cellCenter);
         ws_data.push(hsnHeadersRow);
         
         // Add HSN Summary rows
         Object.values(hsnSummary).forEach(hsnData => {
-            const hsnRow = Array.from({length: 9}, () => createCell("", {}));
+            const hsnRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
             hsnRow[0] = createCell(hsnData.hsn, styles.cellLeft); // Left-aligned HSN/SAC code
-            hsnRow[1] = createCell("");
+            hsnRow[1] = createCell("", styles.cellCenter);
             hsnRow[2] = createCell(hsnData.taxableValue.toFixed(2), styles.cellRight);
-            hsnRow[3] = createCell("");
+            hsnRow[3] = createCell("", styles.cellCenter);
             hsnRow[4] = createCell(hsnData.igstAmount.toFixed(2), styles.cellRight);
             hsnRow[5] = createCell(hsnData.cgstAmount.toFixed(2), styles.cellRight);
             hsnRow[6] = createCell(hsnData.sgstAmount.toFixed(2), styles.cellRight);
             hsnRow[7] = createCell((hsnData.igstAmount + hsnData.cgstAmount + hsnData.sgstAmount).toFixed(2), styles.cellRight);
-            hsnRow[8] = createCell("");
+            hsnRow[8] = createCell("", styles.cellCenter);
             ws_data.push(hsnRow);
         });
         
         // Add Narration at the bottom if it exists
         if (invoiceData.meta.narration) {
             ws_data.push([]); // Empty row for spacing
-            const narrationRow = Array.from({length: 9}, () => createCell("", {}));
+            const narrationRow = Array.from({length: 9}, () => createCell("", styles.cellCenter));
             narrationRow[0] = createCell("Narration: " + (invoiceData.meta.narration || ""), { font: { bold: true }, alignment: { horizontal: "left", vertical: "top", wrapText: true } });
             // Span the narration across all 9 columns
             for (let i = 1; i < 9; i++) {
-                narrationRow[i] = createCell("");
+                narrationRow[i] = createCell("", styles.cellCenter);
             }
             ws_data.push(narrationRow);
         }

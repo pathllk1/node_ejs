@@ -785,6 +785,12 @@ function showBatchSelectionForEdit(stock) {
     wrapper.appendChild(label);
     wrapper.appendChild(select);
     wrapper.appendChild(detailsContainer);
+
+    // Preserve a real input[name="batch"] so form submission still includes batch
+    // and code that relies on form.batch has a target.
+    const hiddenBatchInput = batchField;
+    hiddenBatchInput.type = 'hidden';
+    wrapper.appendChild(hiddenBatchInput);
     
     // Replace the original batch field with our new wrapper
     originalDiv.parentNode.replaceChild(wrapper, originalDiv);
@@ -796,7 +802,7 @@ function showBatchSelectionForEdit(stock) {
             const selectedBatch = stock.batches[batchIndex];
             
             // Update form fields with selected batch data
-            form.batch.value = selectedBatch.batch || '';
+            hiddenBatchInput.value = selectedBatch.batch || '';
             form.mrp.value = selectedBatch.mrp || '';
             form.expiryDate.value = selectedBatch.expiry ? selectedBatch.expiry.split('T')[0] : '';
             

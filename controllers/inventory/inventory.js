@@ -94,7 +94,34 @@ exports.getPartyItemHistory = (req, res) => {
 
 exports.createStock = (req, res) => {
     try {
-        const { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate } = req.body;
+        let { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate, batches } = req.body;
+
+        if ((!batch && !qty && !rate && !mrp && !expiryDate) && batches) {
+            try {
+                const parsed = Array.isArray(batches) ? batches : JSON.parse(batches);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const b0 = parsed[0] || {};
+                    batch = b0.batch ?? batch;
+                    qty = b0.qty ?? qty;
+                    rate = b0.rate ?? rate;
+                    mrp = b0.mrp ?? mrp;
+                    expiryDate = b0.expiry ?? expiryDate;
+                    batches = parsed;
+                }
+            } catch (e) {
+                // ignore JSON parse issues and fall back to direct fields
+            }
+        }
+
+        const normalizedBatches = (() => {
+            if (!batches) return null;
+            try {
+                const parsed = Array.isArray(batches) ? batches : JSON.parse(batches);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) {
+                return null;
+            }
+        })();
 
         const actorUsername = getActorUsername(req);
         if (!actorUsername) {
@@ -106,20 +133,30 @@ exports.createStock = (req, res) => {
         
         if (existingStock) {
             // Item exists, update batches JSON
-            let batches = existingStock.batches ? JSON.parse(existingStock.batches) : [];
-            
+            let existingBatches = existingStock.batches ? JSON.parse(existingStock.batches) : [];
+            const incomingBatches = normalizedBatches;
+
+            if (incomingBatches && incomingBatches.length > 0) {
+                const b0 = incomingBatches[0] || {};
+                batch = b0.batch ?? batch;
+                qty = b0.qty ?? qty;
+                rate = b0.rate ?? rate;
+                mrp = b0.mrp ?? mrp;
+                expiryDate = b0.expiry ?? expiryDate;
+            }
+
             // Check if batch already exists
-            const existingBatchIndex = batches.findIndex(b => b.batch === batch);
-            
+            const existingBatchIndex = existingBatches.findIndex(b => b.batch === batch);
+
             if (existingBatchIndex !== -1) {
                 // Update existing batch
-                batches[existingBatchIndex].qty += parseFloat(qty);
-                if (mrp) batches[existingBatchIndex].mrp = parseFloat(mrp);
-                if (expiryDate) batches[existingBatchIndex].expiry = expiryDate;
-                if (rate) batches[existingBatchIndex].rate = parseFloat(rate);
+                existingBatches[existingBatchIndex].qty += parseFloat(qty);
+                if (mrp !== undefined && mrp !== null && mrp !== '') existingBatches[existingBatchIndex].mrp = parseFloat(mrp);
+                if (expiryDate) existingBatches[existingBatchIndex].expiry = expiryDate;
+                if (rate !== undefined && rate !== null && rate !== '') existingBatches[existingBatchIndex].rate = parseFloat(rate);
             } else {
                 // Add new batch
-                batches.push({
+                existingBatches.push({
                     batch: batch || null,
                     qty: parseFloat(qty),
                     rate: parseFloat(rate),
@@ -127,9 +164,9 @@ exports.createStock = (req, res) => {
                     mrp: mrp ? parseFloat(mrp) : null
                 });
             }
-            
+
             // Calculate new total quantity
-            const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+            const newTotalQty = existingBatches.reduce((sum, b) => sum + b.qty, 0);
             const newTotal = newTotalQty * parseFloat(rate); // Using provided rate
             
             // Update the stock record
@@ -144,7 +181,7 @@ exports.createStock = (req, res) => {
                 qty: newTotalQty,
                 total: newTotal,
                 mrp: mrp ? parseFloat(mrp) : null,
-                batches: JSON.stringify(batches),
+                batches: JSON.stringify(existingBatches),
                 user: actorUsername,
                 updated_at: now()
             });
@@ -152,13 +189,15 @@ exports.createStock = (req, res) => {
             res.json({ id: existingStock.id, message: 'Stock batch updated successfully' });
         } else {
             // Item doesn't exist, create new record with batch
-            const batches = [{
-                batch: batch || null,
-                qty: parseFloat(qty),
-                rate: parseFloat(rate),
-                expiry: expiryDate || null,
-                mrp: mrp ? parseFloat(mrp) : null
-            }];
+            const batchesToStore = (normalizedBatches && normalizedBatches.length > 0)
+                ? normalizedBatches
+                : [{
+                    batch: batch || null,
+                    qty: parseFloat(qty),
+                    rate: parseFloat(rate),
+                    expiry: expiryDate || null,
+                    mrp: mrp ? parseFloat(mrp) : null
+                }];
             
             const total = parseFloat(qty) * parseFloat(rate);
 
@@ -178,7 +217,7 @@ exports.createStock = (req, res) => {
                 grate: parseFloat(grate),
                 total,
                 mrp: mrp ? parseFloat(mrp) : null,
-                batches: JSON.stringify(batches),
+                batches: JSON.stringify(batchesToStore),
                 user: actorUsername,
                 created_at: now(),
                 updated_at: now()
@@ -194,7 +233,7 @@ exports.createStock = (req, res) => {
 exports.updateStock = (req, res) => {
     try {
         const { id } = req.params;
-        const { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate } = req.body;
+        let { item, pno, batch, oem, hsn, qty, uom, rate, grate, mrp, expiryDate, batches: incomingBatches } = req.body;
 
         const actorUsername = getActorUsername(req);
         if (!actorUsername) {
@@ -209,13 +248,36 @@ exports.updateStock = (req, res) => {
         
         // Parse existing batches
         let batches = currentStock.batches ? JSON.parse(currentStock.batches) : [];
-        
+
+        // If UI sent batches JSON (new batch system), prefer it
+        if (incomingBatches) {
+            try {
+                const parsed = Array.isArray(incomingBatches) ? incomingBatches : JSON.parse(incomingBatches);
+                if (Array.isArray(parsed)) {
+                    batches = parsed;
+                }
+            } catch (e) {
+                // ignore parse errors and fall back to existing batches + direct fields
+            }
+
+            // Derive convenience fields when missing
+            const b0 = Array.isArray(batches) && batches.length > 0 ? (batches[0] || {}) : null;
+            if (b0) {
+                if (!batch && (b0.batch !== undefined)) batch = b0.batch;
+                if (!qty && (b0.qty !== undefined)) qty = b0.qty;
+                if (!rate && (b0.rate !== undefined)) rate = b0.rate;
+                if (!mrp && (b0.mrp !== undefined)) mrp = b0.mrp;
+                if (!expiryDate && (b0.expiry !== undefined)) expiryDate = b0.expiry;
+            }
+        }
+
         // If batch is specified, update that specific batch
-        if (batch) {
+        if (!incomingBatches && batch) {
             const batchIndex = batches.findIndex(b => b.batch === batch);
             if (batchIndex !== -1) {
                 // Update existing batch
                 batches[batchIndex].qty = parseFloat(qty);
+
                 if (rate) batches[batchIndex].rate = parseFloat(rate);
                 if (expiryDate) batches[batchIndex].expiry = expiryDate;
                 if (mrp) batches[batchIndex].mrp = parseFloat(mrp);
@@ -229,11 +291,12 @@ exports.updateStock = (req, res) => {
                     mrp: mrp ? parseFloat(mrp) : null
                 });
             }
-        } else {
+        } else if (!incomingBatches) {
             // If no batch specified, update the first batch or add as non-batched
             if (batches.length > 0) {
                 batches[0].qty = parseFloat(qty);
                 if (rate) batches[0].rate = parseFloat(rate);
+
                 if (expiryDate) batches[0].expiry = expiryDate;
                 if (mrp) batches[0].mrp = parseFloat(mrp);
             } else {
@@ -250,7 +313,8 @@ exports.updateStock = (req, res) => {
         
         // Calculate new total quantity
         const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
-        const newTotal = newTotalQty * parseFloat(rate || currentStock.rate);
+        const effectiveRate = parseFloat(rate || currentStock.rate || 0);
+        const newTotal = newTotalQty * effectiveRate;
         
         const stmt = db.prepare(`
             UPDATE stocks SET 
@@ -268,11 +332,12 @@ exports.updateStock = (req, res) => {
             hsn,
             qty: newTotalQty,
             uom,
-            rate: parseFloat(rate || currentStock.rate),
+            rate: effectiveRate,
             grate: parseFloat(grate),
             total: newTotal,
             mrp: mrp ? parseFloat(mrp) : null,
             batches: JSON.stringify(batches),
+
             user: actorUsername,
             updated_at: now()
         });

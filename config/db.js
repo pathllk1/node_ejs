@@ -51,7 +51,7 @@ const createStocksTable = `
         grate REAL NOT NULL,
         total REAL NOT NULL,
         mrp REAL,
-        batches TEXT   /* JSON array storing batch information */
+        batches TEXT,  /* JSON array storing batch information */
         user TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL

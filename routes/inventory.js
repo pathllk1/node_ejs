@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 // Adjust path if your folder structure is different
 const controller = require('../controllers/inventory/inventory');
+const invoicePdfController = require('../controllers/inventory/invoicePdfController');
 
 // View Route
 router.get('/stocks', controller.renderStocksPage);
@@ -28,6 +29,7 @@ router.get('/api/bills', controller.getAllBills);
 router.post('/api/bills', controller.createBill);
 router.get('/api/bills/next-number', controller.getNextBillNumber);
 router.get('/api/bills/:id', controller.getBillById);
+router.get('/api/bills/:id/pdf', invoicePdfController.getBillPdfById);
 
 // --- API Routes: History ---
 router.get('/api/history/party-item', controller.getPartyItemHistory);

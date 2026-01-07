@@ -805,11 +805,50 @@
         XLSX.writeFile(wb, `Invoice_${invoiceData.meta.billNo}.xlsx`);
     }
     
+    async function exportBillToPdf(bill) {
+        try {
+            if (!bill || !bill.id) {
+                alert('Bill ID not available');
+                return;
+            }
+
+            const response = await window.api.get(`/inventory/api/bills/${bill.id}/pdf`);
+            if (!response) {
+                throw new Error('Request failed (no response). You may have been logged out.');
+            }
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                throw new Error((data && data.error) ? data.error : `Failed to generate PDF (HTTP ${response.status})`);
+            }
+
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            if (!contentType.includes('application/pdf')) {
+                const text = await response.text().catch(() => '');
+                throw new Error(`Expected a PDF but received: ${contentType || 'unknown content-type'}. ${text ? 'Server response: ' + text.slice(0, 200) : ''}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const billNo = (bill.bno || `BILL-${bill.id}`).toString().replace(/[^a-zA-Z0-9._-]/g, '_');
+            a.download = `Invoice_${billNo}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('PDF export failed:', err);
+            alert('PDF export failed: ' + err.message);
+        }
+    }
+    
     function showBillDetailsModal(bill, gstEnabled = true) {
         // Create modal HTML
         let modalHtml = '<div id="bill-details-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">';
         modalHtml += '<div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">';
         modalHtml += '<div class="p-6">';
+        
         modalHtml += '<div class="flex justify-between items-center mb-4">';
         modalHtml += '<h2 class="text-xl font-bold text-gray-800">Bill Details - ' + (bill.bno || 'N/A') + '</h2>';
         modalHtml += '<button id="close-bill-modal" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>';
@@ -928,6 +967,9 @@
         }
         
         modalHtml += '<div class="flex justify-end space-x-3 pt-4">';
+        modalHtml += '<button id="export-bill-pdf" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">';
+        modalHtml += 'Export PDF';
+        modalHtml += '</button>';
         modalHtml += '<button id="export-bill-excel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">';
         modalHtml += 'Export as Excel';
         modalHtml += '</button>';
@@ -946,6 +988,7 @@
         // Add event listeners
         document.getElementById('close-bill-modal').onclick = closeBillModal;
         document.getElementById('close-bill-modal-bottom').onclick = closeBillModal;
+        document.getElementById('export-bill-pdf').onclick = () => exportBillToPdf(bill);
         document.getElementById('export-bill-excel').onclick = () => exportBillToExcel(bill);
         
         // Close modal on backdrop click

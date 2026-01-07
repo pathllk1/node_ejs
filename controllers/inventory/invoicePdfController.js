@@ -42,6 +42,48 @@ const numToIndianRupees = (num) => {
     return resText + 'Only';
 };
 
+const roundTo2 = (n) => {
+    const v = Number(n || 0);
+    if (!Number.isFinite(v)) return 0;
+    return Math.round(v * 100) / 100;
+};
+
+const buildHsnSummary = ({ items, otherCharges, gstApplicable, taxMode }) => {
+    const map = new Map();
+
+    const ensure = (hsn) => {
+        const key = String(hsn || '').trim() || 'NA';
+        if (!map.has(key)) {
+            map.set(key, { hsn: key, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalTax: 0 });
+        }
+        return map.get(key);
+    };
+
+    const addLine = (hsn, taxable, gstRate) => {
+        const row = ensure(hsn);
+        const tx = roundTo2(taxable);
+        row.taxable = roundTo2(row.taxable + tx);
+
+        if (!gstApplicable) return;
+
+        const rate = Number(gstRate || 0);
+        const tax = roundTo2(tx * rate / 100);
+        row.totalTax = roundTo2(row.totalTax + tax);
+
+        if (taxMode === 'CGST_SGST') {
+            row.cgst = roundTo2(row.cgst + (tax / 2));
+            row.sgst = roundTo2(row.sgst + (tax / 2));
+        } else {
+            row.igst = roundTo2(row.igst + tax);
+        }
+    };
+
+    (items || []).forEach((it) => addLine(it.hsn, it.total, it.grate));
+    (otherCharges || []).forEach((ch) => addLine(ch.hsnSac, ch.amount, ch.gstRate));
+
+    return Array.from(map.values()).sort((a, b) => a.hsn.localeCompare(b.hsn));
+};
+
 exports.getBillPdfById = async (req, res) => {
     let browser;
 
@@ -81,7 +123,9 @@ exports.getBillPdfById = async (req, res) => {
 
         const gstApplicable = totalTax > 0;
         const taxableValue = Number(bill.gtot || 0);
-        const grandTotal = gstApplicable ? Number(bill.ntot || 0) : taxableValue;
+        const computedGrandTotal = gstApplicable ? Number(bill.ntot || 0) : taxableValue;
+        const roundedGrandTotal = Math.round(computedGrandTotal);
+        const roundOff = roundTo2(roundedGrandTotal - computedGrandTotal);
         const taxMode = (bill.btype && bill.btype.toLowerCase().includes('intra')) ? 'CGST_SGST' : 'IGST';
 
         const seller = { name: 'My App', lines: '' };
@@ -105,8 +149,20 @@ exports.getBillPdfById = async (req, res) => {
         const invoiceTitle = 'TAX INVOICE';
         const invoiceSubtitle = gstApplicable ? 'Invoice under GST' : 'Invoice (GST Disabled)';
 
-        const totals = { taxableValue, cgst, sgst, igst, totalTax, grandTotal, taxMode };
-        const amountInWords = numToIndianRupees(grandTotal);
+        const totals = {
+            taxableValue,
+            cgst,
+            sgst,
+            igst,
+            totalTax,
+            grandTotal: computedGrandTotal,
+            roundedGrandTotal,
+            roundOff,
+            taxMode
+        };
+        const amountInWords = numToIndianRupees(roundedGrandTotal);
+
+        const hsnSummary = buildHsnSummary({ items, otherCharges, gstApplicable, taxMode });
 
         const html = await new Promise((resolve, reject) => {
             req.app.render(
@@ -122,6 +178,7 @@ exports.getBillPdfById = async (req, res) => {
                     consignee,
                     gstApplicable,
                     totals,
+                    hsnSummary,
                     amountInWords,
                     formatINR,
                     formatQty,
@@ -145,7 +202,7 @@ exports.getBillPdfById = async (req, res) => {
         const pdfBuffer = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '14mm', right: '14mm', bottom: '14mm', left: '14mm' }
+            margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' }
         });
 
         const safeBillNo = String(bill.bno || `BILL-${bill.id}`).replace(/[^a-zA-Z0-9._-]/g, '_');

@@ -10,7 +10,7 @@
         html, body { margin: 0; padding: 0; }
         body { font-family: system-ui, -apple-system, Segoe UI, Segoe UI Symbol, Roboto, Arial, sans-serif; color: #111827; }
 
-        .page { padding: 28px; }
+        .page { padding: 10px; }
 
         .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
         .header-left { min-width: 0; }
@@ -61,7 +61,7 @@
         .sign .cap { font-size: 11px; font-weight: 700; color: #111827; margin: 0 0 10px 0; }
         .sign .hint { font-size: 10px; color: #6B7280; }
 
-        @page { size: A4; margin: 14mm; }
+        @page { size: A4; margin: 8mm; }
     </style>
 </head>
 
@@ -91,7 +91,7 @@
                     <% if (bill.dispatch_through) { %>
                         <div class="row"><span class="label">Dispatch Through</span><span class="value"><%= bill.dispatch_through %></span></div>
                     <% } %>
-                    <div class="row"><span class="label">Place of Supply</span><span class="value"><%= bill.supply || bill.state || '' %></span></div>
+                    <div class="row"><span class="label">Place of Supply</span><span class="value"><%= bill.supply || '' %></span></div>
                     <% if (bill.reverseCharge) { %>
                         <div class="row"><span class="label">Reverse Charge</span><span class="value">Yes</span></div>
                     <% } %>
@@ -128,7 +128,7 @@
                 <tr>
                     <th style="width: 34px;" class="center">#</th>
                     <th>Description</th>
-                    <th style="width: 72px;">HSN</th>
+                    <th style="width: 72px;">HSN/SAC</th>
                     <th style="width: 58px;" class="center">Qty</th>
                     <th style="width: 68px;" class="center">UOM</th>
                     <th style="width: 74px;" class="num">Rate</th>
@@ -178,6 +178,39 @@
             </tbody>
         </table>
 
+        <% if (hsnSummary && hsnSummary.length) { %>
+            <div class="divider"></div>
+            <div class="box" style="padding: 0; overflow: hidden;">
+                <div style="padding: 10px 12px;">
+                    <h3 style="margin: 0;">HSN/SAC Summary</h3>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 90px;">HSN/SAC</th>
+                            <th class="num">Taxable Value</th>
+                            <th class="num">CGST</th>
+                            <th class="num">SGST</th>
+                            <th class="num">IGST</th>
+                            <th class="num">Total Tax</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% hsnSummary.forEach((row) => { %>
+                            <tr>
+                                <td><%= row.hsn %></td>
+                                <td class="num"><%= formatINR(row.taxable) %></td>
+                                <td class="num"><%= gstApplicable && totals.taxMode === 'CGST_SGST' ? formatINR(row.cgst) : formatINR(0) %></td>
+                                <td class="num"><%= gstApplicable && totals.taxMode === 'CGST_SGST' ? formatINR(row.sgst) : formatINR(0) %></td>
+                                <td class="num"><%= gstApplicable && totals.taxMode === 'IGST' ? formatINR(row.igst) : formatINR(0) %></td>
+                                <td class="num"><%= gstApplicable ? formatINR(row.totalTax) : formatINR(0) %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+
         <div class="totals">
             <div class="totals-left">
                 <h4>Amount (in words)</h4>
@@ -204,13 +237,15 @@
 
                 <div class="line"><span class="label">Total Tax</span><span class="value"><%= gstApplicable ? formatINR(totals.totalTax) : formatINR(0) %></span></div>
 
+                <div class="line"><span class="label">Round Off</span><span class="value"><%= formatINR(totals.roundOff) %></span></div>
+
                 <% if (bill.reverseCharge && gstApplicable) { %>
                     <div class="notes" style="margin-top: 8px;">Reverse charge applicable. Tax liability is on recipient.</div>
                 <% } %>
 
                 <div class="line grand">
                     <span class="label">Grand Total</span>
-                    <span class="value"><%= formatINR(totals.grandTotal) %></span>
+                    <span class="value"><%= formatINR(totals.roundedGrandTotal) %></span>
                 </div>
             </div>
         </div>

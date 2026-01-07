@@ -447,6 +447,13 @@ function openModal() {
     document.getElementById('calcTax').innerText = '0.00';
     document.getElementById('calcGrandTotal').innerText = '0.00';
     
+    // Reset hidden fields
+    document.getElementById('stockData').value = '';
+    document.getElementById('selectedBatchIndex').value = '';
+    
+    // Reset the batch field to original state to ensure clean state
+    resetBatchFieldToOriginal();
+    
     const modal = document.getElementById('stockModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -456,6 +463,43 @@ function closeModal() {
     const modal = document.getElementById('stockModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    
+    // Reset the form completely
+    const form = document.getElementById('stockForm');
+    form.reset();
+    document.getElementById('stockId').value = '';
+    document.getElementById('modalTitle').innerText = 'Add New Stock';
+    
+    document.getElementById('displayTotal').innerText = '0.00';
+    document.getElementById('calcTax').innerText = '0.00';
+    document.getElementById('calcGrandTotal').innerText = '0.00';
+    
+    // Reset hidden fields
+    document.getElementById('stockData').value = '';
+    document.getElementById('selectedBatchIndex').value = '';
+    
+    // Restore the original batch field structure
+    resetBatchFieldToOriginal();
+}
+
+// Function to reset batch field to original structure
+function resetBatchFieldToOriginal() {
+    // Get the original HTML for the batch field container
+    const originalBatchHtml = `
+        <label class="block text-gray-600 font-medium mb-1">Batch No</label>
+        <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+    `;
+    
+    // Find the batch field container and reset it to original state
+    const batchContainers = document.querySelectorAll('.col-span-4');
+    
+    batchContainers.forEach(container => {
+        // Check if this container has our batch selection dropdown
+        const hasDropdown = container.querySelector('select[name="batch-select"]');
+        if (hasDropdown) {
+            container.innerHTML = originalBatchHtml;
+        }
+    });
 }
 
 function editStock(stock) {
@@ -473,6 +517,19 @@ function editStock(stock) {
     form.rate.value = stock.rate;
     form.grate.value = stock.grate;
     
+    // Initialize MRP and expiry date from main stock object first
+    // This ensures they show initially even if batch logic modifies them later
+    form.mrp.value = '';
+    form.expiryDate.value = '';
+    
+    // Set initial values based on main stock object if available
+    if (stock.mrp !== undefined && stock.mrp !== null) {
+        form.mrp.value = stock.mrp;
+    }
+    if (stock.expiryDate) {
+        form.expiryDate.value = stock.expiryDate.split('T')[0];
+    }
+    
     // Handle batch information - show batch selection if multiple batches exist
     if (stock.batches && Array.isArray(stock.batches) && stock.batches.length > 0) {
         // Store the original stock data for batch operations
@@ -485,8 +542,26 @@ function editStock(stock) {
             // Only one batch, load it directly
             const firstBatch = stock.batches[0];
             form.batch.value = firstBatch.batch || '';
-            form.mrp.value = firstBatch.mrp || '';
-            form.expiryDate.value = firstBatch.expiry ? firstBatch.expiry.split('T')[0] : '';
+            
+            // Override with batch values if they exist
+            if (firstBatch.mrp !== undefined && firstBatch.mrp !== null) {
+                form.mrp.value = firstBatch.mrp;
+            }
+            if (firstBatch.expiry) {
+                form.expiryDate.value = firstBatch.expiry.split('T')[0];
+            }
+            
+            // Also update qty and rate if they came from the batch
+            if (firstBatch.qty !== undefined) {
+                form.qty.value = firstBatch.qty;
+                // Trigger calculation update for qty
+                form.qty.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (firstBatch.rate !== undefined) {
+                form.rate.value = firstBatch.rate;
+                // Trigger calculation update for rate
+                form.rate.dispatchEvent(new Event('input', { bubbles: true }));
+            }
         }
     } else {
         // Fallback to old fields
@@ -496,7 +571,9 @@ function editStock(stock) {
     }
     
     // Trigger calculation update
-    form.qty.dispatchEvent(new Event('input'));
+    setTimeout(() => {
+        form.qty.dispatchEvent(new Event('input'));
+    }, 0); // Use timeout to ensure DOM is updated first
 }
 
 // Show batch selection dropdown when multiple batches exist for editing
@@ -507,9 +584,17 @@ function showBatchSelectionForEdit(stock) {
     const batchField = form.batch;
     const originalDiv = batchField.parentElement;
     
+    // Preserve the original classes of the parent div to maintain layout
+    const originalClasses = originalDiv.className;
+    
     // Create a wrapper div to replace the batch field
     const wrapper = document.createElement('div');
-    wrapper.className = 'relative';
+    wrapper.className = originalClasses; // Maintain original grid layout
+    
+    // Create the label for batch selection
+    const label = document.createElement('label');
+    label.className = 'block text-gray-600 font-medium mb-1';
+    label.textContent = 'Select Batch to Edit';
     
     // Create the batch selection dropdown
     const select = document.createElement('select');
@@ -533,18 +618,18 @@ function showBatchSelectionForEdit(stock) {
         select.appendChild(option);
     });
     
-    wrapper.appendChild(select);
-    
     // Create a container for batch details
     const detailsContainer = document.createElement('div');
     detailsContainer.id = 'batch-details';
     detailsContainer.className = 'mt-2 p-3 bg-gray-50 rounded text-sm hidden';
     detailsContainer.innerHTML = '<p class="text-gray-600">Select a batch to see details and edit</p>';
+    
+    wrapper.appendChild(label);
+    wrapper.appendChild(select);
     wrapper.appendChild(detailsContainer);
     
     // Replace the original batch field with our new wrapper
-    originalDiv.innerHTML = '';
-    originalDiv.appendChild(wrapper);
+    originalDiv.parentNode.replaceChild(wrapper, originalDiv);
     
     // Add event listener to handle batch selection
     select.addEventListener('change', function() {
@@ -556,6 +641,27 @@ function showBatchSelectionForEdit(stock) {
             form.batch.value = selectedBatch.batch || '';
             form.mrp.value = selectedBatch.mrp || '';
             form.expiryDate.value = selectedBatch.expiry ? selectedBatch.expiry.split('T')[0] : '';
+            
+            // Update quantity and rate fields as well
+            form.qty.value = selectedBatch.qty || '';
+            form.rate.value = selectedBatch.rate || '';
+            
+            // Manually trigger input events to ensure calculations are updated
+            form.qty.dispatchEvent(new Event('input', { bubbles: true }));
+            form.rate.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Update the calculated values
+            const qty = parseFloat(form.qty.value) || 0;
+            const rate = parseFloat(form.rate.value) || 0;
+            const gst = parseFloat(form.grate.value) || 0;
+            
+            const basicTotal = qty * rate;
+            const taxAmount = basicTotal * (gst / 100);
+            const grandTotal = basicTotal + taxAmount;
+            
+            document.getElementById('displayTotal').textContent = basicTotal.toFixed(2);
+            document.getElementById('calcTax').textContent = taxAmount.toFixed(2);
+            document.getElementById('calcGrandTotal').textContent = grandTotal.toFixed(2);
             
             // Show batch details
             detailsContainer.innerHTML = `
@@ -605,7 +711,10 @@ async function handleFormSubmit(e) {
     const stockData = document.getElementById('stockData').value;
     const selectedBatchIndex = document.getElementById('selectedBatchIndex').value;
     
-    if (stockData && selectedBatchIndex !== '') {
+    // Also check if batch-select element exists (meaning multiple batches were available for selection)
+    const batchSelectElement = document.getElementById('batch-select');
+    
+    if (stockData && selectedBatchIndex !== '' && batchSelectElement) {
         // Editing an existing stock with specific batch
         const originalStock = JSON.parse(stockData);
         const batchIndex = parseInt(selectedBatchIndex);
@@ -615,10 +724,10 @@ async function handleFormSubmit(e) {
             // Update the specific batch
             originalStock.batches[batchIndex] = {
                 batch: data.batch || null,
-                qty: parseFloat(data.qty) || originalStock.batches[batchIndex].qty,
-                rate: parseFloat(data.rate) || originalStock.batches[batchIndex].rate,
+                qty: parseFloat(data.qty) || 0,
+                rate: parseFloat(data.rate) || 0,
                 expiry: data.expiryDate || null,
-                mrp: data.mrp ? parseFloat(data.mrp) : originalStock.batches[batchIndex].mrp
+                mrp: data.mrp ? parseFloat(data.mrp) : null
             };
             
             data.batches = JSON.stringify(originalStock.batches);

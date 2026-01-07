@@ -41,9 +41,8 @@ db.exec(`
 const createStocksTable = `
     CREATE TABLE IF NOT EXISTS stocks (
         id INTEGER PRIMARY KEY,
-        item TEXT NOT NULL,
+        item TEXT NOT NULL UNIQUE,
         pno TEXT, 
-        batch TEXT, 
         oem TEXT,
         hsn TEXT NOT NULL,
         qty REAL NOT NULL,
@@ -52,7 +51,7 @@ const createStocksTable = `
         grate REAL NOT NULL,
         total REAL NOT NULL,
         mrp REAL,
-        expiryDate TEXT,
+        batches TEXT   /* JSON array storing batch information */
         user TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -62,13 +61,31 @@ db.exec(createStocksTable);
 
 // Stocks Indexes
 try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_pno ON stocks(pno) WHERE pno IS NOT NULL;`); } catch (e) {}
-try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_batch ON stocks(batch) WHERE batch IS NOT NULL;`); } catch (e) {}
+// Note: Removed batch index since batch column was replaced with batches JSON column
+// try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_batch ON stocks(batch) WHERE batch IS NOT NULL;`); } catch (e) {}
 
 // Stocks Migration Helper
-const stockColumns = ['mrp', 'expiryDate', 'oem', 'pno', 'batch'];
+const stockColumns = ['mrp', 'oem', 'pno', 'batches']; // Added 'batches' column for JSON array storage
 stockColumns.forEach(col => {
     try { db.exec(`ALTER TABLE stocks ADD COLUMN ${col} TEXT;`); } catch (err) {}
 });
+
+// Stocks Migration for UNIQUE constraint on item
+// Since SQLite doesn't support ALTER TABLE ADD CONSTRAINT directly, we need to handle this differently
+// Create a temporary table with the new schema, copy data, and rename
+try {
+    // Check if we need to migrate for uniqueness
+    const existingRows = db.prepare(`SELECT item, COUNT(*) as cnt FROM stocks GROUP BY item HAVING COUNT(*) > 1`).all();
+    if (existingRows.length === 0) {
+        // No duplicates, we can create an index to enforce uniqueness
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_item ON stocks(item);`);
+    } else {
+        console.warn('Warning: Duplicates found in stocks.item. Cannot enforce UNIQUE constraint automatically.');
+        console.warn('Duplicate items:', existingRows);
+    }
+} catch (err) {
+    console.error('Error during item uniqueness migration:', err.message);
+}
 
 // ---------------------------------------------------------
 // NEW TABLES (Migrated from Mongoose)
@@ -89,7 +106,7 @@ db.exec(`
         contact TEXT,
         usern TEXT NOT NULL,
         firm TEXT NOT NULL,
-        has_multiple_gsts INTEGER DEFAULT 0, -- Boolean: 0=false, 1=true
+        has_multiple_gsts INTEGER DEFAULT 0, /* Boolean: 0=false, 1=true */
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     ) STRICT;
@@ -110,12 +127,12 @@ db.exec(`
         pincode TEXT NOT NULL,
         contact_person TEXT,
         contact_number TEXT,
-        is_active INTEGER DEFAULT 1,     -- Boolean
-        is_default INTEGER DEFAULT 0,    -- Boolean
+        is_active INTEGER DEFAULT 1,     /* Boolean */
+        is_default INTEGER DEFAULT 0,    /* Boolean */
         registration_type TEXT DEFAULT 'regular',
-        valid_from TEXT NOT NULL,        -- Date (ISO String)
-        valid_to TEXT,                   -- Date (ISO String)
-        last_used_date TEXT,             -- Date (ISO String)
+        valid_from TEXT NOT NULL,        /* Date (ISO String) */
+        valid_to TEXT,                   /* Date (ISO String) */
+        last_used_date TEXT,             /* Date (ISO String) */
         transaction_count INTEGER DEFAULT 0,
         FOREIGN KEY(party_id) REFERENCES parties(id) ON DELETE CASCADE
     ) STRICT;
@@ -127,7 +144,7 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS bills (
         id INTEGER PRIMARY KEY,
         bno TEXT NOT NULL,
-        bdate TEXT NOT NULL,             -- Date (ISO String)
+        bdate TEXT NOT NULL,             /* Date (ISO String) */
         supply TEXT NOT NULL,
         addr TEXT,
         gstin TEXT DEFAULT 'UNREGISTERED',
@@ -144,7 +161,7 @@ db.exec(`
         ntot REAL NOT NULL,
         btype TEXT NOT NULL DEFAULT 'SALES',
         order_no TEXT,
-        order_date TEXT,                 -- Date
+        order_date TEXT,                 /* Date */
         dispatch_through TEXT,
         docket_no TEXT,
         vehicle_no TEXT,
@@ -155,20 +172,20 @@ db.exec(`
         consignee_pin TEXT,
         reason_for_note TEXT,
         original_bill_no TEXT,
-        original_bill_date TEXT,         -- Date
+        original_bill_date TEXT,         /* Date */
         narration TEXT,
         status TEXT DEFAULT 'ACTIVE',    -- Enum: ACTIVE, CANCELLED
         cancellation_reason TEXT,
-        cancelled_at TEXT,               -- Date
+        cancelled_at TEXT,               /* Date */
         cancelled_by INTEGER,            -- FK to users.id
         attachment_url TEXT,
         attachment_file_id TEXT,
-        party_id INTEGER,                -- FK to parties.id
+        party_id INTEGER,                -- FK to parties.id,
         
         -- JSON Fields for complex objects
         oth_chg_json TEXT,               -- Stores Array<IOtherCharge> as JSON
         gst_selection_json TEXT,         -- Stores IGSTSelection object as JSON
-        reverse_charge INTEGER DEFAULT 0, -- Boolean: 0=false, 1=true
+        reverse_charge INTEGER DEFAULT 0, /* Boolean: 0=false, 1=true */
         
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -184,12 +201,12 @@ db.exec(`
         id INTEGER PRIMARY KEY,
         type TEXT NOT NULL,
         bno TEXT NOT NULL,
-        bdate TEXT NOT NULL,             -- Date
+        bdate TEXT NOT NULL,             /* Date */
         supply TEXT NOT NULL,
         item TEXT NOT NULL,
         item_narration TEXT,
         pno TEXT,
-        batch TEXT,
+        batch TEXT, /* Batch information for transaction */
         oem TEXT,
         hsn TEXT NOT NULL,
         qty REAL NOT NULL,
@@ -204,7 +221,7 @@ db.exec(`
         discamt REAL,
         total REAL NOT NULL,
         mrp REAL,
-        expiry_date TEXT,                -- Date
+        expiry_date TEXT,                /* Date */
         project TEXT,
         user TEXT NOT NULL,
         firm TEXT NOT NULL,

@@ -16,6 +16,9 @@ router.post('/api/stocks', controller.createStock);
 router.put('/api/stocks/:id', controller.updateStock);
 router.delete('/api/stocks/:id', controller.deleteStock);
 
+// --- API Routes: Stock Batches ---
+router.get('/api/stocks/:id/batches', controller.getStockBatches);
+
 // --- API Routes: Parties ---
 router.get('/api/parties', controller.getAllParties);
 router.post('/api/parties', controller.createParty);

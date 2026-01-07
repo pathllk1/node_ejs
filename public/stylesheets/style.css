@@ -1181,6 +1181,9 @@
   .bg-blue-600 {
     background-color: var(--color-blue-600);
   }
+  .bg-blue-800 {
+    background-color: var(--color-blue-800);
+  }
   .bg-emerald-100 {
     background-color: var(--color-emerald-100);
   }

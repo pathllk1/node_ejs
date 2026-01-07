@@ -24,7 +24,16 @@ exports.getAllStocks = (req, res) => {
     try {
         const stmt = db.prepare('SELECT * FROM stocks ORDER BY created_at DESC');
         const stocks = stmt.all();
-        res.json(stocks);
+        
+        // Parse batches JSON for each stock
+        const stocksWithBatches = stocks.map(stock => {
+            return {
+                ...stock,
+                batches: stock.batches ? JSON.parse(stock.batches) : []
+            };
+        });
+        
+        res.json(stocksWithBatches);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -92,33 +101,91 @@ exports.createStock = (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         
-        // Calculate total
-        const total = parseFloat(qty) * parseFloat(rate);
+        // Check if item already exists
+        const existingStock = db.prepare('SELECT * FROM stocks WHERE item = ?').get(item);
+        
+        if (existingStock) {
+            // Item exists, update batches JSON
+            let batches = existingStock.batches ? JSON.parse(existingStock.batches) : [];
+            
+            // Check if batch already exists
+            const existingBatchIndex = batches.findIndex(b => b.batch === batch);
+            
+            if (existingBatchIndex !== -1) {
+                // Update existing batch
+                batches[existingBatchIndex].qty += parseFloat(qty);
+                if (mrp) batches[existingBatchIndex].mrp = parseFloat(mrp);
+                if (expiryDate) batches[existingBatchIndex].expiry = expiryDate;
+                if (rate) batches[existingBatchIndex].rate = parseFloat(rate);
+            } else {
+                // Add new batch
+                batches.push({
+                    batch: batch || null,
+                    qty: parseFloat(qty),
+                    rate: parseFloat(rate),
+                    expiry: expiryDate || null,
+                    mrp: mrp ? parseFloat(mrp) : null
+                });
+            }
+            
+            // Calculate new total quantity
+            const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+            const newTotal = newTotalQty * parseFloat(rate); // Using provided rate
+            
+            // Update the stock record
+            const updateStmt = db.prepare(`
+                UPDATE stocks 
+                SET qty = @qty, total = @total, mrp = @mrp, batches = @batches, user = @user, updated_at = @updated_at
+                WHERE item = @item
+            `);
+            
+            updateStmt.run({
+                item,
+                qty: newTotalQty,
+                total: newTotal,
+                mrp: mrp ? parseFloat(mrp) : null,
+                batches: JSON.stringify(batches),
+                user: actorUsername,
+                updated_at: now()
+            });
+            
+            res.json({ id: existingStock.id, message: 'Stock batch updated successfully' });
+        } else {
+            // Item doesn't exist, create new record with batch
+            const batches = [{
+                batch: batch || null,
+                qty: parseFloat(qty),
+                rate: parseFloat(rate),
+                expiry: expiryDate || null,
+                mrp: mrp ? parseFloat(mrp) : null
+            }];
+            
+            const total = parseFloat(qty) * parseFloat(rate);
 
-        const stmt = db.prepare(`
-            INSERT INTO stocks (item, pno, batch, oem, hsn, qty, uom, rate, grate, total, mrp, expiryDate, user, created_at, updated_at)
-            VALUES (@item, @pno, @batch, @oem, @hsn, @qty, @uom, @rate, @grate, @total, @mrp, @expiryDate, @user, @created_at, @updated_at)
-        `);
+            const stmt = db.prepare(`
+                INSERT INTO stocks (item, pno, oem, hsn, qty, uom, rate, grate, total, mrp, batches, user, created_at, updated_at)
+                VALUES (@item, @pno, @oem, @hsn, @qty, @uom, @rate, @grate, @total, @mrp, @batches, @user, @created_at, @updated_at)
+            `);
 
-        const result = stmt.run({
-            item,
-            pno: pno || null, // Convert empty strings to null for UNIQUE constraint
-            batch: batch || null,
-            oem: oem || null,
-            hsn,
-            qty: parseFloat(qty),
-            uom,
-            rate: parseFloat(rate),
-            grate: parseFloat(grate),
-            total,
-            mrp: mrp ? parseFloat(mrp) : null,
-            expiryDate: expiryDate || null,
-            user: actorUsername,
-            created_at: now(),
-            updated_at: now()
-        });
+            const result = stmt.run({
+                item,
+                pno: pno || null,
+                oem: oem || null,
+                hsn,
+                qty: parseFloat(qty),
+                uom,
+                rate: parseFloat(rate),
+                grate: parseFloat(grate),
+                total,
+                mrp: mrp ? parseFloat(mrp) : null,
+                batches: JSON.stringify(batches),
+                user: actorUsername,
+                created_at: now(),
+                updated_at: now()
+            });
 
-        res.json({ id: result.lastInsertRowid, message: 'Stock added successfully' });
+            res.json({ id: result.lastInsertRowid, message: 'Stock added successfully' });
+        }
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
@@ -134,13 +201,62 @@ exports.updateStock = (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         
-        const total = parseFloat(qty) * parseFloat(rate);
-
+        // Get the current stock record
+        const currentStock = db.prepare('SELECT * FROM stocks WHERE id = ?').get(id);
+        if (!currentStock) {
+            return res.status(404).json({ error: 'Stock not found' });
+        }
+        
+        // Parse existing batches
+        let batches = currentStock.batches ? JSON.parse(currentStock.batches) : [];
+        
+        // If batch is specified, update that specific batch
+        if (batch) {
+            const batchIndex = batches.findIndex(b => b.batch === batch);
+            if (batchIndex !== -1) {
+                // Update existing batch
+                batches[batchIndex].qty = parseFloat(qty);
+                if (rate) batches[batchIndex].rate = parseFloat(rate);
+                if (expiryDate) batches[batchIndex].expiry = expiryDate;
+                if (mrp) batches[batchIndex].mrp = parseFloat(mrp);
+            } else {
+                // If batch doesn't exist in the array, add it
+                batches.push({
+                    batch: batch,
+                    qty: parseFloat(qty),
+                    rate: parseFloat(rate),
+                    expiry: expiryDate || null,
+                    mrp: mrp ? parseFloat(mrp) : null
+                });
+            }
+        } else {
+            // If no batch specified, update the first batch or add as non-batched
+            if (batches.length > 0) {
+                batches[0].qty = parseFloat(qty);
+                if (rate) batches[0].rate = parseFloat(rate);
+                if (expiryDate) batches[0].expiry = expiryDate;
+                if (mrp) batches[0].mrp = parseFloat(mrp);
+            } else {
+                // Add as non-batched entry
+                batches.push({
+                    batch: null,
+                    qty: parseFloat(qty),
+                    rate: parseFloat(rate),
+                    expiry: expiryDate || null,
+                    mrp: mrp ? parseFloat(mrp) : null
+                });
+            }
+        }
+        
+        // Calculate new total quantity
+        const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+        const newTotal = newTotalQty * parseFloat(rate || currentStock.rate);
+        
         const stmt = db.prepare(`
             UPDATE stocks SET 
-                item = @item, pno = @pno, batch = @batch, oem = @oem, hsn = @hsn, 
+                item = @item, pno = @pno, oem = @oem, hsn = @hsn, 
                 qty = @qty, uom = @uom, rate = @rate, grate = @grate, total = @total, 
-                mrp = @mrp, expiryDate = @expiryDate, user = @user, updated_at = @updated_at
+                mrp = @mrp, batches = @batches, user = @user, updated_at = @updated_at
             WHERE id = @id
         `);
 
@@ -148,16 +264,15 @@ exports.updateStock = (req, res) => {
             id,
             item,
             pno: pno || null,
-            batch: batch || null,
             oem: oem || null,
             hsn,
-            qty: parseFloat(qty),
+            qty: newTotalQty,
             uom,
-            rate: parseFloat(rate),
+            rate: parseFloat(rate || currentStock.rate),
             grate: parseFloat(grate),
-            total,
+            total: newTotal,
             mrp: mrp ? parseFloat(mrp) : null,
-            expiryDate: expiryDate || null,
+            batches: JSON.stringify(batches),
             user: actorUsername,
             updated_at: now()
         });
@@ -387,9 +502,48 @@ exports.createBill = (req, res) => {
             UPDATE stocks SET qty = qty - @qty WHERE id = @id
         `);
 
-        // C. Process Items
+            // C. Process Items
         cart.forEach(item => {
             const lineTotal = item.qty * item.rate * (1 - (item.disc || 0)/100);
+
+            // Get the stock record to update the specific batch
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ?').get(item.stockId);
+            if (!stockRecord) {
+                throw new Error(`Stock record not found for ID: ${item.stockId}`);
+            }
+            
+            // Parse existing batches
+            let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
+            
+            // Find the specific batch to deduct from
+            const batchIndex = batches.findIndex(b => b.batch === item.batch);
+            if (batchIndex === -1) {
+                throw new Error(`Batch ${item.batch} not found for item ${item.item}`);
+            }
+            
+            // Update the specific batch quantity
+            batches[batchIndex].qty -= item.qty;
+            if (batches[batchIndex].qty < 0) {
+                throw new Error(`Insufficient quantity in batch ${item.batch} for item ${item.item}`);
+            }
+            
+            // Calculate new total quantity
+            const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+            
+            // Update the stock record with new batches and total quantity
+            const updateStockBatchesStmt = db.prepare(`
+                UPDATE stocks 
+                SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
+                WHERE id = @id
+            `);
+            
+            updateStockBatchesStmt.run({
+                id: item.stockId,
+                qty: newTotalQty,
+                batches: JSON.stringify(batches),
+                user: actorUsername,
+                updated_at: now()
+            });
 
             insertReg.run({
                 bno: meta.billNo,
@@ -411,12 +565,6 @@ exports.createBill = (req, res) => {
                 firm: party.firm,
                 created_at: now(),
                 updated_at: now()
-            });
-
-            // Deduct from Stock
-            updateStockQty.run({
-                qty: item.qty,
-                id: item.stockId
             });
         });
 
@@ -509,6 +657,28 @@ exports.getAllBills = (req, res) => {
         });
         
         res.json(processedBills);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Get all batches for a specific stock item
+exports.getStockBatches = (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const stock = db.prepare('SELECT * FROM stocks WHERE id = ?').get(id);
+        if (!stock) {
+            return res.status(404).json({ error: 'Stock not found' });
+        }
+        
+        const batches = stock.batches ? JSON.parse(stock.batches) : [];
+        
+        res.json({
+            id: stock.id,
+            item: stock.item,
+            batches: batches
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

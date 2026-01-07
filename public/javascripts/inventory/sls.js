@@ -545,7 +545,14 @@
                     (s.item && s.item.toLowerCase().includes(term)) ||
                     (s.batch && s.batch.toLowerCase().includes(term)) ||
                     (s.oem && s.oem.toLowerCase().includes(term)) ||
-                    (s.hsn && s.hsn.toLowerCase().includes(term))
+                    (s.hsn && s.hsn.toLowerCase().includes(term)) ||
+                    // Search within batches array
+                    (s.batches && Array.isArray(s.batches) && 
+                        s.batches.some(batch => 
+                            (batch.batch && batch.batch.toLowerCase().includes(term)) ||
+                            (batch.expiry && batch.expiry.toLowerCase().includes(term))
+                        )
+                    )
                 );
                 renderStockRows(filtered);
             });
@@ -576,7 +583,13 @@
         tbody.innerHTML = data.map(stock => `
             <tr class="hover:bg-blue-50 transition-colors group border-b border-gray-50">
                 <td class="p-3 font-semibold text-blue-900">${stock.item}</td>
-                <td class="p-3 font-mono text-gray-500">${stock.batch || '-'}</td>
+                <td class="p-3 font-mono text-gray-500">
+                    ${stock.batches && Array.isArray(stock.batches) && stock.batches.length > 0 
+                        ? (stock.batches.length === 1 
+                            ? (stock.batches[0].batch || 'No Batch') 
+                            : `${stock.batches.length} batches`) 
+                        : (stock.batch || '-')}
+                </td>
                 <td class="p-3 text-gray-500">${stock.oem || '-'}</td>
                 <td class="p-3 text-right font-bold ${stock.qty > 0 ? 'text-green-600' : 'text-red-500'}">${stock.qty} ${stock.uom}</td>
                 <td class="p-3 text-right font-mono">${stock.rate}</td>
@@ -604,9 +617,28 @@
         `).join('');
 
         tbody.querySelectorAll('.btn-select-stock').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', async (e) => {
                 const stock = JSON.parse(e.target.getAttribute('data-stock'));
-                addItemToCart(stock);
+                
+                // Check if the item has multiple batches
+                if (stock.batches && stock.batches.length > 1) {
+                    // Show batch selection modal
+                    await showBatchSelectionModal(stock);
+                } else if (stock.batches && stock.batches.length === 1) {
+                    // If only one batch, use it directly
+                    const batch = stock.batches[0];
+                    const stockWithBatch = {
+                        ...stock,
+                        batch: batch.batch,
+                        qty: batch.qty,
+                        rate: batch.rate
+                    };
+                    addItemToCart(stockWithBatch);
+                } else {
+                    // No batches, use the stock as is
+                    addItemToCart(stock);
+                }
+                
                 document.getElementById('modal-backdrop').classList.add('hidden');
             });
         });
@@ -640,7 +672,7 @@
     }
 
     function addItemToCartWithOverrides(stockItem, overrides = {}) {
-        const existing = state.cart.find(i => i.stockId === stockItem.id);
+        const existing = state.cart.find(i => i.stockId === stockItem.id && i.batch === stockItem.batch);
         const resolvedRate = overrides.rate !== undefined ? parseFloat(overrides.rate) : parseFloat(stockItem.rate);
         const resolvedDisc = overrides.disc !== undefined ? parseFloat(overrides.disc) : 0;
 
@@ -664,6 +696,74 @@
             });
         }
         refreshTable();
+    }
+    
+    // Show batch selection modal when an item has multiple batches
+    async function showBatchSelectionModal(stock) {
+        const subModal = document.getElementById('sub-modal-backdrop');
+        const subContent = document.getElementById('sub-modal-content');
+        if (!subModal || !subContent) return;
+
+        subModal.classList.remove('hidden');
+
+        // Create the batch selection modal content
+        let batchesHtml = '';
+        if (stock.batches && stock.batches.length > 0) {
+            batchesHtml = stock.batches.map((batch, index) => `
+                <tr class="hover:bg-blue-50 transition-colors">
+                    <td class="p-3">${batch.batch || 'No Batch'}</td>
+                    <td class="p-3 text-right font-bold ${batch.qty > 0 ? 'text-green-600' : 'text-red-500'}">${batch.qty} ${stock.uom}</td>
+                    <td class="p-3 text-right">${batch.rate}</td>
+                    <td class="p-3 text-right">${batch.expiry || '-'}</td>
+                    <td class="p-3 text-center">
+                        <button class="btn-select-batch bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-bold transition-colors"
+                            data-stock='${JSON.stringify({...stock, batch: batch.batch, qty: batch.qty, rate: batch.rate}).replace(/'/g, "&apos;")}'>
+                            SELECT
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            batchesHtml = `<tr><td colspan="5" class="p-3 text-center text-gray-500">No batches available</td></tr>`;
+        }
+
+        subContent.innerHTML = `
+            <div class="bg-blue-800 p-4 flex justify-between items-center text-white">
+                <h3 class="font-bold text-sm tracking-wide">SELECT BATCH FOR: ${stock.item}</h3>
+                <button id="close-batch-modal" class="hover:text-red-300 text-lg transition-colors">&times;</button>
+            </div>
+            
+            <div class="p-4">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-100 text-[11px] font-bold text-gray-500 uppercase">
+                        <tr>
+                            <th class="p-3">Batch</th>
+                            <th class="p-3 text-right">Quantity</th>
+                            <th class="p-3 text-right">Rate</th>
+                            <th class="p-3 text-right">Expiry</th>
+                            <th class="p-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-xs text-gray-700 divide-y divide-gray-100" id="batch-list">
+                        ${batchesHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        // Add event listeners for batch selection
+        document.querySelectorAll('.btn-select-batch').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const stockWithBatch = JSON.parse(e.target.getAttribute('data-stock'));
+                addItemToCart(stockWithBatch);
+                document.getElementById('sub-modal-backdrop').classList.add('hidden');
+            });
+        });
+        
+        // Add close button listener
+        document.getElementById('close-batch-modal').addEventListener('click', () => {
+            document.getElementById('sub-modal-backdrop').classList.add('hidden');
+        });
     }
 
     function openPartyItemHistoryModal(stock) {
@@ -1081,7 +1181,7 @@
                 
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Batch No</label>
-                    <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                    <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="Enter batch number (optional)">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Part No (P/No)</label>
@@ -1218,7 +1318,7 @@
                 
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Batch No</label>
-                    <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.batch || '').replace(/"/g, '&quot;')}">
+                    <input type="text" name="batch" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none" value="${(stock.batches && Array.isArray(stock.batches) && stock.batches.length > 0 ? (stock.batches[0]?.batch || '') : (stock.batch || '')).replace(/"/g, '&quot;')}">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Part No (P/No)</label>
@@ -1571,7 +1671,7 @@
     // --- CART LOGIC ---
     function addItemToCart(stockItem) {
         // Check batch/item uniqueness
-        const existing = state.cart.find(i => i.stockId === stockItem.id);
+        const existing = state.cart.find(i => i.stockId === stockItem.id && i.batch === stockItem.batch);
 
         if (existing) {
             existing.qty += 1;

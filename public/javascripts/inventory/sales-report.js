@@ -967,6 +967,9 @@
         }
         
         modalHtml += '<div class="flex justify-end space-x-3 pt-4">';
+        modalHtml += '<button id="edit-bill" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">';
+        modalHtml += 'Edit Bill';
+        modalHtml += '</button>';
         modalHtml += '<button id="export-bill-pdf" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">';
         modalHtml += 'Export PDF';
         modalHtml += '</button>';
@@ -990,6 +993,12 @@
         document.getElementById('close-bill-modal-bottom').onclick = closeBillModal;
         document.getElementById('export-bill-pdf').onclick = () => exportBillToPdf(bill);
         document.getElementById('export-bill-excel').onclick = () => exportBillToExcel(bill);
+        document.getElementById('edit-bill').onclick = () => {
+            // Close the modal first
+            closeBillModal();
+            // Navigate to the sales page in edit mode
+            window.location.href = `/inventory/sales?edit=${bill.id}`;
+        };
         
         // Close modal on backdrop click
         document.getElementById('bill-details-modal').onclick = function(e) {

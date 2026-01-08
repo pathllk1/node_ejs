@@ -10,6 +10,11 @@ exports.renderStocksPage = (req, res) => {
     res.render('inventory/stocks', { title: 'Stock Management', user: req.user || { username: 'Guest' } });
 };
 
+exports.renderSalesPage = (req, res) => {
+    // You can pass the logged-in user here if available in req.user
+    res.render('inventory/sales', { title: 'Sales', user: req.user || { username: 'Guest' } });
+};
+
 exports.renderBillsPage = (req, res) => {
     // You can pass the logged-in user here if available in req.user
     res.render('inventory/bills', { title: 'Inventory Bills', user: req.user || { username: 'Guest' } });
@@ -853,6 +858,221 @@ exports.getNextBillNumber = (req, res) => {
 };
 
 // ... existing imports
+
+// Update an existing bill
+exports.updateBill = async (req, res) => {
+    // Expects: { meta: {}, party: {}, cart: [], otherCharges: [], user: '' }
+    const { meta, party, cart, otherCharges } = req.body;
+    const { id } = req.params;
+
+    const actorUsername = getActorUsername(req);
+    if (!actorUsername) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!cart || cart.length === 0) {
+        return res.status(400).json({ error: "Cart cannot be empty" });
+    }
+
+    // Check GST status to determine if tax calculations should be performed
+    const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+    const gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+
+    // 1. Calculate Header Totals
+    let gtot = 0; // Taxable Total (items + other charges)
+    let totalTax = 0; // Tax on items only
+
+    cart.forEach(item => {
+        const lineVal = item.qty * item.rate * (1 - (item.disc || 0)/100);
+        if (gstEnabled) {
+            const lineTax = lineVal * (item.grate / 100);
+            totalTax += lineTax;
+        }
+        gtot += lineVal;
+    });
+
+    // Calculate other charges total and their GST
+    let otherChargesTotal = 0;
+    let otherChargesGstTotal = 0;
+    
+    if (otherCharges && otherCharges.length > 0) {
+        otherCharges.forEach(charge => {
+            const chargeAmount = parseFloat(charge.amount) || 0;
+            otherChargesTotal += chargeAmount;
+            
+            if (gstEnabled) {
+                const chargeGstRate = parseFloat(charge.gstRate) || 0;
+                const chargeGstAmount = (chargeAmount * chargeGstRate) / 100;
+                otherChargesGstTotal += chargeGstAmount;
+            }
+        });
+    }
+    
+    // According to Indian GST Standards (when GST is enabled):
+    // gtot = taxable value of items + other charges (total taxable amount)
+    gtot = gtot + otherChargesTotal;
+    
+    // Calculate tax amounts for CGST/SGST or IGST based on supply type (only when GST is enabled)
+    let cgst = 0, sgst = 0, igst = 0;
+    
+    if (gstEnabled && meta.billType === 'intra-state') {
+        cgst = (totalTax / 2) + (otherChargesGstTotal / 2); // CGST on items + other charges
+        sgst = (totalTax / 2) + (otherChargesGstTotal / 2); // SGST on items + other charges
+    } else if (gstEnabled) {
+        igst = totalTax + otherChargesGstTotal; // IGST on items + other charges
+    }
+    
+    // For reverse charge, tax is calculated but not added to ntot (grand total)
+    // The tax liability shifts to the recipient
+    // When GST is disabled, tax values are 0, so ntot = gtot only
+    const ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
+    const supplyState = party.state || 'Local';
+
+    // 2. Get the existing bill to restore stock quantities
+    const existingBill = db.prepare('SELECT * FROM bills WHERE id = ?').get(id);
+    if (!existingBill) {
+        return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    // 3. Get existing bill items to restore stock quantities
+    const existingItems = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ?').all(id);
+
+    // 4. Perform Transaction (Update Bill -> Update Items -> Adjust Stock)
+    const transaction = db.transaction(() => {
+        // A. Update Bill Header
+        const updateBill = db.prepare(`
+            UPDATE bills SET 
+                bno = @bno, bdate = @bdate, supply = @supply, addr = @addr, gstin = @gstin, state = @state,
+                gtot = @gtot, ntot = @ntot, btype = @btype, usern = @usern, firm = @firm,
+                party_id = @party_id, oth_chg_json = @oth_chg_json, order_no = @order_no, vehicle_no = @vehicle_no, 
+                dispatch_through = @dispatch_through, narration = @narration, updated_at = @updated_at, 
+                reverse_charge = @reverse_charge, cgst = @cgst, sgst = @sgst, igst = @igst
+            WHERE id = @id
+        `);
+
+        updateBill.run({
+            id: id,
+            bno: meta.billNo,
+            bdate: meta.billDate,
+            supply: supplyState,
+            addr: party.addr || '',
+            gstin: party.gstin || 'UNREGISTERED',
+            state: party.state || '',
+            gtot: gtot,
+            ntot: ntot,
+            btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
+            usern: actorUsername,
+            firm: party.firm,
+            party_id: party.id || null,
+            oth_chg_json: otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
+            order_no: meta.referenceNo || null,
+            vehicle_no: meta.vehicleNo || null,
+            dispatch_through: meta.dispatchThrough || null,
+            narration: meta.narration || null,
+            updated_at: now(),
+            reverse_charge: meta.reverseCharge || 0, // Store reverse charge flag in database
+            cgst: cgst,
+            sgst: sgst,
+            igst: igst
+        });
+
+        // B. Delete existing bill items from stock_reg
+        db.prepare('DELETE FROM stock_reg WHERE bill_id = ?').run(id);
+
+        // C. Prepare Statements for New Line Items
+        const insertReg = db.prepare(`
+            INSERT INTO stock_reg (
+                type, bno, bdate, supply, item, item_narration, batch, hsn, 
+                qty, uom, rate, grate, disc, total, 
+                stock_id, bill_id, user, firm, created_at, updated_at, qtyh
+            ) VALUES (
+                'SALE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
+                @qty, @uom, @rate, @grate, @disc, @total,
+                @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0
+            )
+        `);
+
+        const updateStockQty = db.prepare(`
+            UPDATE stocks SET qty = qty - @qty WHERE id = @id
+        `);
+
+        // D. Process New Items - Deduct from stock
+        cart.forEach(item => {
+            const lineTotal = item.qty * item.rate * (1 - (item.disc || 0)/100);
+
+            // Get the stock record to update the specific batch
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ?').get(item.stockId);
+            if (!stockRecord) {
+                throw new Error(`Stock record not found for ID: ${item.stockId}`);
+            }
+            
+            // Parse existing batches
+            let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
+            
+            // Find the specific batch to deduct from
+            const batchIndex = batches.findIndex(b => b.batch === item.batch);
+            if (batchIndex === -1) {
+                throw new Error(`Batch ${item.batch} not found for item ${item.item}`);
+            }
+            
+            // Update the specific batch quantity
+            batches[batchIndex].qty -= item.qty;
+            if (batches[batchIndex].qty < 0) {
+                throw new Error(`Insufficient quantity in batch ${item.batch} for item ${item.item}`);
+            }
+            
+            // Calculate new total quantity
+            const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+            
+            // Update the stock record with new batches and total quantity
+            const updateStockBatchesStmt = db.prepare(`
+                UPDATE stocks 
+                SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
+                WHERE id = @id
+            `);
+            
+            updateStockBatchesStmt.run({
+                id: item.stockId,
+                qty: newTotalQty,
+                batches: JSON.stringify(batches),
+                user: actorUsername,
+                updated_at: now()
+            });
+
+            insertReg.run({
+                bno: meta.billNo,
+                bdate: meta.billDate,
+                supply: supplyState,
+                item: item.item,
+                item_narration: item.narration || null,  // Add item narration if available
+                batch: item.batch || null,
+                hsn: item.hsn,
+                qty: item.qty,
+                uom: item.uom,
+                rate: item.rate,
+                grate: item.grate,
+                disc: item.disc || 0,
+                total: lineTotal,
+                stock_id: item.stockId,
+                bill_id: id,
+                user: actorUsername,
+                firm: party.firm,
+                created_at: now(),
+                updated_at: now()
+            });
+        });
+
+        return id;
+    });
+
+    try {
+        const billId = transaction(); // Execute Transaction
+        res.json({ message: "Bill updated successfully", billId });
+    } catch (err) {
+        console.error("Transaction Error:", err);
+        res.status(500).json({ error: "Failed to update bill: " + err.message });
+    }
+}
 
 exports.lookupGST = async (req, res) => {
     const { gstin } = req.query;

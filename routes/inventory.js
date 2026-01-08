@@ -6,6 +6,7 @@ const invoicePdfController = require('../controllers/inventory/invoicePdfControl
 
 // View Route
 router.get('/stocks', controller.renderStocksPage);
+router.get('/sales', controller.renderSalesPage);
 
 router.get('/bills', controller.renderBillsPage);
 
@@ -27,6 +28,7 @@ router.post('/api/parties', controller.createParty);
 // --- API Routes: Bills (Sales) ---
 router.get('/api/bills', controller.getAllBills);
 router.post('/api/bills', controller.createBill);
+router.put('/api/bills/:id', controller.updateBill);
 router.get('/api/bills/next-number', controller.getNextBillNumber);
 router.get('/api/bills/:id', controller.getBillById);
 router.get('/api/bills/:id/pdf', invoicePdfController.getBillPdfById);

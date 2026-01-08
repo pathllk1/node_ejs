@@ -596,7 +596,14 @@ exports.createBill = (req, res) => {
             let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
             
             // Find the specific batch to deduct from
-            const batchIndex = batches.findIndex(b => b.batch === item.batch);
+            let batchIndex = -1;
+            if (item.batch === null || item.batch === undefined || item.batch === '') {
+                // Look for a batch with null/undefined/empty string value
+                batchIndex = batches.findIndex(b => b.batch === null || b.batch === undefined || b.batch === '');
+            } else {
+                batchIndex = batches.findIndex(b => b.batch === item.batch);
+            }
+            
             if (batchIndex === -1) {
                 throw new Error(`Batch ${item.batch} not found for item ${item.item}`);
             }
@@ -937,9 +944,54 @@ exports.updateBill = async (req, res) => {
     // 3. Get existing bill items to restore stock quantities
     const existingItems = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ?').all(id);
 
-    // 4. Perform Transaction (Update Bill -> Update Items -> Adjust Stock)
+    // 4. Perform Transaction (Restore Old Quantities -> Update Bill -> Update Items -> Deduct New Quantities)
     const transaction = db.transaction(() => {
-        // A. Update Bill Header
+        // A. Restore Original Quantities to Stock
+        // For each existing item, add back the quantity to the respective batch
+        existingItems.forEach(existingItem => {
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ?').get(existingItem.stock_id);
+            if (!stockRecord) {
+                throw new Error(`Stock record not found for ID: ${existingItem.stock_id}`);
+            }
+            
+            // Parse existing batches
+            let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
+            
+            // Find the specific batch to add quantity to
+            // Handle case where batch might be null/undefined
+            let batchIndex = -1;
+            if (existingItem.batch === null || existingItem.batch === undefined || existingItem.batch === '') {
+                // Look for a batch with null/undefined/empty string value
+                batchIndex = batches.findIndex(b => b.batch === null || b.batch === undefined || b.batch === '');
+            } else {
+                batchIndex = batches.findIndex(b => b.batch === existingItem.batch);
+            }
+            
+            if (batchIndex !== -1) {
+                // Add back the original quantity to this batch
+                batches[batchIndex].qty += existingItem.qty;
+                
+                // Calculate new total quantity
+                const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+                
+                // Update the stock record with new batches and total quantity
+                const updateStockBatchesStmt = db.prepare(`
+                    UPDATE stocks 
+                    SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
+                    WHERE id = @id
+                `);
+                
+                updateStockBatchesStmt.run({
+                    id: existingItem.stock_id,
+                    qty: newTotalQty,
+                    batches: JSON.stringify(batches),
+                    user: actorUsername,
+                    updated_at: now()
+                });
+            }
+        });
+        
+        // B. Update Bill Header
         const updateBill = db.prepare(`
             UPDATE bills SET 
                 bno = @bno, bdate = @bdate, supply = @supply, addr = @addr, gstin = @gstin, state = @state,
@@ -976,10 +1028,10 @@ exports.updateBill = async (req, res) => {
             igst: igst
         });
 
-        // B. Delete existing bill items from stock_reg
+        // C. Delete existing bill items from stock_reg
         db.prepare('DELETE FROM stock_reg WHERE bill_id = ?').run(id);
 
-        // C. Prepare Statements for New Line Items
+        // D. Prepare Statements for New Line Items
         const insertReg = db.prepare(`
             INSERT INTO stock_reg (
                 type, bno, bdate, supply, item, item_narration, batch, hsn, 
@@ -992,11 +1044,7 @@ exports.updateBill = async (req, res) => {
             )
         `);
 
-        const updateStockQty = db.prepare(`
-            UPDATE stocks SET qty = qty - @qty WHERE id = @id
-        `);
-
-        // D. Process New Items - Deduct from stock
+        // E. Process New Items - Deduct from stock
         cart.forEach(item => {
             const lineTotal = item.qty * item.rate * (1 - (item.disc || 0)/100);
 
@@ -1010,7 +1058,14 @@ exports.updateBill = async (req, res) => {
             let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
             
             // Find the specific batch to deduct from
-            const batchIndex = batches.findIndex(b => b.batch === item.batch);
+            let batchIndex = -1;
+            if (item.batch === null || item.batch === undefined || item.batch === '') {
+                // Look for a batch with null/undefined/empty string value
+                batchIndex = batches.findIndex(b => b.batch === null || b.batch === undefined || b.batch === '');
+            } else {
+                batchIndex = batches.findIndex(b => b.batch === item.batch);
+            }
+            
             if (batchIndex === -1) {
                 throw new Error(`Batch ${item.batch} not found for item ${item.item}`);
             }

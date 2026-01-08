@@ -183,7 +183,7 @@
                 rate: item.rate,
                 disc: item.disc || 0,
                 grate: item.grate || 0,
-                batch: item.batch || '',
+                batch: item.batch || null,  // Keep as null if not available
                 total: item.total,
                 narration: item.item_narration || ''  // Map narration field
             }));

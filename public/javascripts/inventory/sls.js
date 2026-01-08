@@ -2093,8 +2093,8 @@
                     // Add GST status to invoice data
                     invoiceData.gstEnabled = gstEnabled;
                     
-                    // Export to Excel
-                    exportInvoiceToExcel(invoiceData);
+                    // Export to PDF
+                    exportBillToPdf({id: result.billId, bno: invoiceData.meta.billNo});
                     
                     // Reset the sales tab after successful save
                     state.cart = [];
@@ -2102,7 +2102,7 @@
                     state.otherCharges = [];
                     renderLayout();
 
-                    alert('Invoice saved successfully! Bill ID: ' + result.billId + '\nInvoice has been exported to Excel.');
+                    alert('Invoice saved successfully! Bill ID: ' + result.billId + '\nInvoice has been exported to PDF.');
 
                 } catch (error) {
                     console.error('Save error:', error);
@@ -2923,6 +2923,46 @@
     XLSX.utils.book_append_sheet(wb, ws, "Tax Invoice");
     XLSX.writeFile(wb, `Invoice_${invoiceData.meta.billNo}.xlsx`);
 }
+
+// Export to PDF
+    async function exportBillToPdf(bill) {
+        try {
+            if (!bill || !bill.id) {
+                alert('Bill ID not available');
+                return;
+            }
+
+            const response = await window.api.get(`/inventory/api/bills/${bill.id}/pdf`);
+            if (!response) {
+                throw new Error('Request failed (no response). You may have been logged out.');
+            }
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                throw new Error((data && data.error) ? data.error : `Failed to generate PDF (HTTP ${response.status})`);
+            }
+
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            if (!contentType.includes('application/pdf')) {
+                const text = await response.text().catch(() => '');
+                throw new Error(`Expected a PDF but received: ${contentType || 'unknown content-type'}.
+        Server response: ${text ? text.slice(0, 200) : ''}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const billNo = (bill.bno || `BILL-${bill.id}`).toString().replace(/[^a-zA-Z0-9._-]/g, '_');
+            a.download = `Invoice_${billNo}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('PDF export failed:', err);
+            alert('PDF export failed: ' + err.message);
+        }
+    }
 
 // --- UTIL: NUMBER TO WORDS (INDIAN CURRENCY) ---
 function numToIndianRupees(num) {

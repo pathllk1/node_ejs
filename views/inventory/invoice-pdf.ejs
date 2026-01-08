@@ -143,6 +143,9 @@
                         <td class="center"><%= idx + 1 %></td>
                         <td>
                             <div style="font-weight: 600;"><%= it.item || '' %></div>
+                            <% if (it.batch) { %>
+                                <div style="margin-top: 2px; color:#6B7280; font-size:10.5px;">Batch: <%= it.batch %></div>
+                            <% } %>
                             <% if (it.item_narration) { %>
                                 <div style="margin-top: 2px; color:#6B7280; font-size:10.5px;"><%= it.item_narration %></div>
                             <% } %>

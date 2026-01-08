@@ -413,7 +413,7 @@
             const lineTotal = (item.qty || 0) * (item.rate || 0) * (1 - (item.disc || 0) / 100);
             ws_data.push([
                 createCell(index + 1, styles.cellCenter),
-                createCell(item.item, styles.cellLeft),
+                createCell(item.item + (item.batch ? '\n(Batch: ' + item.batch + ')' : ''), styles.cellLeft),
                 createCell(item.hsn, styles.cellCenter),
                 createCell(item.qty, styles.cellCenter),
                 createCell(item.uom, styles.cellCenter),
@@ -1012,7 +1012,7 @@
         let html = '';
         items.forEach(item => {
             html += '<tr>' +
-                '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">' + (item.item || '') + '</td>' +
+                '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">' + (item.item || '') + (item.batch ? '<br/><span class="text-xs text-gray-500">Batch: ' + (item.batch || '') + '</span>' : '') + '</td>' +
                 '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">' + (item.hsn || '') + '</td>' +
                 '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">' + (item.qty || 0) + '</td>' +
                 '<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">' + (item.uom || '') + '</td>' +

@@ -601,6 +601,14 @@
     }
 
     function attachGlobalListeners() {
+        // Add keyboard event listener for F2 key
+        document.onkeydown = (e) => {
+            if (e.key === 'F2') {
+                e.preventDefault();
+                openStockModal();
+            }
+        };
+        
         // Bill number change
         const billNoInput = document.getElementById('bill-no-input');
         if (billNoInput) {
@@ -893,9 +901,295 @@
     }
 
     function openStockModal() {
-        // Implementation would be similar to the original sls.js but simplified
-        // For now, we'll just show an alert since full implementation would require more complex stock selection
-        alert('Stock selection functionality would be implemented here');
+        // Create stock selection modal
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalContent = document.getElementById('modal-content');
+        
+        if (!modalBackdrop || !modalContent) return;
+        
+        modalContent.innerHTML = `
+        <div class="bg-slate-800 p-4 flex justify-between items-center">
+            <h3 class="font-bold text-white text-sm tracking-wide">ADD STOCK ITEM</h3>
+            <button id="close-stock-modal" class="hover:text-red-300 text-lg transition-colors">&times;</button>
+        </div>
+        
+        <div class="p-6 flex-1 overflow-y-auto">
+            <div class="mb-4">
+                <input type="text" id="search-stock-input" placeholder="Search stocks by name, hsn, or oem..." 
+                       class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                <div id="stock-suggestions" class="absolute z-20 w-full bg-white border border-gray-300 rounded shadow-lg mt-1 max-h-60 overflow-y-auto hidden"></div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-100 text-[11px] font-bold text-gray-500 uppercase">
+                        <tr>
+                            <th class="p-3">Item</th>
+                            <th class="p-3">HSN</th>
+                            <th class="p-3">OEM</th>
+                            <th class="p-3 text-center">Available Qty</th>
+                            <th class="p-3 text-center">UOM</th>
+                            <th class="p-3 text-right">Rate</th>
+                            <th class="p-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-results" class="text-xs text-gray-700 divide-y divide-gray-100">
+                        ${renderStockResults(state.stocks)}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t border-gray-200 flex justify-end gap-3">
+            <button id="cancel-stock-selection" class="px-5 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium hover:bg-gray-100 rounded">Cancel</button>
+        </div>`;
+        
+        modalBackdrop.classList.remove('hidden');
+        
+        // Attach event listeners
+        document.getElementById('close-stock-modal').onclick = () => modalBackdrop.classList.add('hidden');
+        document.getElementById('cancel-stock-selection').onclick = () => modalBackdrop.classList.add('hidden');
+        
+        // Search functionality
+        const searchInput = document.getElementById('search-stock-input');
+        searchInput.oninput = debounce((e) => {
+            const query = e.target.value.toLowerCase();
+            const filteredStocks = state.stocks.filter(stock => 
+                stock.item.toLowerCase().includes(query) || 
+                (stock.hsn && stock.hsn.toLowerCase().includes(query)) ||
+                (stock.oem && stock.oem.toLowerCase().includes(query))
+            );
+            document.getElementById('stock-results').innerHTML = renderStockResults(filteredStocks);
+            
+            // Reattach event listeners for the new rows
+            attachAddStockEventListeners(filteredStocks);
+        }, 300);
+        
+        // Attach event listeners for add buttons
+        attachAddStockEventListeners(state.stocks);
+    }
+    
+    function renderStockResults(stocks) {
+        if (stocks.length === 0) {
+            return `<tr><td colspan="7" class="p-3 text-center text-gray-400 italic">No stocks found</td></tr>`;
+        }
+        
+        return stocks.map(stock => {
+            // Calculate available quantity from batches
+            let availableQty = 0;
+            if (stock.batches) {
+                try {
+                    // Check if batches is already an object/array or a JSON string
+                    const batches = Array.isArray(stock.batches) ? stock.batches : JSON.parse(stock.batches);
+                    availableQty = batches.reduce((sum, batch) => sum + (batch.qty || 0), 0);
+                } catch (e) {
+                    console.warn('Error parsing batches for stock:', stock.item, e);
+                    availableQty = stock.qty || 0; // fallback to overall quantity
+                }
+            } else {
+                availableQty = stock.qty || 0;
+            }
+            
+            return `
+            <tr class="hover:bg-blue-50 transition-colors">
+                <td class="p-3 font-medium">
+                    <div>${stock.item}</div>
+                    <div class="text-[10px] text-gray-500">${stock.pno || ''}</div>
+                </td>
+                <td class="p-3 text-gray-500">${stock.hsn || ''}</td>
+                <td class="p-3 text-gray-500">${stock.oem || ''}</td>
+                <td class="p-3 text-center font-bold text-blue-700">${availableQty}</td>
+                <td class="p-3 text-center text-gray-500">${stock.uom || ''}</td>
+                <td class="p-3 text-right font-bold">${formatCurrency(stock.rate || 0)}</td>
+                <td class="p-3 text-center">
+                    <button class="btn-add-stock text-green-600 hover:text-green-800 transition-colors font-bold text-lg leading-none" 
+                            data-stock-id="${stock.id}" data-available-qty="${availableQty}">+
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+    
+    function attachAddStockEventListeners(stocks) {
+        // Use event delegation for add buttons
+        document.getElementById('stock-results').addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-add-stock')) {
+                const stockId = e.target.dataset.stockId;
+                const availableQty = parseFloat(e.target.dataset.availableQty) || 0;
+                
+                const stock = stocks.find(s => s.id == stockId);
+                if (!stock) return;
+                
+                // For now, just check if stockId exists without specifying batch
+                // When user selects a specific batch, we'll check the combination
+                // First, let's see if there are multiple batches to select from
+                let batches = [];
+                if (stock.batches) {
+                    try {
+                        batches = Array.isArray(stock.batches) ? stock.batches : JSON.parse(stock.batches);
+                    } catch (e) {
+                        console.warn('Error parsing batches, using empty array:', e);
+                        batches = [];
+                    }
+                }
+                
+                if (batches.length > 1) {
+                    // Multiple batches, user needs to select one
+                    // Check will happen after batch selection
+                    showBatchSelectionModal(stock, availableQty);
+                    return;
+                } else if (batches.length === 1) {
+                    // Single batch - check if this stock+batch combination exists
+                    const existingCartItemIndex = state.cart.findIndex(item => 
+                        item.stockId == stockId && item.batch === batches[0].batch
+                    );
+                    if (existingCartItemIndex !== -1) {
+                        alert('This item with the same batch is already in the cart. You can modify the existing entry instead.');
+                        return;
+                    }
+                    // Single batch, use it directly
+                    addToCartFromStock(stock, batches[0]);
+                } else {
+                    // No batches - check if stock exists regardless of batch
+                    const existingCartItemIndex = state.cart.findIndex(item => 
+                        item.stockId == stockId && item.batch === null
+                    );
+                    if (existingCartItemIndex !== -1) {
+                        alert('This item is already in the cart. You can modify the existing entry instead.');
+                        return;
+                    }
+                    // No batches, use default
+                    addToCartFromStock(stock, null);
+                }
+            }
+        });
+    }
+    
+    function showBatchSelectionModal(stock, availableQty) {
+        try {
+            // Handle both string and object formats for batches
+            const batches = Array.isArray(stock.batches) ? stock.batches : JSON.parse(stock.batches);
+            
+            const modalBackdrop = document.getElementById('sub-modal-backdrop');
+            const modalContent = document.getElementById('sub-modal-content');
+            
+            if (!modalBackdrop || !modalContent) return;
+            
+            modalContent.innerHTML = `
+            <div class="bg-slate-800 p-4 flex justify-between items-center">
+                <h3 class="font-bold text-white text-sm tracking-wide">SELECT BATCH FOR ${stock.item.toUpperCase()}</h3>
+                <button id="close-batch-modal" class="hover:text-red-300 text-lg transition-colors">&times;</button>
+            </div>
+            
+            <div class="p-6">
+                <div class="mb-4 text-sm text-gray-600">
+                    <span>Total Available: </span>
+                    <span class="font-bold text-blue-700">${availableQty} ${stock.uom || ''}</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100 text-[10px] font-bold text-gray-500 uppercase">
+                            <tr>
+                                <th class="p-3">Batch</th>
+                                <th class="p-3 text-center">Expiry</th>
+                                <th class="p-3 text-center">Available Qty</th>
+                                <th class="p-3 text-center">Rate</th>
+                                <th class="p-3 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-xs text-gray-700 divide-y divide-gray-100">
+                            ${batches.map(batch => `
+                            <tr class="hover:bg-blue-50 transition-colors">
+                                <td class="p-3 font-medium">${batch.batch || 'N/A'}</td>
+                                <td class="p-3 text-center text-gray-500">${batch.expiry || 'N/A'}</td>
+                                <td class="p-3 text-center font-bold text-blue-700">${batch.qty}</td>
+                                <td class="p-3 text-center font-bold">${formatCurrency(batch.rate || stock.rate || 0)}</td>
+                                <td class="p-3 text-center">
+                                    <button class="btn-select-batch text-green-600 hover:text-green-800 transition-colors font-bold text-lg leading-none" 
+                                            data-batch='${JSON.stringify(batch).replace(/'/g, '&quot;')}'>+
+                                    </button>
+                                </td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+            
+            modalBackdrop.classList.remove('hidden');
+            
+            // Close button
+            document.getElementById('close-batch-modal').onclick = () => modalBackdrop.classList.add('hidden');
+            
+            // Batch selection buttons
+            const batchButtons = modalContent.querySelectorAll('.btn-select-batch');
+            batchButtons.forEach(button => {
+                button.onclick = () => {
+                    const batch = JSON.parse(button.dataset.batch.replace(/&quot;/g, '"'));
+                    
+                    // Check if this stock+batch combination is already in the cart
+                    const existingCartItemIndex = state.cart.findIndex(item => 
+                        item.stockId == stock.id && item.batch === batch.batch
+                    );
+                    if (existingCartItemIndex !== -1) {
+                        alert('This item with the same batch is already in the cart. You can modify the existing entry instead.');
+                        return;
+                    }
+                    
+                    addToCartFromStock(stock, batch);
+                    modalBackdrop.classList.add('hidden');
+                };
+            });
+        } catch (e) {
+            console.error('Error showing batch selection modal:', e);
+            alert('Error showing batch selection: ' + e.message);
+        }
+    }
+    
+    function addToCartFromStock(stock, batch = null) {
+        // Create a new cart item based on the selected stock and batch
+        const newItem = {
+            id: null, // Will be set by backend
+            stockId: stock.id,
+            item: stock.item,
+            hsn: stock.hsn,
+            qty: 1, // Default quantity
+            uom: stock.uom,
+            rate: batch ? (batch.rate || stock.rate || 0) : (stock.rate || 0),
+            disc: 0, // Default discount
+            grate: stock.grate || 0, // GST rate
+            batch: batch ? batch.batch : null,
+            total: batch ? (batch.rate || stock.rate || 0) : (stock.rate || 0),
+            narration: '' // Default narration
+        };
+        
+        // Add to cart
+        state.cart.push(newItem);
+        
+        // Refresh the UI
+        refreshTable();
+        
+        // Close the stock modal
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        if (modalBackdrop) {
+            modalBackdrop.classList.add('hidden');
+        }
+        
+        // Show confirmation
+        alert(`${stock.item} added to cart successfully!`);
+    }
+    
+    // Debounce utility function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 
     // Initialize the edit bill system

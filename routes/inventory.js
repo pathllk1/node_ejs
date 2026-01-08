@@ -3,6 +3,7 @@ const router = express.Router();
 // Adjust path if your folder structure is different
 const controller = require('../controllers/inventory/inventory');
 const invoicePdfController = require('../controllers/inventory/invoicePdfController');
+const { verifyFirmAccess } = require('../middleware/firmMiddleware');
 
 // View Route
 router.get('/stocks', controller.renderStocksPage);
@@ -13,31 +14,31 @@ router.get('/bills', controller.renderBillsPage);
 router.get('/sales-report', controller.renderSalesReportPage);
 
 // API Routes
-router.get('/api/stocks', controller.getAllStocks);
-router.post('/api/stocks', controller.createStock);
-router.put('/api/stocks/:id', controller.updateStock);
-router.delete('/api/stocks/:id', controller.deleteStock);
+router.get('/api/stocks', verifyFirmAccess, controller.getAllStocks);
+router.post('/api/stocks', verifyFirmAccess, controller.createStock);
+router.put('/api/stocks/:id', verifyFirmAccess, controller.updateStock);
+router.delete('/api/stocks/:id', verifyFirmAccess, controller.deleteStock);
 
 // --- API Routes: Stock Batches ---
-router.get('/api/stocks/:id/batches', controller.getStockBatches);
+router.get('/api/stocks/:id/batches', verifyFirmAccess, controller.getStockBatches);
 
 // --- API Routes: Parties ---
-router.get('/api/parties', controller.getAllParties);
-router.post('/api/parties', controller.createParty);
+router.get('/api/parties', verifyFirmAccess, controller.getAllParties);
+router.post('/api/parties', verifyFirmAccess, controller.createParty);
 
 // --- API Routes: Bills (Sales) ---
-router.get('/api/bills', controller.getAllBills);
-router.post('/api/bills', controller.createBill);
-router.put('/api/bills/:id', controller.updateBill);
-router.get('/api/bills/next-number', controller.getNextBillNumber);
-router.get('/api/bills/:id', controller.getBillById);
-router.get('/api/bills/:id/pdf', invoicePdfController.getBillPdfById);
+router.get('/api/bills', verifyFirmAccess, controller.getAllBills);
+router.post('/api/bills', verifyFirmAccess, controller.createBill);
+router.put('/api/bills/:id', verifyFirmAccess, controller.updateBill);
+router.get('/api/bills/next-number', verifyFirmAccess, controller.getNextBillNumber);
+router.get('/api/bills/:id', verifyFirmAccess, controller.getBillById);
+router.get('/api/bills/:id/pdf', verifyFirmAccess, invoicePdfController.getBillPdfById);
 
 // --- API Routes: History ---
-router.get('/api/history/party-item', controller.getPartyItemHistory);
+router.get('/api/history/party-item', verifyFirmAccess, controller.getPartyItemHistory);
 
 // --- API Routes: Other Charges ---
-router.get('/api/other-charges/types', controller.getOtherChargesTypes);
+router.get('/api/other-charges/types', verifyFirmAccess, controller.getOtherChargesTypes);
 
 router.get('/api/gst-lookup', controller.lookupGST);
 

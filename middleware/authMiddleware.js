@@ -48,7 +48,7 @@ const verifyToken = (req, res, next) => {
 
             // 6. Refresh Valid -> Generate New Pair
             try {
-                const findUser = db.prepare('SELECT * FROM users WHERE id = ?');
+                const findUser = db.prepare('SELECT *, firm_id FROM users WHERE id = ?');
                 const user = findUser.get(refreshData.id);
 
                 if (!user) return res.status(401).json({ error: 'User not found' });

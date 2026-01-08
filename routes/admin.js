@@ -15,4 +15,13 @@ router.put('/settings/:key', settingsController.updateSetting);
 router.get('/gst-status', settingsController.getGstStatus);
 router.put('/gst-status', settingsController.toggleGstStatus);
 
+// Firm management routes
+router.get('/firms', settingsController.getAllFirms);
+router.get('/firms/:id', settingsController.getFirm);
+router.post('/firms', settingsController.createFirm);
+router.put('/firms/:id', settingsController.updateFirm);
+router.delete('/firms/:id', settingsController.deleteFirm);
+router.post('/firms/assign-user', settingsController.assignUserToFirm);
+router.get('/users-with-firms', settingsController.getAllUsersWithFirms);
+
 module.exports = router;

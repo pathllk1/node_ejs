@@ -1,8 +1,11 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
+// Initialize database
 const db = new Database(path.join(__dirname, './app.db'));
 db.pragma('journal_mode = WAL');
+
+console.log('Connected to SQLite database');
 
 // 1. Request Logs Table
 db.exec(`
@@ -24,16 +27,38 @@ try {
     if (!err.message.includes('duplicate column name')) console.error('Migration error:', err.message);
 }
 
-// 2. Users Table
-db.exec(`
+// Users Migration for role field
+try { 
+    db.exec(`ALTER TABLE users ADD COLUMN role INTEGER;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for role:', err.message);
+}
+
+// 2. Firms Table
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS firms (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        address TEXT,
+        contact_info TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    ) STRICT;
+`);
+    
+    // 3. Users Table
+    db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
         fullname TEXT NOT NULL,
         username TEXT NOT NULL UNIQUE,
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
+        firm_id INTEGER,
+        role INTEGER,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(firm_id) REFERENCES firms(id)
     ) STRICT;
 `);
 
@@ -41,7 +66,7 @@ db.exec(`
 const createStocksTable = `
     CREATE TABLE IF NOT EXISTS stocks (
         id INTEGER PRIMARY KEY,
-        item TEXT NOT NULL UNIQUE,
+        item TEXT NOT NULL,
         pno TEXT, 
         oem TEXT,
         hsn TEXT NOT NULL,
@@ -54,7 +79,9 @@ const createStocksTable = `
         batches TEXT,  /* JSON array storing batch information */
         user TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id)
     ) STRICT;
 `;
 db.exec(createStocksTable);
@@ -70,21 +97,29 @@ stockColumns.forEach(col => {
     try { db.exec(`ALTER TABLE stocks ADD COLUMN ${col} TEXT;`); } catch (err) {}
 });
 
-// Stocks Migration for UNIQUE constraint on item
-// Since SQLite doesn't support ALTER TABLE ADD CONSTRAINT directly, we need to handle this differently
-// Create a temporary table with the new schema, copy data, and rename
-try {
-    // Check if we need to migrate for uniqueness
-    const existingRows = db.prepare(`SELECT item, COUNT(*) as cnt FROM stocks GROUP BY item HAVING COUNT(*) > 1`).all();
-    if (existingRows.length === 0) {
-        // No duplicates, we can create an index to enforce uniqueness
-        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_item ON stocks(item);`);
-    } else {
-        console.warn('Warning: Duplicates found in stocks.item. Cannot enforce UNIQUE constraint automatically.');
-        console.warn('Duplicate items:', existingRows);
-    }
+// Stocks Migration for firm_id
+try { db.exec(`ALTER TABLE stocks ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stocks_firm_id ON stocks(firm_id);`);
 } catch (err) {
-    console.error('Error during item uniqueness migration:', err.message);
+    console.error('Error creating stocks firm_id index:', err.message);
+}
+
+// Stocks Migration for UNIQUE constraint on item - per firm
+// Since SQLite doesn't support ALTER TABLE ADD CONSTRAINT directly, we need to handle this differently
+try {
+    // First, drop the old global unique index if it exists
+    db.exec(`DROP INDEX IF EXISTS idx_stocks_item;`);
+    
+    // Create the new firm-specific unique index
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_item_firm ON stocks(item, firm_id);`);
+    
+    console.log('Stocks item-firm unique index created successfully');
+} catch (err) {
+    console.error('Error during item-firm uniqueness migration:', err.message);
 }
 
 // ---------------------------------------------------------
@@ -108,7 +143,9 @@ db.exec(`
         firm TEXT NOT NULL,
         has_multiple_gsts INTEGER DEFAULT 0, /* Boolean: 0=false, 1=true */
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id)
     ) STRICT;
 `);
 
@@ -137,6 +174,17 @@ db.exec(`
         FOREIGN KEY(party_id) REFERENCES parties(id) ON DELETE CASCADE
     ) STRICT;
 `);
+
+// Parties Migration for firm_id
+try { db.exec(`ALTER TABLE parties ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_parties_firm_id ON parties(firm_id);`);
+} catch (err) {
+    console.error('Error creating parties firm_id index:', err.message);
+}
 
 // 6. Bills Table
 // 'oth_chg' and 'gstSelection' are stored as JSON strings in TEXT columns
@@ -190,6 +238,8 @@ db.exec(`
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
 
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id),
         FOREIGN KEY(party_id) REFERENCES parties(id),
         FOREIGN KEY(cancelled_by) REFERENCES users(id)
     ) STRICT;
@@ -227,6 +277,17 @@ try {
     db.exec(`ALTER TABLE bills ADD COLUMN reverse_charge INTEGER DEFAULT 0;`);
 } catch (err) {
     if (!err.message.includes('duplicate column name')) console.error('Migration error for reverse_charge:', err.message);
+}
+
+// Bills Migration for firm_id
+try { db.exec(`ALTER TABLE bills ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_firm_id ON bills(firm_id);`);
+} catch (err) {
+    console.error('Error creating bills firm_id index:', err.message);
 }
 
 // Indexes for performance
@@ -281,7 +342,6 @@ db.exec(`
         project TEXT,
         user TEXT NOT NULL,
         firm TEXT NOT NULL,
-        rid TEXT,
         
         stock_id INTEGER,                -- FK to stocks.id
         bill_id INTEGER,                 -- FK to bills.id
@@ -289,6 +349,8 @@ db.exec(`
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
 
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id),
         FOREIGN KEY(stock_id) REFERENCES stocks(id),
         FOREIGN KEY(bill_id) REFERENCES bills(id)
     ) STRICT;
@@ -301,11 +363,15 @@ try {
     if (!err.message.includes('duplicate column name')) console.error('Migration error for item_narration:', err.message);
 }
 
-// Bills Table Migration for reverse_charge
-try {
-    db.exec(`ALTER TABLE bills ADD COLUMN reverse_charge INTEGER DEFAULT 0;`);
+// StockReg Migration for firm_id
+try { db.exec(`ALTER TABLE stock_reg ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_firm_id ON stock_reg(firm_id);`);
 } catch (err) {
-    if (!err.message.includes('duplicate column name')) console.error('Migration error for reverse_charge:', err.message);
+    console.error('Error creating stock_reg firm_id index:', err.message);
 }
 
 // Indexes for performance
@@ -330,4 +396,5 @@ try {
     console.error("Index creation error:", e.message);
 }
 
+// Export the database instance
 module.exports = db;

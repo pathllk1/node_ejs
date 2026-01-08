@@ -9,13 +9,13 @@ const REFRESH_TOKEN_SECRET = 'your_refresh_token_secret_change_this'; // In prod
 // Generate both tokens
 const generateTokens = (user) => {
     const accessToken = jwt.sign(
-        { id: user.id, username: user.username, type: 'access' },
+        { id: user.id, username: user.username, firm_id: user.firm_id, type: 'access' },
         ACCESS_TOKEN_SECRET,
         { expiresIn: '15m' } // Short-lived access token
     );
 
     const refreshToken = jwt.sign(
-        { id: user.id, username: user.username, type: 'refresh' },
+        { id: user.id, username: user.username, firm_id: user.firm_id, type: 'refresh' },
         REFRESH_TOKEN_SECRET,
         { expiresIn: '7d' } // Long-lived refresh token
     );
@@ -48,11 +48,11 @@ exports.signup = async (req, res) => {
 
         // 4. Insert User
         const insertUser = db.prepare(`
-            INSERT INTO users (fullname, username, email, password, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO users (fullname, username, email, password, created_at, updated_at, firm_id, role)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
-        insertUser.run(fullname, username, email, hashedPassword, now, now);
+        insertUser.run(fullname, username, email, hashedPassword, now, now, null, null);
 
         res.status(201).json({ message: 'Account created successfully! Please login.' });
 
@@ -67,7 +67,7 @@ exports.login = async (req, res) => {
         const { email, password } = req.body;
 
         // 1. Find User
-        const findUser = db.prepare('SELECT * FROM users WHERE email = ?');
+        const findUser = db.prepare('SELECT *, firm_id FROM users WHERE email = ?');
         const user = findUser.get(email);
 
         if (!user) {
@@ -105,7 +105,7 @@ exports.getUserProfile = (req, res) => {
         // req.user comes from the middleware
         const userId = req.user.id;
 
-        const stmt = db.prepare('SELECT id, fullname, username, email, created_at FROM users WHERE id = ?');
+        const stmt = db.prepare('SELECT id, fullname, username, email, created_at, firm_id FROM users WHERE id = ?');
         const user = stmt.get(userId);
 
         if (!user) {

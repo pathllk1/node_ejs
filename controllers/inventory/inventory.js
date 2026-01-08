@@ -1,4 +1,5 @@
 const db = require('../../config/db');
+const { verifyFirmAccess, verifyFirmOwnership, addFirmId } = require('../../middleware/firmMiddleware');
 
 // Helper to get current ISO time
 const now = () => new Date().toISOString();
@@ -27,8 +28,13 @@ exports.renderSalesReportPage = (req, res) => {
 
 exports.getAllStocks = (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM stocks ORDER BY created_at DESC');
-        const stocks = stmt.all();
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        const stmt = db.prepare('SELECT * FROM stocks WHERE firm_id = ? ORDER BY created_at DESC');
+        const stocks = stmt.all(req.user.firm_id);
         
         // Parse batches JSON for each stock
         const stocksWithBatches = stocks.map(stock => {
@@ -133,11 +139,16 @@ exports.createStock = (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         
-        // Check if item already exists
-        const existingStock = db.prepare('SELECT * FROM stocks WHERE item = ?').get(item);
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        // Check if item already exists in the same firm
+        const existingStock = db.prepare('SELECT * FROM stocks WHERE item = ? AND firm_id = ?').get(item, req.user.firm_id);
         
         if (existingStock) {
-            // Item exists, update batches JSON
+            // Item exists in this firm, update batches JSON
             let existingBatches = existingStock.batches ? JSON.parse(existingStock.batches) : [];
             const incomingBatches = normalizedBatches;
 
@@ -178,7 +189,7 @@ exports.createStock = (req, res) => {
             const updateStmt = db.prepare(`
                 UPDATE stocks 
                 SET qty = @qty, total = @total, mrp = @mrp, batches = @batches, user = @user, updated_at = @updated_at
-                WHERE item = @item
+                WHERE item = @item AND firm_id = @firm_id
             `);
             
             updateStmt.run({
@@ -188,12 +199,13 @@ exports.createStock = (req, res) => {
                 mrp: mrp ? parseFloat(mrp) : null,
                 batches: JSON.stringify(existingBatches),
                 user: actorUsername,
-                updated_at: now()
+                updated_at: now(),
+                firm_id: req.user.firm_id
             });
             
             res.json({ id: existingStock.id, message: 'Stock batch updated successfully' });
         } else {
-            // Item doesn't exist, create new record with batch
+            // Item doesn't exist in this firm, create new record with batch
             const batchesToStore = (normalizedBatches && normalizedBatches.length > 0)
                 ? normalizedBatches
                 : [{
@@ -207,8 +219,8 @@ exports.createStock = (req, res) => {
             const total = parseFloat(qty) * parseFloat(rate);
 
             const stmt = db.prepare(`
-                INSERT INTO stocks (item, pno, oem, hsn, qty, uom, rate, grate, total, mrp, batches, user, created_at, updated_at)
-                VALUES (@item, @pno, @oem, @hsn, @qty, @uom, @rate, @grate, @total, @mrp, @batches, @user, @created_at, @updated_at)
+                INSERT INTO stocks (item, pno, oem, hsn, qty, uom, rate, grate, total, mrp, batches, user, created_at, updated_at, firm_id)
+                VALUES (@item, @pno, @oem, @hsn, @qty, @uom, @rate, @grate, @total, @mrp, @batches, @user, @created_at, @updated_at, @firm_id)
             `);
 
             const result = stmt.run({
@@ -225,7 +237,8 @@ exports.createStock = (req, res) => {
                 batches: JSON.stringify(batchesToStore),
                 user: actorUsername,
                 created_at: now(),
-                updated_at: now()
+                updated_at: now(),
+                firm_id: req.user.firm_id
             });
 
             res.json({ id: result.lastInsertRowid, message: 'Stock added successfully' });
@@ -245,10 +258,15 @@ exports.updateStock = (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
         // Get the current stock record
-        const currentStock = db.prepare('SELECT * FROM stocks WHERE id = ?').get(id);
+        const currentStock = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(id, req.user.firm_id);
         if (!currentStock) {
-            return res.status(404).json({ error: 'Stock not found' });
+            return res.status(404).json({ error: 'Stock not found or does not belong to your firm' });
         }
         
         // Parse existing batches
@@ -326,7 +344,7 @@ exports.updateStock = (req, res) => {
                 item = @item, pno = @pno, oem = @oem, hsn = @hsn, 
                 qty = @qty, uom = @uom, rate = @rate, grate = @grate, total = @total, 
                 mrp = @mrp, batches = @batches, user = @user, updated_at = @updated_at
-            WHERE id = @id
+            WHERE id = @id AND firm_id = @firm_id
         `);
 
         stmt.run({
@@ -344,7 +362,8 @@ exports.updateStock = (req, res) => {
             batches: JSON.stringify(batches),
 
             user: actorUsername,
-            updated_at: now()
+            updated_at: now(),
+            firm_id: req.user.firm_id
         });
 
         res.json({ message: 'Stock updated successfully' });
@@ -356,8 +375,19 @@ exports.updateStock = (req, res) => {
 exports.deleteStock = (req, res) => {
     try {
         const { id } = req.params;
-        const stmt = db.prepare('DELETE FROM stocks WHERE id = ?');
-        stmt.run(id);
+        
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        const stmt = db.prepare('DELETE FROM stocks WHERE id = ? AND firm_id = ?');
+        const result = stmt.run(id, req.user.firm_id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({ error: 'Stock not found or does not belong to your firm' });
+        }
+        
         res.json({ message: 'Stock deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -368,8 +398,13 @@ exports.deleteStock = (req, res) => {
 
 exports.getAllParties = (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM parties ORDER BY created_at DESC');
-        const parties = stmt.all();
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        const stmt = db.prepare('SELECT * FROM parties WHERE firm_id = ? ORDER BY created_at DESC');
+        const parties = stmt.all(req.user.firm_id);
         res.json(parties);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -385,9 +420,14 @@ exports.createParty = (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
         const stmt = db.prepare(`
-            INSERT INTO parties (firm, gstin, contact, state, state_code, addr, pin, pan, usern, supply, created_at, updated_at)
-            VALUES (@firm, @gstin, @contact, @state, @state_code, @addr, @pin, @pan, @user, @supply, @created_at, @updated_at)
+            INSERT INTO parties (firm, gstin, contact, state, state_code, addr, pin, pan, usern, supply, created_at, updated_at, firm_id)
+            VALUES (@firm, @gstin, @contact, @state, @state_code, @addr, @pin, @pan, @user, @supply, @created_at, @updated_at, @firm_id)
         `);
 
         const result = stmt.run({
@@ -402,7 +442,8 @@ exports.createParty = (req, res) => {
             user: actorUsername,
             supply: state || '', // Assuming place of supply is state
             created_at: now(),
-            updated_at: now()
+            updated_at: now(),
+            firm_id: req.user.firm_id
         });
 
         res.json({ id: result.lastInsertRowid, message: 'Party created successfully' });
@@ -420,6 +461,11 @@ exports.createBill = (req, res) => {
     const actorUsername = getActorUsername(req);
     if (!actorUsername) {
         return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if user has firm access
+    if (!req.user || !req.user.firm_id) {
+        return res.status(403).json({ error: 'User is not associated with any firm' });
     }
 
     if (!cart || cart.length === 0) {
@@ -488,12 +534,12 @@ exports.createBill = (req, res) => {
                 bno, bdate, supply, addr, gstin, state, 
                 gtot, ntot, btype, usern, firm, 
                 party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at, reverse_charge,
-                cgst, sgst, igst
+                cgst, sgst, igst, firm_id
             ) VALUES (
                 @bno, @bdate, @supply, @addr, @gstin, @state,
                 @gtot, @ntot, @btype, @usern, @firm,
                 @party_id, @oth_chg_json, @order_no, @vehicle_no, @dispatch_through, @narration, @created_at, @updated_at, @reverse_charge,
-                @cgst, @sgst, @igst
+                @cgst, @sgst, @igst, @firm_id
             )
         `);
 
@@ -527,7 +573,8 @@ exports.createBill = (req, res) => {
                     reverse_charge: meta.reverseCharge || 0, // Store reverse charge flag in database
                     cgst: cgst,
                     sgst: sgst,
-                    igst: igst
+                    igst: igst,
+                    firm_id: req.user.firm_id
                 });
                 break; // Success, exit the loop
             } catch (error) {
@@ -570,16 +617,16 @@ exports.createBill = (req, res) => {
             INSERT INTO stock_reg (
                 type, bno, bdate, supply, item, item_narration, batch, hsn, 
                 qty, uom, rate, grate, disc, total, 
-                stock_id, bill_id, user, firm, created_at, updated_at, qtyh
+                stock_id, bill_id, user, firm, created_at, updated_at, qtyh, firm_id
             ) VALUES (
                 'SALE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
                 @qty, @uom, @rate, @grate, @disc, @total,
-                @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0
+                @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0, @firm_id
             )
         `);
 
         const updateStockQty = db.prepare(`
-            UPDATE stocks SET qty = qty - @qty WHERE id = @id
+            UPDATE stocks SET qty = qty - @qty WHERE id = @id AND firm_id = @firm_id
         `);
 
             // C. Process Items
@@ -587,9 +634,9 @@ exports.createBill = (req, res) => {
             const lineTotal = item.qty * item.rate * (1 - (item.disc || 0)/100);
 
             // Get the stock record to update the specific batch
-            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ?').get(item.stockId);
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(item.stockId, req.user.firm_id);
             if (!stockRecord) {
-                throw new Error(`Stock record not found for ID: ${item.stockId}`);
+                throw new Error(`Stock record not found for ID: ${item.stockId} or does not belong to your firm`);
             }
             
             // Parse existing batches
@@ -621,7 +668,7 @@ exports.createBill = (req, res) => {
             const updateStockBatchesStmt = db.prepare(`
                 UPDATE stocks 
                 SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
-                WHERE id = @id
+                WHERE id = @id AND firm_id = @firm_id
             `);
             
             updateStockBatchesStmt.run({
@@ -629,7 +676,8 @@ exports.createBill = (req, res) => {
                 qty: newTotalQty,
                 batches: JSON.stringify(batches),
                 user: actorUsername,
-                updated_at: now()
+                updated_at: now(),
+                firm_id: req.user.firm_id
             });
 
             insertReg.run({
@@ -651,7 +699,8 @@ exports.createBill = (req, res) => {
                 user: actorUsername,
                 firm: party.firm,
                 created_at: now(),
-                updated_at: now()
+                updated_at: now(),
+                firm_id: req.user.firm_id
             });
         });
 
@@ -672,16 +721,21 @@ exports.getBillById = (req, res) => {
     try {
         const { id } = req.params;
         
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
         // Get bill header information
         if (!id) {
             return res.status(400).json({ error: 'Bill ID is required' });
         }
         
-        const billStmt = db.prepare('SELECT * FROM bills WHERE id = ?');
-        let bill = billStmt.get(id);
+        const billStmt = db.prepare('SELECT * FROM bills WHERE id = ? AND firm_id = ?');
+        let bill = billStmt.get(id, req.user.firm_id);
         
         if (!bill) {
-            return res.status(404).json({ error: 'Bill not found' });
+            return res.status(404).json({ error: 'Bill not found or does not belong to your firm' });
         }
         
         // Parse other charges if exists
@@ -709,8 +763,8 @@ exports.getBillById = (req, res) => {
         bill.gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
         
         // Get bill items from stock_reg table
-        const itemsStmt = db.prepare('SELECT *, item_narration FROM stock_reg WHERE bill_id = ? ORDER BY created_at');
-        bill.items = itemsStmt.all(id);
+        const itemsStmt = db.prepare('SELECT *, item_narration FROM stock_reg WHERE bill_id = ? AND firm_id = ? ORDER BY created_at');
+        bill.items = itemsStmt.all(id, req.user.firm_id);
         
         res.json(bill);
     } catch (err) {
@@ -720,8 +774,13 @@ exports.getBillById = (req, res) => {
 
 exports.getAllBills = (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM bills ORDER BY created_at DESC');
-        const bills = stmt.all();
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        const stmt = db.prepare('SELECT * FROM bills WHERE firm_id = ? ORDER BY created_at DESC');
+        const bills = stmt.all(req.user.firm_id);
         
         // Check GST status to determine if tax calculations were enabled when the bills were created
         const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
@@ -765,9 +824,14 @@ exports.getStockBatches = (req, res) => {
     try {
         const { id } = req.params;
         
-        const stock = db.prepare('SELECT * FROM stocks WHERE id = ?').get(id);
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        const stock = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(id, req.user.firm_id);
         if (!stock) {
-            return res.status(404).json({ error: 'Stock not found' });
+            return res.status(404).json({ error: 'Stock not found or does not belong to your firm' });
         }
         
         const batches = stock.batches ? JSON.parse(stock.batches) : [];
@@ -877,6 +941,11 @@ exports.updateBill = async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    // Check if user has firm access
+    if (!req.user || !req.user.firm_id) {
+        return res.status(403).json({ error: 'User is not associated with any firm' });
+    }
+
     if (!cart || cart.length === 0) {
         return res.status(400).json({ error: "Cart cannot be empty" });
     }
@@ -936,22 +1005,22 @@ exports.updateBill = async (req, res) => {
     const supplyState = party.state || 'Local';
 
     // 2. Get the existing bill to restore stock quantities
-    const existingBill = db.prepare('SELECT * FROM bills WHERE id = ?').get(id);
+    const existingBill = db.prepare('SELECT * FROM bills WHERE id = ? AND firm_id = ?').get(id, req.user.firm_id);
     if (!existingBill) {
-        return res.status(404).json({ error: 'Bill not found' });
+        return res.status(404).json({ error: 'Bill not found or does not belong to your firm' });
     }
 
     // 3. Get existing bill items to restore stock quantities
-    const existingItems = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ?').all(id);
+    const existingItems = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ? AND firm_id = ?').all(id, req.user.firm_id);
 
     // 4. Perform Transaction (Restore Old Quantities -> Update Bill -> Update Items -> Deduct New Quantities)
     const transaction = db.transaction(() => {
         // A. Restore Original Quantities to Stock
         // For each existing item, add back the quantity to the respective batch
         existingItems.forEach(existingItem => {
-            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ?').get(existingItem.stock_id);
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(existingItem.stock_id, req.user.firm_id);
             if (!stockRecord) {
-                throw new Error(`Stock record not found for ID: ${existingItem.stock_id}`);
+                throw new Error(`Stock record not found for ID: ${existingItem.stock_id} or does not belong to your firm`);
             }
             
             // Parse existing batches
@@ -978,7 +1047,7 @@ exports.updateBill = async (req, res) => {
                 const updateStockBatchesStmt = db.prepare(`
                     UPDATE stocks 
                     SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
-                    WHERE id = @id
+                    WHERE id = @id AND firm_id = @firm_id
                 `);
                 
                 updateStockBatchesStmt.run({
@@ -986,7 +1055,8 @@ exports.updateBill = async (req, res) => {
                     qty: newTotalQty,
                     batches: JSON.stringify(batches),
                     user: actorUsername,
-                    updated_at: now()
+                    updated_at: now(),
+                    firm_id: req.user.firm_id
                 });
             }
         });
@@ -999,7 +1069,7 @@ exports.updateBill = async (req, res) => {
                 party_id = @party_id, oth_chg_json = @oth_chg_json, order_no = @order_no, vehicle_no = @vehicle_no, 
                 dispatch_through = @dispatch_through, narration = @narration, updated_at = @updated_at, 
                 reverse_charge = @reverse_charge, cgst = @cgst, sgst = @sgst, igst = @igst
-            WHERE id = @id
+            WHERE id = @id AND firm_id = @firm_id
         `);
 
         updateBill.run({
@@ -1025,22 +1095,23 @@ exports.updateBill = async (req, res) => {
             reverse_charge: meta.reverseCharge || 0, // Store reverse charge flag in database
             cgst: cgst,
             sgst: sgst,
-            igst: igst
+            igst: igst,
+            firm_id: req.user.firm_id
         });
 
         // C. Delete existing bill items from stock_reg
-        db.prepare('DELETE FROM stock_reg WHERE bill_id = ?').run(id);
+        db.prepare('DELETE FROM stock_reg WHERE bill_id = ? AND firm_id = ?').run(id, req.user.firm_id);
 
         // D. Prepare Statements for New Line Items
         const insertReg = db.prepare(`
             INSERT INTO stock_reg (
                 type, bno, bdate, supply, item, item_narration, batch, hsn, 
                 qty, uom, rate, grate, disc, total, 
-                stock_id, bill_id, user, firm, created_at, updated_at, qtyh
+                stock_id, bill_id, user, firm, created_at, updated_at, qtyh, firm_id
             ) VALUES (
                 'SALE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
                 @qty, @uom, @rate, @grate, @disc, @total,
-                @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0
+                @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0, @firm_id
             )
         `);
 
@@ -1049,9 +1120,9 @@ exports.updateBill = async (req, res) => {
             const lineTotal = item.qty * item.rate * (1 - (item.disc || 0)/100);
 
             // Get the stock record to update the specific batch
-            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ?').get(item.stockId);
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(item.stockId, req.user.firm_id);
             if (!stockRecord) {
-                throw new Error(`Stock record not found for ID: ${item.stockId}`);
+                throw new Error(`Stock record not found for ID: ${item.stockId} or does not belong to your firm`);
             }
             
             // Parse existing batches
@@ -1083,7 +1154,7 @@ exports.updateBill = async (req, res) => {
             const updateStockBatchesStmt = db.prepare(`
                 UPDATE stocks 
                 SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
-                WHERE id = @id
+                WHERE id = @id AND firm_id = @firm_id
             `);
             
             updateStockBatchesStmt.run({
@@ -1091,7 +1162,8 @@ exports.updateBill = async (req, res) => {
                 qty: newTotalQty,
                 batches: JSON.stringify(batches),
                 user: actorUsername,
-                updated_at: now()
+                updated_at: now(),
+                firm_id: req.user.firm_id
             });
 
             insertReg.run({
@@ -1113,7 +1185,8 @@ exports.updateBill = async (req, res) => {
                 user: actorUsername,
                 firm: party.firm,
                 created_at: now(),
-                updated_at: now()
+                updated_at: now(),
+                firm_id: req.user.firm_id
             });
         });
 

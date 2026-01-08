@@ -149,11 +149,14 @@
                         </select>
                     </div>
                     
-                    <div class="flex items-center pt-4">
+                    <div class="flex items-center pt-4 gap-2">
                         <label class="flex items-center cursor-pointer">
                             <input type="checkbox" id="reverse-charge-toggle" ${state.meta.reverseCharge ? 'checked' : ''} class="form-checkbox h-4 w-4 text-blue-600 rounded">
                             <span class="ml-2 text-[10px] uppercase text-gray-500 font-bold tracking-wider">Reverse Charge</span>
                         </label>
+                        <div class="text-[10px] font-bold px-2 py-1 rounded ${state.gstEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            GST: ${state.gstEnabled ? 'ON' : 'OFF'}
+                        </div>
                     </div>
                 </div>
 

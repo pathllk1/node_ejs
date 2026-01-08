@@ -116,21 +116,21 @@ exports.getBillPdfById = async (req, res) => {
 
         bill.reverseCharge = bill.reverse_charge || false;
 
-        // Fetch GST status from settings to determine if GST is enabled
-        let gstEnabled = true; // Default to true
-        try {
-            const db = require('../../config/db');
-            const gstStatusStmt = db.prepare('SELECT value FROM settings WHERE key = "gst_enabled"');
-            const gstStatus = gstStatusStmt.get();
-            gstEnabled = gstStatus ? JSON.parse(gstStatus.value) : true;
-        } catch (error) {
-            console.warn('Could not fetch GST status from settings, defaulting to enabled:', error);
-        }
-
         const cgst = Number(bill.cgst || 0);
         const sgst = Number(bill.sgst || 0);
         const igst = Number(bill.igst || 0);
         const totalTax = cgst + sgst + igst;
+
+        // Fetch GST status from settings to determine if GST is enabled
+        let gstEnabled = true; // Default to true
+        try {
+            const db = require('../../config/db');
+            const gstStatusStmt = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?');
+            const gstStatus = gstStatusStmt.get('gst_enabled');
+            gstEnabled = gstStatus ? JSON.parse(gstStatus.setting_value) : true;
+        } catch (error) {
+            console.warn('Could not fetch GST status from settings, defaulting to enabled:', error);
+        }
 
         // Use actual GST status from settings instead of just checking if tax values exist
         const gstApplicable = gstEnabled && totalTax > 0;

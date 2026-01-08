@@ -178,7 +178,7 @@
             </tbody>
         </table>
 
-        <% if (hsnSummary && hsnSummary.length) { %>
+        <% if (hsnSummary && hsnSummary.length && gstApplicable) { %>
             <div class="divider"></div>
             <div class="box" style="padding: 0; overflow: hidden;">
                 <div style="padding: 10px 12px;">
@@ -210,6 +210,7 @@
                 </table>
             </div>
         <% } %>
+
 
         <div class="totals">
             <div class="totals-left">

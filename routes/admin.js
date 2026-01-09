@@ -13,6 +13,10 @@ router.get('/settings', adminController.viewSettings);
 router.get('/settings/:key', systemConfigController.getSetting);
 router.put('/settings/:key', systemConfigController.updateSetting);
 
+// Logs routes
+router.get('/logs', adminController.viewLogs);
+router.get('/api/logs', adminController.getLogsData);
+
 // GST-specific routes
 router.get('/gst-status', systemConfigController.getGstStatus);
 router.put('/gst-status', systemConfigController.toggleGstStatus);

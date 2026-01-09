@@ -23,6 +23,9 @@
             <button id="admin-tab" class="tab-button px-1 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="admin-content">
                 Admin Features
             </button>
+            <button id="logs-tab" class="tab-button px-1 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="logs-content">
+                System Logs
+            </button>
         </nav>
     </div>
     
@@ -124,13 +127,7 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-gray-800">Admin Features</h2>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">System Logs</h3>
-                    <button id="view-logs" class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
-                        View Logs
-                    </button>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Settings</h3>
                     <button id="manage-settings" class="w-full px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
@@ -142,6 +139,53 @@
                     <button id="view-activity" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         View Activity
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="logs-content" class="tab-content hidden">
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">System Logs</h2>
+                    <p class="text-gray-500 text-sm mt-1">Viewing all system requests</p>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="searchInput" placeholder="Search URL, IP, or Username..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
+                </div>
+            </div>
+            
+            <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs uppercase tracking-wider">
+                                <th class="px-4 py-4 font-bold w-16">ID</th>
+                                <th class="px-4 py-4 font-bold w-24">Method</th>
+                                <th class="px-4 py-4 font-bold">Endpoint</th>
+                                <th class="px-4 py-4 font-bold w-32">IP</th>
+                                <th class="px-4 py-4 font-bold w-24">User</th>
+                                <th class="px-4 py-4 font-bold w-48 text-right">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody" class="divide-y divide-gray-100 text-sm text-gray-700">
+                            <tr>
+                                <td colspan="6" class="px-4 py-8 text-center text-gray-400">Loading logs...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between select-none">
+                    <span class="text-xs text-gray-500">
+                        Showing <span id="startRow" class="font-bold">0</span> to <span id="endRow" class="font-bold">0</span> of <span id="totalRows" class="font-bold">0</span> entries
+                    </span>
+                    <div class="flex gap-2">
+                        <button id="prevBtn" class="px-3 py-1 rounded bg-white border border-gray-300 text-gray-600 text-xs font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition">Previous</button>
+                        <span id="pageIndicator" class="text-xs font-bold text-gray-600 self-center">Page 1</span>
+                        <button id="nextBtn" class="px-3 py-2 rounded bg-white border border-gray-300 text-gray-600 text-xs font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition">Next</button>
+                    </div>
                 </div>
             </div>
         </div>

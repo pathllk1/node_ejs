@@ -145,13 +145,6 @@ function loadDatabaseInfo() {
 
 // Admin features functionality
 function setupAdminFeatures() {
-    const viewLogsBtn = document.getElementById('view-logs');
-    if (viewLogsBtn) {
-        viewLogsBtn.addEventListener('click', function() {
-            window.location.href = '/admin/logs';
-        });
-    }
-    
     const manageSettingsBtn = document.getElementById('manage-settings');
     if (manageSettingsBtn) {
         manageSettingsBtn.addEventListener('click', function() {
@@ -167,16 +160,233 @@ function setupAdminFeatures() {
     }
 }
 
+// Logs functionality
+function setupLogsFeatures() {
+    // Load logs data when logs tab is activated
+    const logsTab = document.getElementById('logs-tab');
+    if (logsTab) {
+        logsTab.addEventListener('click', function() {
+            loadLogsData();
+        });
+    }
+    
+    // Also load logs if logs tab is the initial active tab
+    if (document.querySelector('.tab-content.active')?.id === 'logs-content') {
+        loadLogsData();
+    }
+}
+
+// Load logs data from API
+async function loadLogsData() {
+    try {
+        const response = await fetch('/admin/api/logs', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.logs) {
+            // Initialize the logs table with the data
+            window.allLogs = data.logs;
+            window.filteredLogs = [...data.logs];
+            window.currentPage = 1;
+            window.rowsPerPage = 15;
+            
+            // Call the render function
+            renderLogsTable();
+            setupLogsEventListeners();
+        } else {
+            console.error('No logs data received');
+        }
+    } catch (error) {
+        console.error('Error loading logs:', error);
+        
+        // Show error in the table
+        const tableBody = document.getElementById('logsTableBody');
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">Error loading logs: ${error.message}</td></tr>`;
+        }
+    }
+}
+
+// Initialize logs table rendering
+function renderLogsTable() {
+    const tableBody = document.getElementById('logsTableBody');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const startRowEl = document.getElementById('startRow');
+    const endRowEl = document.getElementById('endRow');
+    const totalRowsEl = document.getElementById('totalRows');
+    const pageIndicator = document.getElementById('pageIndicator');
+    
+    if (!tableBody) return;
+    
+    // Calculate pagination slices
+    const totalItems = window.filteredLogs.length;
+    const totalPages = Math.ceil(totalItems / window.rowsPerPage);
+    
+    // Ensure current page is valid
+    if (window.currentPage > totalPages) window.currentPage = Math.max(1, totalPages);
+    
+    const start = (window.currentPage - 1) * window.rowsPerPage;
+    const end = start + window.rowsPerPage;
+    const pageData = window.filteredLogs.slice(start, end);
+
+    // Update Stats UI
+    if (totalRowsEl) totalRowsEl.textContent = totalItems;
+    if (startRowEl) startRowEl.textContent = totalItems === 0 ? 0 : start + 1;
+    if (endRowEl) endRowEl.textContent = Math.min(end, totalItems);
+    if (pageIndicator) pageIndicator.textContent = `Page ${window.currentPage} of ${Math.max(1, totalPages)}`;
+
+    // Handle Empty State
+    if (pageData.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-gray-400 italic">No logs found matching your criteria.</td></tr>`;
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        return;
+    }
+
+    // Generate Rows
+    tableBody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    
+    pageData.forEach(log => {
+        const row = document.createElement('tr');
+        
+        // LIME HOVER applied here
+        row.className = 'transition-colors hover:bg-lime-200 group cursor-default border-b border-gray-50 last:border-0';
+        
+        // Get method badge classes
+        const methodBadge = getMethodBadge(log.method);
+        
+        row.innerHTML = `
+            <td class="px-4 py-3 font-mono text-gray-500 text-xs">#${log.id}</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${methodBadge}">
+                    ${log.method || 'N/A'}
+                </span>
+            </td>
+            <td class="px-4 py-3 font-mono text-xs text-gray-700 truncate max-w-md" title="${log.url || ''}">
+                ${log.url || 'N/A'}
+            </td>
+            <td class="px-4 py-3 text-gray-500 text-xs">
+                ${(log.ip === '::1' || log.ip === '127.0.0.1') ? 'Localhost' : log.ip || 'N/A'}
+            </td>
+            <td class="px-4 py-3 text-xs">
+                ${log.username ? `<span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-semibold">${log.username}</span>` : '<span class="text-gray-400">Guest</span>'}
+            </td>
+            <td class="px-4 py-3 text-gray-500 text-xs text-right whitespace-nowrap">
+                ${formatDate(log.timestamp)}
+            </td>
+        `;
+        fragment.appendChild(row);
+    });
+
+    tableBody.appendChild(fragment);
+
+    // Update Buttons state
+    if (prevBtn) prevBtn.disabled = window.currentPage === 1;
+    if (nextBtn) nextBtn.disabled = window.currentPage >= totalPages;
+}
+
+// Helper function to get method badge classes
+function getMethodBadge(method) {
+    const m = method ? method.toUpperCase() : 'UNKNOWN';
+    if (m === 'GET') return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (m === 'POST') return 'bg-green-100 text-green-700 border-green-200';
+    if (m === 'DELETE') return 'bg-red-100 text-red-700 border-red-200';
+    if (m === 'PUT' || m === 'PATCH') return 'bg-amber-100 text-amber-700 border-amber-200';
+    return 'bg-gray-100 text-gray-600 border-gray-200';
+}
+
+// Helper function to format date
+function formatDate(isoString) {
+    if (!isoString) return '-';
+    return new Date(isoString).toLocaleString();
+}
+
+// Set up logs event listeners
+function setupLogsEventListeners() {
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const searchInput = document.getElementById('searchInput');
+    
+    // Previous button event
+    if (prevBtn) {
+        prevBtn.removeEventListener('click', handlePrevPage); // Remove any existing listeners
+        prevBtn.addEventListener('click', handlePrevPage);
+    }
+    
+    // Next button event
+    if (nextBtn) {
+        nextBtn.removeEventListener('click', handleNextPage); // Remove any existing listeners
+        nextBtn.addEventListener('click', handleNextPage);
+    }
+    
+    // Search input event
+    if (searchInput) {
+        searchInput.removeEventListener('input', handleSearch); // Remove any existing listeners
+        searchInput.addEventListener('input', handleSearch);
+    }
+}
+
+// Handle previous page
+function handlePrevPage() {
+    if (window.currentPage > 1) {
+        window.currentPage--;
+        renderLogsTable();
+    }
+}
+
+// Handle next page
+function handleNextPage() {
+    const totalPages = Math.ceil(window.filteredLogs.length / window.rowsPerPage);
+    if (window.currentPage < totalPages) {
+        window.currentPage++;
+        renderLogsTable();
+    }
+}
+
+// Handle search
+function handleSearch(e) {
+    const term = e.target.value.toLowerCase();
+    
+    if (!term) {
+        window.filteredLogs = [...window.allLogs];
+    } else {
+        window.filteredLogs = window.allLogs.filter(log => {
+            const url = (log.url || '').toLowerCase();
+            const ip = (log.ip || '').toLowerCase();
+            const username = (log.username || '').toLowerCase();
+            const method = (log.method || '').toLowerCase();
+            return url.includes(term) || ip.includes(term) || username.includes(term) || method.includes(term);
+        });
+    }
+    
+    window.currentPage = 1; // Reset to page 1 on search
+    renderLogsTable();
+}
+
 // Initialize everything when the DOM is loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         initializeTabs();
         setupDatabaseFeatures();
         setupAdminFeatures();
+        setupLogsFeatures();
     });
 } else {
     // DOM is already loaded
     initializeTabs();
     setupDatabaseFeatures();
     setupAdminFeatures();
+    setupLogsFeatures();
 }

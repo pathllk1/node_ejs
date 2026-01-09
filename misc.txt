@@ -3,3 +3,7 @@
 
 
 "watch:python": "cd python_service && venv\\Scripts\\python -m uvicorn main:app --reload --port 5200",
+
+
+npx prisma generate --schema prisma/mongo-schema.prisma
+npx prisma studio --schema prisma/mongo-schema.prisma

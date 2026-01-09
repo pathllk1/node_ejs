@@ -179,13 +179,7 @@ function setupLogsFeatures() {
 // Load logs data from API
 async function loadLogsData() {
     try {
-        const response = await fetch('/admin/api/logs', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
-        });
+        const response = await window.api.get('/admin/api/logs');
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

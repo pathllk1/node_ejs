@@ -4,7 +4,7 @@ const db = require('../config/db');
 exports.getAllFirms = (req, res) => {
     try {
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
         if (!currentUser || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
@@ -22,7 +22,7 @@ exports.getAllFirms = (req, res) => {
 exports.getFirm = (req, res) => {
     try {
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
         if (!currentUser || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
@@ -52,7 +52,7 @@ exports.createFirm = (req, res) => {
         }
         
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
         if (!currentUser || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
@@ -165,7 +165,7 @@ exports.assignUserToFirm = (req, res) => {
         }
         
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
         if (!currentUser || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
@@ -194,7 +194,7 @@ exports.assignUserToFirm = (req, res) => {
 exports.getAllUsersWithFirms = (req, res) => {
     try {
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
         if (!currentUser || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });

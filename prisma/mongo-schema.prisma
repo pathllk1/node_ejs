@@ -1,0 +1,212 @@
+// prisma/mongo-schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma_mongo"
+}
+
+datasource mongodb {
+  provider = "mongodb"
+  url      = env("MONGODB_URI") // Default to mongodb://localhost:27017/your_database_name
+}
+
+model bills {
+  id                  String   @id @map("_id") @default(auto()) @mongodb.ObjectId
+  bno                 String   @unique
+  bdate               DateTime
+  supply              String
+  addr                String?
+  gstin               String?  @default("UNREGISTERED")
+  state               String?
+  pin                 Int?
+  gtot                Float
+  disc                Float?
+  cgst                Float?
+  usern               String
+  sgst                Float?
+  firm                String
+  igst                Float?
+  rof                 Float?
+  ntot                Float
+  btype               String   @default("SALES")
+  order_no            String?
+  order_date          DateTime?
+  dispatch_through    String?
+  docket_no           String?
+  vehicle_no          String?
+  consignee_name      String?
+  consignee_gstin     String?
+  consignee_address   String?
+  consignee_state     String?
+  consignee_pin       String?
+  reason_for_note     String?
+  original_bill_no    String?
+  original_bill_date  DateTime?
+  narration           String?
+  status              String?  @default("ACTIVE")
+  cancellation_reason String?
+  cancelled_at        String?
+  cancelled_by        String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  attachment_url      String?
+  attachment_file_id  String?
+  party_id            String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  oth_chg_json        String?
+  gst_selection_json  String?
+  reverse_charge      Int?     @default(0)
+  created_at          DateTime
+  updated_at          DateTime
+  firm_id             String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  users               users?   @relation(fields: [cancelled_by], references: [id])
+  parties             parties? @relation(fields: [party_id], references: [id])
+  firms               firms?   @relation(fields: [firm_id], references: [id])
+  stock_reg           stock_reg[]
+}
+
+model firms {
+  id           String      @id @map("_id") @default(auto()) @mongodb.ObjectId
+  name         String      @unique
+  address      String?
+  contact_info String?
+  created_at   DateTime
+  updated_at   DateTime
+  bills        bills[]
+  parties      parties[]
+  stock_reg    stock_reg[]
+  stocks       stocks[]
+  users        users[]
+}
+
+model parties {
+  id                String       @id @map("_id") @default(auto()) @mongodb.ObjectId
+  supply            String
+  addr              String?
+  gstin             String?      @default("UNREGISTERED")
+  state             String?
+  state_code        Int?
+  pin               Int?
+  pan               String?
+  contact           String?
+  usern             String
+  firm              String
+  has_multiple_gsts Int?         @default(0)
+  created_at        DateTime
+  updated_at        DateTime
+  firm_id           String?      @mongodb.ObjectId // Changed from Int to String for MongoDB
+  bills             bills[]
+  firms             firms?       @relation(fields: [firm_id], references: [id])
+  party_gsts        party_gsts[]
+}
+
+model party_gsts {
+  id                String    @id @map("_id") @default(auto()) @mongodb.ObjectId
+  party_id          String    @mongodb.ObjectId // Changed from Int to String for MongoDB
+  gst_number        String
+  state             String
+  state_code        Int
+  location_name     String
+  address           String
+  city              String
+  pincode           String
+  contact_person    String?
+  contact_number    String?
+  is_active         Int?      @default(1)
+  is_default        Int?      @default(0)
+  registration_type String?   @default("regular")
+  valid_from        DateTime
+  valid_to          DateTime?
+  last_used_date    DateTime?
+  transaction_count Int?      @default(0)
+  parties           parties   @relation(fields: [party_id], references: [id])
+}
+
+model request_logs {
+  id         String   @id @map("_id") @default(auto()) @mongodb.ObjectId
+  method     String
+  url        String
+  ip         String?
+  username   String?
+  user_agent String?
+  timestamp  DateTime @default(now())
+}
+
+model settings {
+  id            String   @id @map("_id") @default(auto()) @mongodb.ObjectId
+  setting_key   String   @unique
+  setting_value String
+  description   String?
+  created_at    DateTime
+  updated_at    DateTime
+}
+
+model stock_reg {
+  id             String   @id @map("_id") @default(auto()) @mongodb.ObjectId
+  type           String
+  bno            String
+  bdate          DateTime
+  supply         String
+  item           String
+  item_narration String?
+  pno            String?
+  batch          String?
+  oem            String?
+  hsn            String
+  qty            Float
+  qtyh           Float
+  uom            String
+  rate           Float
+  grate          Float?
+  cgst           Float?
+  sgst           Float?
+  igst           Float?
+  disc           Float?
+  discamt        Float?
+  total          Float
+  mrp            Float?
+  expiry_date    DateTime?
+  project        String?
+  user           String
+  firm           String
+  stock_id       String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  bill_id        String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  created_at     DateTime
+  updated_at     DateTime
+  firm_id        String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  bills          bills?   @relation(fields: [bill_id], references: [id])
+  stocks         stocks?  @relation(fields: [stock_id], references: [id])
+  firms          firms?   @relation(fields: [firm_id], references: [id])
+}
+
+model stocks {
+  id         String      @id @map("_id") @default(auto()) @mongodb.ObjectId
+  item       String
+  pno        String?
+  oem        String?
+  hsn        String
+  qty        Float
+  uom        String
+  rate       Float
+  grate      Float
+  total      Float
+  mrp        Float?
+  batches    String?
+  user       String
+  created_at DateTime
+  updated_at DateTime
+  firm_id    String?     @mongodb.ObjectId // Changed from Int to String for MongoDB
+  stock_reg  stock_reg[]
+  firms      firms?      @relation(fields: [firm_id], references: [id])
+}
+
+model users {
+  id         String   @id @map("_id") @default(auto()) @mongodb.ObjectId
+  fullname   String
+  username   String   @unique
+  email      String   @unique
+  password   String
+  firm_id    String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
+  role       Int?
+  created_at DateTime
+  updated_at DateTime
+  bills      bills[]
+  firms      firms?   @relation(fields: [firm_id], references: [id])
+}

@@ -27,9 +27,11 @@
     "xss": "^1.0.15"
   },
   "devDependencies": {
+    "@prisma/client": "^6.19.1",
     "@tailwindcss/cli": "^4.1.18",
     "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
+    "prisma": "^6.19.1",
     "tailwindcss": "^4.1.18"
   }
 }

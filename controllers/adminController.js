@@ -47,7 +47,7 @@ exports.viewFirmsManagement = (req, res) => {
 
 // API endpoint to get logs data in JSON format
 exports.getLogsData = async (req, res) => {
-    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
     const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!currentUser || currentUser.role !== adminRoleValue) {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });
@@ -82,7 +82,7 @@ exports.getLogsData = async (req, res) => {
 
 // Database backup functionality
 exports.backupDatabase = async (req, res) => {
-    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
     const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!currentUser || currentUser.role !== adminRoleValue) {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });
@@ -139,7 +139,7 @@ exports.backupDatabase = async (req, res) => {
 
 // Database restore functionality
 exports.restoreDatabase = async (req, res) => {
-    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '256591');
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
     const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!currentUser || currentUser.role !== adminRoleValue) {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });

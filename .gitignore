@@ -234,3 +234,5 @@ out/
 python_service/venv/
 python_service/__pycache__/
 *.pyc
+
+generated/

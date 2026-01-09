@@ -223,7 +223,7 @@
 
                     <div class="p-2 border-t border-dashed border-gray-200 bg-gray-50 shrink-0">
                         <button id="btn-add-item" class="w-full py-2 border border-dashed border-blue-300 text-blue-600 rounded hover:bg-blue-50 text-xs font-bold transition-colors uppercase tracking-wide">
-                            + Add Line Item (Press F2)
+                            + Add Items (F2) | Select Party (F3) | Charges (F4)
                         </button>
                     </div>
 
@@ -368,7 +368,7 @@
             <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-300 select-none pointer-events-none">
                 <svg class="w-16 h-16 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                 <p class="text-sm font-medium text-gray-400">Your cart is empty</p>
-                <p class="text-xs text-gray-400 mt-1">Press <kbd class="font-mono bg-gray-100 px-1 rounded border border-gray-300">F2</kbd> to add items</p>
+                <p class="text-xs text-gray-400 mt-1">Quick Actions: <kbd class="font-mono bg-gray-100 px-1 rounded border border-gray-300">F2</kbd> Add Items | <kbd class="font-mono bg-gray-100 px-1 rounded border border-gray-300">F3</kbd> Select Party | <kbd class="font-mono bg-gray-100 px-1 rounded border border-gray-300">F4</kbd> Other Charges</p>
             </div>`;
         }
 
@@ -1989,6 +1989,12 @@
             if (e.key === 'F2') {
                 e.preventDefault();
                 openStockModal();
+            } else if (e.key === 'F3') {
+                e.preventDefault();
+                openPartyModal();
+            } else if (e.key === 'F4') {
+                e.preventDefault();
+                openOtherChargesModal();
             }
         };
 

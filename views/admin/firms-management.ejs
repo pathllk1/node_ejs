@@ -8,45 +8,142 @@
         </button>
     </div>
     
-    <div class="mb-8">
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <tr>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">ID</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Name</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Address</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Contact Info</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Created</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="firms-list" class="bg-white divide-y divide-gray-200">
-                    <!-- Firms will be populated here -->
-                </tbody>
-            </table>
+    <!-- Tab Navigation -->
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="flex space-x-8">
+            <button id="firms-tab" class="tab-button active px-1 py-4 text-sm font-medium text-blue-600 border-b-2 border-blue-600 whitespace-nowrap" data-target="firms-content">
+                Firms
+            </button>
+            <button id="users-tab" class="tab-button px-1 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="users-content">
+                User Management
+            </button>
+            <button id="database-tab" class="tab-button px-1 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="database-content">
+                Database Management
+            </button>
+            <button id="admin-tab" class="tab-button px-1 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="admin-content">
+                Admin Features
+            </button>
+        </nav>
+    </div>
+    
+    <!-- Tab Content Sections -->
+    <div id="firms-content" class="tab-content active">
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Firm Management</h2>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">ID</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Name</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Address</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Contact Info</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Created</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="firms-list" class="bg-white divide-y divide-gray-200">
+                        <!-- Firms will be populated here -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     
-    <div>
-        <h2 class="text-xl font-bold text-gray-800 mb-4 mt-8 border-l-4 border-blue-500 pl-3">User Assignments</h2>
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <tr>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">User ID</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Name</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Username</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Email</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Current Firm</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Assign To Firm</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="users-list" class="bg-white divide-y divide-gray-200">
-                    <!-- Users will be populated here -->
-                </tbody>
-            </table>
+    <div id="users-content" class="tab-content hidden">
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">User Management</h2>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">User ID</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Name</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Username</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Email</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Current Firm</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Assign To Firm</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list" class="bg-white divide-y divide-gray-200">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div id="database-content" class="tab-content hidden">
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Database Management</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Backup & Restore</h3>
+                    <div class="space-y-4">
+                        <button id="backup-database" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Create Backup
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <input type="file" id="restore-file" class="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            <button id="restore-database" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                Restore
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Database Info</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Database Size:</span>
+                            <span id="db-size" class="font-medium">Calculating...</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Last Backup:</span>
+                            <span id="last-backup" class="font-medium">Never</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total Records:</span>
+                            <span id="total-records" class="font-medium">Calculating...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="admin-content" class="tab-content hidden">
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Admin Features</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">System Logs</h3>
+                    <button id="view-logs" class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                        View Logs
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Settings</h3>
+                    <button id="manage-settings" class="w-full px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
+                        Manage Settings
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">User Activity</h3>
+                    <button id="view-activity" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        View Activity
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -85,3 +182,4 @@
 </div>
 
 <script src="/javascripts/admin/firms-management.js"></script>
+<script src="/javascripts/admin/firms-management-tabs.js"></script>

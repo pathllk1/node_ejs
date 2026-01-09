@@ -25,8 +25,31 @@
             dispatchThrough: '',
             narration: ''
         },
-        otherCharges: []  // Array to store other charges
+        otherCharges: [],  // Array to store other charges
+        currentFirmName: 'Your Company Name'  // Initialize with default
     };
+    
+    // Fetch current user's firm name
+    async function fetchCurrentUserFirmName() {
+        try {
+            const response = await window.api.get('/inventory/api/current-user-firm-name');
+            const data = await response.json();
+            
+            if (data.firmName) {
+                state.currentFirmName = data.firmName;
+                // Update any existing references to the firm name
+                if (window.currentUserFirmName !== data.firmName) {
+                    window.currentUserFirmName = data.firmName;
+                }
+            }
+        } catch (error) {
+            console.warn('Could not fetch current user firm name:', error.message);
+            // Keep the default value if API fails
+        }
+    }
+    
+    // Initialize firm name when the module loads
+    fetchCurrentUserFirmName();
 
     // --- UTILS ---
     const formatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
@@ -2423,7 +2446,9 @@
             otherChargesGstTotal,
             grandTotal,
             finalAmount,
-            roundOff
+            roundOff,
+            // Get seller information from the current user
+            sellerName: window.currentUserFirmName || state.currentFirmName || 'Your Company Name'
         };
     }
     
@@ -2483,9 +2508,10 @@
         createCell("Invoice No:", { font: { bold: true }, alignment: { horizontal: "right" } }),
         createCell(invoiceData.meta.billNo, { alignment: { horizontal: "left" } })
     ]);
-
+    
+    // Use the actual firm name instead of hardcoded "Your Company Name"
     ws_data.push([
-        createCell("Your Company Name", { font: { bold: true } }), "", "", "", "", "", 
+        createCell(invoiceData.sellerName || "Your Company Name", { font: { bold: true } }), "", "", "", "", "", 
         createCell("Date:", { font: { bold: true }, alignment: { horizontal: "right" } }),
         createCell(invoiceData.meta.billDate, { alignment: { horizontal: "left" } })
     ]);

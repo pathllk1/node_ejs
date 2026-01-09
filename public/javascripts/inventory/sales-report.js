@@ -1,5 +1,26 @@
 (function initSalesReport() {
     console.log('SALES-REPORT: Initializing Sales Report System...');
+    
+    // Initialize current user firm name
+    let currentUserFirmName = 'Your Company Name';
+    
+    // Fetch current user's firm name
+    async function fetchCurrentUserFirmName() {
+        try {
+            const response = await window.api.get('/inventory/api/current-user-firm-name');
+            const data = await response.json();
+            
+            if (data.firmName) {
+                currentUserFirmName = data.firmName;
+            }
+        } catch (error) {
+            console.warn('Could not fetch current user firm name:', error.message);
+            // Keep the default value if API fails
+        }
+    }
+    
+    // Initialize firm name when the module loads
+    fetchCurrentUserFirmName();
 
     // Format currency function
     const formatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
@@ -358,8 +379,9 @@
             createCell(invoiceData.meta.billNo, { alignment: { horizontal: "left" } })
         ]);
 
+        // Use the actual firm name instead of hardcoded "Your Company Name"
         ws_data.push([
-            createCell("Your Company Name", { font: { bold: true } }), "", "", "", "", "", 
+            createCell(invoiceData.sellerName || currentUserFirmName || "Your Company Name", { font: { bold: true } }), "", "", "", "", "", 
             createCell("Date:", { font: { bold: true }, alignment: { horizontal: "right" } }),
             createCell(invoiceData.meta.billDate, { alignment: { horizontal: "left" } })
         ]);

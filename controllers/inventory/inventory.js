@@ -7,23 +7,79 @@ const now = () => new Date().toISOString();
 const getActorUsername = (req) => (req && req.user && req.user.username ? req.user.username : null);
 
 exports.renderStocksPage = (req, res) => {
+    // Fetch firm name for the logged-in user
+    let firmName = '';
+    if (req.user && req.user.firm_id) {
+        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firm = firmStmt.get(req.user.firm_id);
+        firmName = firm ? firm.name : '';
+    }
+    
     // You can pass the logged-in user here if available in req.user
-    res.render('inventory/stocks', { title: 'Stock Management', user: req.user || { username: 'Guest' } });
+    res.render('inventory/stocks', { 
+        title: 'Stock Management', 
+        user: { 
+            ...req.user, 
+            firm_name: firmName 
+        } || { username: 'Guest', firm_name: '' } 
+    });
 };
 
 exports.renderSalesPage = (req, res) => {
+    // Fetch firm name for the logged-in user
+    let firmName = '';
+    if (req.user && req.user.firm_id) {
+        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firm = firmStmt.get(req.user.firm_id);
+        firmName = firm ? firm.name : '';
+    }
+    
     // You can pass the logged-in user here if available in req.user
-    res.render('inventory/sales', { title: 'Sales', user: req.user || { username: 'Guest' } });
+    res.render('inventory/sales', { 
+        title: 'Sales', 
+        user: { 
+            ...req.user, 
+            firm_name: firmName 
+        } || { username: 'Guest', firm_name: '' } 
+    });
 };
 
 exports.renderBillsPage = (req, res) => {
+    // Fetch firm name for the logged-in user
+    let firmName = '';
+    if (req.user && req.user.firm_id) {
+        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firm = firmStmt.get(req.user.firm_id);
+        firmName = firm ? firm.name : '';
+    }
+    
     // You can pass the logged-in user here if available in req.user
-    res.render('inventory/bills', { title: 'Inventory Bills', user: req.user || { username: 'Guest' } });
+    res.render('inventory/bills', { 
+        title: 'Inventory Bills', 
+        user: { 
+            ...req.user, 
+            firm_name: firmName 
+        } || { username: 'Guest', firm_name: '' } 
+    });
 };
 
 exports.renderSalesReportPage = (req, res) => {
+    // Fetch firm name for the logged-in user
+    let firmName = '';
+    if (req.user && req.user.firm_id) {
+        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firm = firmStmt.get(req.user.firm_id);
+        firmName = firm ? firm.name : '';
+    }
+    
     // You can pass the logged-in user here if available in req.user
-    res.render('inventory/sales-report', { title: 'Sales Report', user: req.user || { username: 'Guest' } });
+    res.render('inventory/sales-report', { 
+        title: 'Sales Report', 
+        user: { 
+            ...req.user, 
+            firm_name: firmName 
+        } || { username: 'Guest', firm_name: '' } 
+    });
 };
 
 exports.getAllStocks = (req, res) => {
@@ -1235,8 +1291,22 @@ exports.lookupGST = async (req, res) => {
 
 // Render stock movements page
 exports.renderStockMovementsPage = (req, res) => {
+    // Fetch firm name for the logged-in user
+    let firmName = '';
+    if (req.user && req.user.firm_id) {
+        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firm = firmStmt.get(req.user.firm_id);
+        firmName = firm ? firm.name : '';
+    }
+    
     // You can pass the logged-in user here if available in req.user
-    res.render('inventory/stock-movements', { title: 'Stock Movement Tracking', user: req.user || { username: 'Guest' } });
+    res.render('inventory/stock-movements', { 
+        title: 'Stock Movement Tracking', 
+        user: { 
+            ...req.user, 
+            firm_name: firmName 
+        } || { username: 'Guest', firm_name: '' } 
+    });
 };
 
 // Get all stock movements with filtering options
@@ -1375,6 +1445,28 @@ exports.getStockMovements = (req, res) => {
 };
 
 // Get stock movements for a specific stock item
+// API endpoint to get current user's firm name
+exports.getCurrentUserFirmName = (req, res) => {
+    try {
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firm = firmStmt.get(req.user.firm_id);
+        
+        if (!firm) {
+            return res.status(404).json({ error: 'Firm not found' });
+        }
+        
+        res.json({ firmName: firm.name });
+    } catch (err) {
+        console.error('Error fetching firm name:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 exports.getStockMovementsByStock = (req, res) => {
     try {
         const { id } = req.params;

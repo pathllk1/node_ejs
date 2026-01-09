@@ -140,7 +140,24 @@ exports.getBillPdfById = async (req, res) => {
         const roundOff = roundTo2(roundedGrandTotal - computedGrandTotal);
         const taxMode = (bill.btype && bill.btype.toLowerCase().includes('intra')) ? 'CGST_SGST' : 'IGST';
 
-        const seller = { name: 'My App', lines: '' };
+        // Fetch the logged-in user's firm information
+        let seller = { name: 'My App', lines: '' };
+        if (req.user && req.user.firm_id) {
+            try {
+                const firmStmt = db.prepare('SELECT name, address, contact_info FROM firms WHERE id = ?');
+                const firm = firmStmt.get(req.user.firm_id);
+                if (firm) {
+                    seller = { 
+                        name: firm.name || 'My App', 
+                        lines: firm.address || ''
+                    };
+                }
+            } catch (err) {
+                console.warn('Could not fetch firm details for PDF export:', err.message);
+                // Use default if firm details cannot be fetched
+                seller = { name: 'My App', lines: '' };
+            }
+        }
 
         const buyer = {
             name: bill.firm || 'Buyer',

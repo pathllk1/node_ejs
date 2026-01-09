@@ -49,4 +49,7 @@ router.post('/api/stock-movements', verifyFirmAccess, controller.createStockMove
 
 router.get('/api/gst-lookup', controller.lookupGST);
 
+// API route to get current user's firm name
+router.get('/api/current-user-firm-name', verifyFirmAccess, controller.getCurrentUserFirmName);
+
 module.exports = router;

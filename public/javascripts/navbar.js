@@ -94,6 +94,9 @@ document.addEventListener('click', async (e) => {
     else if (path === '/admin/settings') {
         shouldIntercept = true;
     }
+    else if (path === '/admin/firms-management') {
+        shouldIntercept = true;
+    }
 
     // 3. IF MATCHED, EXECUTE AJAX NAVIGATION
     if (shouldIntercept) {

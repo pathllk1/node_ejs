@@ -3,8 +3,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const SALT_ROUNDS = 10;
-const ACCESS_TOKEN_SECRET = 'your_access_token_secret_change_this'; // In production use process.env.ACCESS_TOKEN_SECRET
-const REFRESH_TOKEN_SECRET = 'your_refresh_token_secret_change_this'; // In production use process.env.REFRESH_TOKEN_SECRET
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'fallback_access_token_secret_for_dev';
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'fallback_refresh_token_secret_for_dev';
 
 // Generate both tokens
 const generateTokens = (user) => {

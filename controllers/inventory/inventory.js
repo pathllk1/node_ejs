@@ -1210,7 +1210,7 @@ exports.lookupGST = async (req, res) => {
     }
 
     // RAPID API CONFIG (Keep your secrets on the server!)
-    const RAPIDAPI_KEY = '520f2a3f21msh31f572b09541cffp199102jsn33e8d1e9997d'; 
+    const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
     const url = `https://powerful-gstin-tool.p.rapidapi.com/v1/gstin/${gstin}/details`;
 
     try {

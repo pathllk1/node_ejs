@@ -1,3 +1,4 @@
+const db = require('../config/db');
 exports.viewLogs = async (req, res) => {
     try {
         // 1. Fetch from Python Microservice
@@ -32,5 +33,14 @@ exports.viewSettings = (req, res) => {
     res.render('admin/settings', { 
         layout: 'layouts/main',
         title: 'System Settings'
+    });
+};
+
+// Render firms management page
+exports.viewFirmsManagement = (req, res) => {
+    res.render('admin/firms-management', { 
+        layout: 'layouts/main',
+        title: 'Firm Management',
+        user: req.user || { username: 'Guest' }
     });
 };

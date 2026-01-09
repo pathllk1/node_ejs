@@ -13,6 +13,8 @@ router.get('/bills', controller.renderBillsPage);
 
 router.get('/sales-report', controller.renderSalesReportPage);
 
+router.get('/stock-movements', controller.renderStockMovementsPage);
+
 // API Routes
 router.get('/api/stocks', verifyFirmAccess, controller.getAllStocks);
 router.post('/api/stocks', verifyFirmAccess, controller.createStock);
@@ -39,6 +41,11 @@ router.get('/api/history/party-item', verifyFirmAccess, controller.getPartyItemH
 
 // --- API Routes: Other Charges ---
 router.get('/api/other-charges/types', verifyFirmAccess, controller.getOtherChargesTypes);
+
+// --- API Routes: Stock Movements ---
+router.get('/api/stock-movements', verifyFirmAccess, controller.getStockMovements);
+router.get('/api/stock-movements/:id', verifyFirmAccess, controller.getStockMovementsByStock);
+router.post('/api/stock-movements', verifyFirmAccess, controller.createStockMovement);
 
 router.get('/api/gst-lookup', controller.lookupGST);
 

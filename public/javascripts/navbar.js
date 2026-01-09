@@ -88,6 +88,9 @@ document.addEventListener('click', async (e) => {
     else if (path === '/inventory/sales-report') {
         shouldIntercept = true;
     }
+    else if (path === '/inventory/stock-movements') {
+        shouldIntercept = true;
+    }
     else if (path === '/admin/settings') {
         shouldIntercept = true;
     }

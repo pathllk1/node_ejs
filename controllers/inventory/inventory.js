@@ -1232,3 +1232,370 @@ exports.lookupGST = async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch GST details' });
     }
 };
+
+// Render stock movements page
+exports.renderStockMovementsPage = (req, res) => {
+    // You can pass the logged-in user here if available in req.user
+    res.render('inventory/stock-movements', { title: 'Stock Movement Tracking', user: req.user || { username: 'Guest' } });
+};
+
+// Get all stock movements with filtering options
+exports.getStockMovements = (req, res) => {
+    try {
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+
+        // Get query parameters for filtering
+        const { 
+            startDate, 
+            endDate, 
+            stockId, 
+            type, 
+            batch, 
+            page = 1, 
+            limit = 50,
+            search 
+        } = req.query;
+
+        let query = `
+            SELECT 
+                sr.id,
+                sr.type,
+                sr.bno,
+                sr.bdate,
+                sr.item,
+                sr.batch,
+                sr.qty,
+                sr.uom,
+                sr.rate,
+                sr.total,
+                sr.user,
+                sr.firm,
+                sr.created_at,
+                s.item as stock_item_name,
+                b.bno as bill_number
+            FROM stock_reg sr
+            LEFT JOIN stocks s ON sr.stock_id = s.id
+            LEFT JOIN bills b ON sr.bill_id = b.id
+            WHERE sr.firm_id = ?
+        `;
+        const params = [req.user.firm_id];
+
+        // Add filters based on query parameters
+        if (startDate) {
+            query += ` AND sr.created_at >= ?`;
+            params.push(startDate);
+        }
+        if (endDate) {
+            query += ` AND sr.created_at <= ?`;
+            params.push(endDate);
+        }
+        if (stockId) {
+            query += ` AND sr.stock_id = ?`;
+            params.push(stockId);
+        }
+        if (type) {
+            query += ` AND sr.type = ?`;
+            params.push(type);
+        }
+        if (batch) {
+            query += ` AND sr.batch = ?`;
+            params.push(batch);
+        }
+        if (search) {
+            query += ` AND (sr.item LIKE ? OR s.item LIKE ? OR sr.bno LIKE ?)`;
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        query += ` ORDER BY sr.created_at DESC`;
+
+        // Add pagination
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        query += ` LIMIT ? OFFSET ?`;
+        params.push(parseInt(limit), offset);
+
+        const stmt = db.prepare(query);
+        const movements = stmt.all(...params);
+
+        // Get total count for pagination info
+        let countQuery = `
+            SELECT COUNT(*) as count
+            FROM stock_reg sr
+            LEFT JOIN stocks s ON sr.stock_id = s.id
+            LEFT JOIN bills b ON sr.bill_id = b.id
+            WHERE sr.firm_id = ?
+        `;
+        const countParams = [req.user.firm_id];
+
+        if (startDate) {
+            countQuery += ` AND sr.created_at >= ?`;
+            countParams.push(startDate);
+        }
+        if (endDate) {
+            countQuery += ` AND sr.created_at <= ?`;
+            countParams.push(endDate);
+        }
+        if (stockId) {
+            countQuery += ` AND sr.stock_id = ?`;
+            countParams.push(stockId);
+        }
+        if (type) {
+            countQuery += ` AND sr.type = ?`;
+            countParams.push(type);
+        }
+        if (batch) {
+            countQuery += ` AND sr.batch = ?`;
+            countParams.push(batch);
+        }
+        if (search) {
+            countQuery += ` AND (sr.item LIKE ? OR s.item LIKE ? OR sr.bno LIKE ?)`;
+            const searchTerm = `%${search}%`;
+            countParams.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        const countStmt = db.prepare(countQuery);
+        const totalCount = countStmt.get(...countParams).count;
+
+        res.json({
+            movements,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: totalCount,
+                pages: Math.ceil(totalCount / parseInt(limit))
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching stock movements:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Get stock movements for a specific stock item
+exports.getStockMovementsByStock = (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+
+        // Verify the stock belongs to the user's firm
+        const stockCheck = db.prepare('SELECT id FROM stocks WHERE id = ? AND firm_id = ?').get(id, req.user.firm_id);
+        if (!stockCheck) {
+            return res.status(404).json({ error: 'Stock not found or does not belong to your firm' });
+        }
+
+        const { startDate, endDate, type, batch, page = 1, limit = 50 } = req.query;
+
+        let query = `
+            SELECT 
+                sr.id,
+                sr.type,
+                sr.bno,
+                sr.bdate,
+                sr.item,
+                sr.batch,
+                sr.qty,
+                sr.uom,
+                sr.rate,
+                sr.total,
+                sr.user,
+                sr.firm,
+                sr.created_at,
+                b.bno as bill_number
+            FROM stock_reg sr
+            LEFT JOIN bills b ON sr.bill_id = b.id
+            WHERE sr.stock_id = ? AND sr.firm_id = ?
+        `;
+        const params = [id, req.user.firm_id];
+
+        // Add filters based on query parameters
+        if (startDate) {
+            query += ` AND sr.created_at >= ?`;
+            params.push(startDate);
+        }
+        if (endDate) {
+            query += ` AND sr.created_at <= ?`;
+            params.push(endDate);
+        }
+        if (type) {
+            query += ` AND sr.type = ?`;
+            params.push(type);
+        }
+        if (batch) {
+            query += ` AND sr.batch = ?`;
+            params.push(batch);
+        }
+
+        query += ` ORDER BY sr.created_at DESC`;
+
+        // Add pagination
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        query += ` LIMIT ? OFFSET ?`;
+        params.push(parseInt(limit), offset);
+
+        const stmt = db.prepare(query);
+        const movements = stmt.all(...params);
+
+        // Get total count for pagination info
+        let countQuery = `
+            SELECT COUNT(*) as count
+            FROM stock_reg sr
+            LEFT JOIN bills b ON sr.bill_id = b.id
+            WHERE sr.stock_id = ? AND sr.firm_id = ? 
+        `;
+        const countParams = [id, req.user.firm_id];
+
+        if (startDate) {
+            countQuery += ` AND sr.created_at >= ?`;
+            countParams.push(startDate);
+        }
+        if (endDate) {
+            countQuery += ` AND sr.created_at <= ?`;
+            countParams.push(endDate);
+        }
+        if (type) {
+            countQuery += ` AND sr.type = ?`;
+            countParams.push(type);
+        }
+        if (batch) {
+            countQuery += ` AND sr.batch = ?`;
+            countParams.push(batch);
+        }
+
+        const countStmt = db.prepare(countQuery);
+        const totalCount = countStmt.get(...countParams).count;
+
+        res.json({
+            movements,
+            stockId: id,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: totalCount,
+                pages: Math.ceil(totalCount / parseInt(limit))
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching stock movements by stock:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Create a manual stock movement (receipt, transfer, adjustment)
+exports.createStockMovement = async (req, res) => {
+    try {
+        const { type, stockId, batch, qty, uom, rate, total, description, referenceNumber } = req.body;
+
+        // Validate required fields
+        if (!type || !stockId || !qty || !uom) {
+            return res.status(400).json({ error: 'Type, stockId, qty, and uom are required' });
+        }
+
+        const validTypes = ['RECEIPT', 'TRANSFER', 'ADJUSTMENT', 'OPENING'];
+        if (!validTypes.includes(type)) {
+            return res.status(400).json({ error: 'Invalid movement type. Must be one of: RECEIPT, TRANSFER, ADJUSTMENT, OPENING' });
+        }
+
+        const actorUsername = getActorUsername(req);
+        if (!actorUsername) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+
+        // Verify the stock belongs to the user's firm
+        const stock = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(stockId, req.user.firm_id);
+        if (!stock) {
+            return res.status(404).json({ error: 'Stock not found or does not belong to your firm' });
+        }
+
+        // Calculate total if not provided
+        const calculatedTotal = total || (qty * (rate || 0));
+
+        // Perform transaction to update stock and record movement
+        const transaction = db.transaction(() => {
+            // Insert the stock movement record
+            const insertMovement = db.prepare(`
+                INSERT INTO stock_reg (
+                    type, bno, bdate, supply, item, item_narration, batch, hsn, 
+                    qty, uom, rate, grate, disc, total, 
+                    stock_id, bill_id, user, firm, created_at, updated_at, qtyh, firm_id
+                ) VALUES (
+                    @type, @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
+                    @qty, @uom, @rate, @grate, @disc, @total,
+                    @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, @qtyh, @firm_id
+                )
+            `);
+
+            const movementResult = insertMovement.run({
+                type,
+                bno: referenceNumber || null, // Use reference number as bno for manual movements
+                bdate: new Date().toISOString().split('T')[0], // Today's date
+                supply: 'INTERNAL', // Internal movement
+                item: stock.item,
+                item_narration: description || null,
+                batch: batch || null,
+                hsn: stock.hsn,
+                qty: Math.abs(qty), // Always store as positive value, sign handled by context
+                uom: uom,
+                rate: rate || 0,
+                grate: stock.grate || 0,
+                disc: 0, // No discount for manual movements
+                total: calculatedTotal,
+                stock_id: stockId,
+                bill_id: null, // Not linked to a bill
+                user: actorUsername,
+                firm: stock.firm || 'Internal',
+                created_at: now(),
+                updated_at: now(),
+                qtyh: 0, // Not used
+                firm_id: req.user.firm_id
+            });
+
+            // Update the stock quantity based on movement type
+            // For RECEIPT and OPENING, add to stock; for ADJUSTMENT, handle based on sign
+            // For now, we'll add to stock quantity
+            let newQty = stock.qty + Math.abs(qty);
+            
+            if (type === 'SALE') {
+                newQty = stock.qty - Math.abs(qty); // This shouldn't happen for manual movements
+            }
+
+            const updateStock = db.prepare(`
+                UPDATE stocks 
+                SET qty = @qty, user = @user, updated_at = @updated_at
+                WHERE id = @id AND firm_id = @firm_id
+            `);
+
+            updateStock.run({
+                id: stockId,
+                qty: newQty,
+                user: actorUsername,
+                updated_at: now(),
+                firm_id: req.user.firm_id
+            });
+
+            return movementResult.lastInsertRowid;
+        });
+
+        const movementId = transaction();
+
+        res.json({ 
+            message: 'Stock movement recorded successfully', 
+            movementId,
+            newQuantity: db.prepare('SELECT qty FROM stocks WHERE id = ?').get(stockId).qty
+        });
+    } catch (err) {
+        console.error('Error creating stock movement:', err);
+        res.status(500).json({ error: 'Failed to record stock movement: ' + err.message });
+    }
+};

@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { verifyFirmAccess, verifyFirmOwnership, addFirmId } = require('../../middleware/firmMiddleware');
+const { getNextBillNumber, getCurrentFinancialYear, getNextBillNumberPreview, getCurrentSequence } = require('../../utils/billNumberGenerator');
 
 // Helper to get current ISO time
 const now = () => new Date().toISOString();
@@ -527,6 +528,19 @@ exports.createBill = (req, res) => {
     if (!cart || cart.length === 0) {
         return res.status(400).json({ error: "Cart cannot be empty" });
     }
+    
+    // STRICT: Generate bill number server-side only when bill is actually saved
+    let billNo;
+    try {
+        billNo = getNextBillNumber(req.user.firm_id);
+        console.log(`[CREATE_BILL] Generated bill number: ${billNo}`);
+    } catch (error) {
+        console.error(`[CREATE_BILL] Failed to generate bill number:`, error.message);
+        return res.status(500).json({ error: `Failed to generate bill number: ${error.message}` });
+    }
+    
+    // Set the generated bill number
+    meta.billNo = billNo;
 
     // Check GST status to determine if tax calculations should be performed
     const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
@@ -584,7 +598,8 @@ exports.createBill = (req, res) => {
 
     // 2. Perform Transaction (Insert Bill -> Insert Items -> Deduct Stock)
     const transaction = db.transaction(() => {
-        // A. Insert Bill Header - Check for duplicate bill numbers
+        // A. Insert Bill Header
+        // NOTE: Bill number is generated server-side, no retry logic needed
         const insertBill = db.prepare(`
             INSERT INTO bills (
                 bno, bdate, supply, addr, gstin, state, 
@@ -599,72 +614,33 @@ exports.createBill = (req, res) => {
             )
         `);
 
-        // Retry logic in case of duplicate bill number
-        let billResult;
-        let attempts = 0;
-        const maxAttempts = 10; // Limit retries to prevent infinite loop
-        
-        while (attempts < maxAttempts) {
-            try {
-                billResult = insertBill.run({
-                    bno: meta.billNo,
-                    bdate: meta.billDate,
-                    supply: supplyState,
-                    addr: party.addr || '',
-                    gstin: party.gstin || 'UNREGISTERED',
-                    state: party.state || '',
-                    gtot: gtot,
-                    ntot: ntot,
-                    btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
-                    usern: actorUsername,
-                    firm: party.firm,
-                    party_id: party.id || null,
-                    oth_chg_json: otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
-                    order_no: meta.referenceNo || null,
-                    vehicle_no: meta.vehicleNo || null,
-                    dispatch_through: meta.dispatchThrough || null,
-                    narration: meta.narration || null,
-                    created_at: now(),
-                    updated_at: now(),
-                    reverse_charge: meta.reverseCharge || 0, // Store reverse charge flag in database
-                    cgst: cgst,
-                    sgst: sgst,
-                    igst: igst,
-                    firm_id: req.user.firm_id
-                });
-                break; // Success, exit the loop
-            } catch (error) {
-                // Check if the error is due to a duplicate bill number
-                if (error.message.includes('UNIQUE constraint') || error.message.includes('duplicate')) {
-                    attempts++;
-                    console.warn(`Duplicate bill number detected: ${meta.billNo}. Attempt ${attempts}/${maxAttempts}`);
-                    
-                    // Generate a new bill number by incrementing the sequence
-                    const parts = meta.billNo.split('-');
-                    if (parts.length === 3) {
-                        const prefix = parts[0];
-                        const year = parts[1];
-                        const seqNum = parseInt(parts[2]);
-                        if (!isNaN(seqNum)) {
-                            const newSeqNum = seqNum + attempts; // Increment by the attempt number
-                            meta.billNo = `${prefix}-${year}-${newSeqNum.toString().padStart(3, '0')}`;
-                            console.log(`Generated new bill number: ${meta.billNo}`);
-                        } else {
-                            throw new Error(`Invalid bill number format: ${meta.billNo}`);
-                        }
-                    } else {
-                        throw new Error(`Invalid bill number format: ${meta.billNo}`);
-                    }
-                } else {
-                    // Some other error occurred, re-throw it
-                    throw error;
-                }
-            }
-        }
-        
-        if (attempts >= maxAttempts) {
-            throw new Error(`Failed to generate unique bill number after ${maxAttempts} attempts`);
-        }
+        // STRICT: Single attempt (bill number already guaranteed unique)
+        const billResult = insertBill.run({
+            bno: meta.billNo,
+            bdate: meta.billDate,
+            supply: supplyState,
+            addr: party.addr || '',
+            gstin: party.gstin || 'UNREGISTERED',
+            state: party.state || '',
+            gtot: gtot,
+            ntot: ntot,
+            btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
+            usern: actorUsername,
+            firm: party.firm,
+            party_id: party.id || null,
+            oth_chg_json: otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
+            order_no: meta.referenceNo || null,
+            vehicle_no: meta.vehicleNo || null,
+            dispatch_through: meta.dispatchThrough || null,
+            narration: meta.narration || null,
+            created_at: now(),
+            updated_at: now(),
+            reverse_charge: meta.reverseCharge || 0,
+            cgst: cgst,
+            sgst: sgst,
+            igst: igst,
+            firm_id: req.user.firm_id
+        });
 
         const billId = billResult.lastInsertRowid;
 
@@ -945,42 +921,37 @@ exports.getOtherChargesTypes = (req, res) => {
     }
 };
 
-// Function to generate next bill number automatically
+// Get next available bill number information for the current firm (non-consuming)
+// Returns info about next number without incrementing sequence
 exports.getNextBillNumber = (req, res) => {
     try {
-        const currentYear = new Date().getFullYear();
-        const prefix = 'INV'; // Can be made configurable if needed
-        
-        // Query to find the highest bill number with the current year and prefix
-        // Since SQLite doesn't support negative positions in INSTR, we'll use a simpler approach
-        // and extract the number part in JavaScript
-        const stmt = db.prepare(
-            `SELECT bno FROM bills 
-             WHERE bno LIKE ? 
-             ORDER BY bno DESC 
-             LIMIT 1`
-        );
-        
-        const pattern = `${prefix}-${currentYear}-%`;
-        const result = stmt.get(pattern);
-        
-        let nextNumber = 1;
-        if (result) {
-            // Extract the number part and increment it
-            const lastBillNo = result.bno;
-            const numberPart = lastBillNo.split('-')[2];
-            const lastNumber = parseInt(numberPart);
-            nextNumber = lastNumber + 1;
+        // VALIDATION: Check firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
         }
         
-        // Format the new bill number with leading zeros (3 digits)
-        const formattedNumber = nextNumber.toString().padStart(3, '0');
-        const nextBillNo = `${prefix}-${currentYear}-${formattedNumber}`;
+        const firmId = req.user.firm_id;
+        const financialYear = getCurrentFinancialYear();
         
-        res.json({ billNo: nextBillNo });
-    } catch (err) {
-        console.error('Error generating next bill number:', err);
-        res.status(500).json({ error: err.message });
+        // Use preview function to get next number without incrementing
+        const nextBillNo = getNextBillNumberPreview(firmId, financialYear);
+        
+        // Also get sequence info separately
+        const seqInfo = getCurrentSequence(firmId, financialYear);
+        
+        console.log(`[GET_NEXT_BILL_INFO] Next available for Firm ${firmId}: ${nextBillNo}`);
+        
+        res.json({ 
+            nextBillNo: nextBillNo,
+            nextSequence: seqInfo.next_sequence,
+            financialYear: financialYear,
+            currentSequence: seqInfo.current_sequence,
+            format: 'F{FIRM_ID}-{SEQUENCE:4d}/{FINANCIAL_YEAR}',
+            note: 'This is for display only, actual number generated when bill is saved'
+        });
+    } catch (error) {
+        console.error('[GET_NEXT_BILL_INFO] Error:', error.message);
+        res.status(500).json({ error: `Failed to get bill number info: ${error.message}` });
     }
 };
 
@@ -1065,6 +1036,15 @@ exports.updateBill = async (req, res) => {
     if (!existingBill) {
         return res.status(404).json({ error: 'Bill not found or does not belong to your firm' });
     }
+    
+    // STRICT: Prevent bill number changes (security & consistency)
+    if (meta.billNo && meta.billNo !== existingBill.bno) {
+        console.warn(`[SECURITY] Attempt to change bill number from ${existingBill.bno} to ${meta.billNo} by user ${actorUsername}`);
+        return res.status(403).json({ error: 'Bill number cannot be changed. A bill is identified by its unique number.' });
+    }
+    
+    // Use the existing bill number (ignore any provided value)
+    meta.billNo = existingBill.bno;
 
     // 3. Get existing bill items to restore stock quantities
     const existingItems = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ? AND firm_id = ?').all(id, req.user.firm_id);

@@ -29,9 +29,7 @@ const cspMiddleware = (req, res, next) => {
         "form-action 'self'",
         "base-uri 'self'",
         "object-src 'none'",
-        "media-src 'self'",
-        "upgrade-insecure-requests",
-        "block-all-mixed-content"
+        "media-src 'self'"
     ].join('; ');
 
     // Set CSP header

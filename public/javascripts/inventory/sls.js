@@ -117,15 +117,14 @@
                 state.parties = [];
             }
 
-            // 3. Fetch next bill number
+            // 3. Fetch next bill number info (non-consuming)
             try {
                 const billNoRes = await window.api.get('/inventory/api/bills/next-number');
                 const billNoData = await billNoRes.json();
-                state.meta.billNo = billNoData.billNo;
+                state.meta.billNo = billNoData.nextBillNo || 'Will be generated on save';
             } catch (e) {
-                console.warn("Could not fetch next bill number, using default", e);
-                // Fallback to original format if API fails
-                state.meta.billNo = 'INV-' + new Date().getFullYear() + '-001';
+                console.warn("Could not fetch next bill number info, using placeholder", e);
+                state.meta.billNo = 'Will be generated on save';
             }
             
             // 4. Fetch GST status
@@ -158,7 +157,7 @@
                 <div class="flex items-center gap-4">
                     <div class="flex flex-col">
                         <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Bill No</label>
-                        <input type="text" value="${state.meta.billNo}" class="border border-gray-300 rounded px-2 py-1 text-xs font-bold w-32 focus:ring-1 focus:ring-blue-500 outline-none text-slate-700">
+                        <input type="text" value="${state.meta.billNo}" readonly class="border border-gray-300 rounded px-2 py-1 text-xs font-bold w-32 bg-gray-100 text-slate-500 cursor-not-allowed" title="Auto-generated when saved">
                     </div>
                     <div class="flex flex-col">
                         <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Date</label>

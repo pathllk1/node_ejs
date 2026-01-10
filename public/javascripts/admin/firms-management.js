@@ -132,7 +132,9 @@ function initFirmsManagement() {
             document.querySelectorAll('.assign-firm-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const userId = btn.getAttribute('data-user-id');
-                    const firmId = btn.previousElementSibling.value;
+                    // Find the select element by data-user-id attribute
+                    const selectElement = document.querySelector(`select[data-user-id="${userId}"]`);
+                    const firmId = selectElement ? selectElement.value : null;
                     assignUserToFirm(userId, firmId);
                 });
             });

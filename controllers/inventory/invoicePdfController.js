@@ -125,9 +125,28 @@ exports.getBillPdfById = async (req, res) => {
         let gstEnabled = true; // Default to true
         try {
             const db = require('../../config/db');
-            const gstStatusStmt = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?');
-            const gstStatus = gstStatusStmt.get('gst_enabled');
-            gstEnabled = gstStatus ? JSON.parse(gstStatus.setting_value) : true;
+            
+            // First check for firm-specific GST setting
+            if (req.user && req.user.firm_id) {
+                const firmGstSetting = db.prepare(
+                    'SELECT setting_value FROM firm_settings WHERE firm_id = ? AND setting_key = ?'
+                ).get(req.user.firm_id, 'gst_enabled');
+                
+                if (firmGstSetting) {
+                    // Use firm-specific setting
+                    gstEnabled = JSON.parse(firmGstSetting.setting_value);
+                } else {
+                    // Fall back to global setting if no firm-specific setting exists
+                    const gstStatusStmt = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?');
+                    const gstStatus = gstStatusStmt.get('gst_enabled');
+                    gstEnabled = gstStatus ? JSON.parse(gstStatus.setting_value) : true;
+                }
+            } else {
+                // Use global setting if no firm context
+                const gstStatusStmt = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?');
+                const gstStatus = gstStatusStmt.get('gst_enabled');
+                gstEnabled = gstStatus ? JSON.parse(gstStatus.setting_value) : true;
+            }
         } catch (error) {
             console.warn('Could not fetch GST status from settings, defaulting to enabled:', error);
         }

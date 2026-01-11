@@ -543,8 +543,20 @@ exports.createBill = (req, res) => {
     meta.billNo = billNo;
 
     // Check GST status to determine if tax calculations should be performed
-    const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
-    const gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+    // First check for firm-specific GST setting
+    const firmGstSetting = db.prepare(
+        'SELECT setting_value FROM firm_settings WHERE firm_id = ? AND setting_key = ?'
+    ).get(req.user.firm_id, 'gst_enabled');
+    
+    let gstEnabled;
+    if (firmGstSetting) {
+        // Use firm-specific setting
+        gstEnabled = firmGstSetting.setting_value === 'true';
+    } else {
+        // Fall back to global setting if no firm-specific setting exists
+        const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+        gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+    }
 
     // 1. Calculate Header Totals
     let gtot = 0; // Taxable Total (items + other charges)
@@ -593,7 +605,11 @@ exports.createBill = (req, res) => {
     // For reverse charge, tax is calculated but not added to ntot (grand total)
     // The tax liability shifts to the recipient
     // When GST is disabled, tax values are 0, so ntot = gtot only
-    const ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
+    let ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
+    const roundedNtot = Math.round(ntot);
+    const rof = (roundedNtot - ntot).toFixed(2);
+    ntot = roundedNtot;
+
     const supplyState = party.state || 'Local';
 
     // 2. Perform Transaction (Insert Bill -> Insert Items -> Deduct Stock)
@@ -603,12 +619,12 @@ exports.createBill = (req, res) => {
         const insertBill = db.prepare(`
             INSERT INTO bills (
                 bno, bdate, supply, addr, gstin, state, 
-                gtot, ntot, btype, usern, firm, 
+                gtot, ntot, rof, btype, usern, firm, 
                 party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at, reverse_charge,
                 cgst, sgst, igst, firm_id
             ) VALUES (
                 @bno, @bdate, @supply, @addr, @gstin, @state,
-                @gtot, @ntot, @btype, @usern, @firm,
+                @gtot, @ntot, @rof, @btype, @usern, @firm,
                 @party_id, @oth_chg_json, @order_no, @vehicle_no, @dispatch_through, @narration, @created_at, @updated_at, @reverse_charge,
                 @cgst, @sgst, @igst, @firm_id
             )
@@ -624,6 +640,7 @@ exports.createBill = (req, res) => {
             state: party.state || '',
             gtot: gtot,
             ntot: ntot,
+            rof: rof,
             btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
             usern: actorUsername,
             firm: party.firm,
@@ -736,6 +753,137 @@ exports.createBill = (req, res) => {
             });
         });
 
+        // D. Ledger Postings
+        const insertLedger = db.prepare(`
+            INSERT INTO ledger (
+                voucher_id, voucher_type, voucher_no, account_head, account_type,
+                debit_amount, credit_amount, narration, bill_id, party_id,
+                tax_type, tax_rate, transaction_date, created_by, firm_id,
+                created_at, updated_at
+            ) VALUES (
+                @voucher_id, @voucher_type, @voucher_no, @account_head, @account_type,
+                @debit_amount, @credit_amount, @narration, @bill_id, @party_id,
+                @tax_type, @tax_rate, @transaction_date, @created_by, @firm_id,
+                @created_at, @updated_at
+            )
+        `);
+
+        const ledgerBase = {
+            voucher_id: billId,
+            voucher_type: 'SALES',
+            voucher_no: meta.billNo,
+            bill_id: billId,
+            transaction_date: meta.billDate,
+            created_by: actorUsername,
+            firm_id: req.user.firm_id,
+            created_at: now(),
+            updated_at: now()
+        };
+
+        // 1. Party DR Post
+        insertLedger.run({
+            ...ledgerBase,
+            account_head: party.firm,
+            account_type: 'DEBTOR',
+            debit_amount: ntot,
+            credit_amount: 0,
+            narration: `Sales Bill No: ${meta.billNo}`,
+            party_id: party.id || null,
+            tax_type: null,
+            tax_rate: null
+        });
+
+        // 2. GST Posts
+        if (cgst > 0) {
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'CGST',
+                account_type: 'TAX',
+                debit_amount: 0,
+                credit_amount: cgst,
+                narration: `CGST on Bill No: ${meta.billNo}`,
+                party_id: null,
+                tax_type: 'CGST',
+                tax_rate: null
+            });
+        }
+        if (sgst > 0) {
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'SGST',
+                account_type: 'TAX',
+                debit_amount: 0,
+                credit_amount: sgst,
+                narration: `SGST on Bill No: ${meta.billNo}`,
+                party_id: null,
+                tax_type: 'SGST',
+                tax_rate: null
+            });
+        }
+        if (igst > 0) {
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'IGST',
+                account_type: 'TAX',
+                debit_amount: 0,
+                credit_amount: igst,
+                narration: `IGST on Bill No: ${meta.billNo}`,
+                party_id: null,
+                tax_type: 'IGST',
+                tax_rate: null
+            });
+        }
+
+        // 3. Round Off Post
+        if (Math.abs(parseFloat(rof)) > 0) {
+            const rofVal = parseFloat(rof);
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'Round Off',
+                account_type: 'INDIRECT EXPENSE',
+                debit_amount: rofVal < 0 ? Math.abs(rofVal) : 0,
+                credit_amount: rofVal > 0 ? rofVal : 0,
+                narration: `Round off on Bill No: ${meta.billNo}`,
+                party_id: null,
+                tax_type: null,
+                tax_rate: null
+            });
+        }
+
+        // 4. Other Charges Post (Dynamic)
+        if (otherCharges && otherCharges.length > 0) {
+            otherCharges.forEach(charge => {
+                const chargeAmount = parseFloat(charge.amount) || 0;
+                if (chargeAmount > 0) {
+                    insertLedger.run({
+                        ...ledgerBase,
+                        account_head: charge.name || charge.type || 'Other Charges',
+                        account_type: 'INCOME',
+                        debit_amount: 0,
+                        credit_amount: chargeAmount,
+                        narration: `${charge.name || charge.type || 'Other Charges'} on Bill No: ${meta.billNo}`,
+                        party_id: null,
+                        tax_type: null,
+                        tax_rate: null
+                    });
+                }
+            });
+        }
+
+        // 5. Sales Account Post (To balance the ledger)
+        const taxableItemsTotal = cart.reduce((sum, item) => sum + (item.qty * item.rate * (1 - (item.disc || 0)/100)), 0);
+        insertLedger.run({
+            ...ledgerBase,
+            account_head: 'Sales',
+            account_type: 'INCOME',
+            debit_amount: 0,
+            credit_amount: taxableItemsTotal,
+            narration: `Sales on Bill No: ${meta.billNo}`,
+            party_id: null,
+            tax_type: null,
+            tax_rate: null
+        });
+
         return billId;
     });
 
@@ -791,8 +939,19 @@ exports.getBillById = (req, res) => {
         bill.igst = bill.igst || 0;
         
         // Check GST status to determine if tax calculations were enabled when the bill was created
-        const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
-        bill.gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+        // First check for firm-specific GST setting
+        const firmGstSetting = db.prepare(
+            'SELECT setting_value FROM firm_settings WHERE firm_id = ? AND setting_key = ?'
+        ).get(req.user.firm_id, 'gst_enabled');
+        
+        if (firmGstSetting) {
+            // Use firm-specific setting
+            bill.gstEnabled = firmGstSetting.setting_value === 'true';
+        } else {
+            // Fall back to global setting if no firm-specific setting exists
+            const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+            bill.gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+        }
         
         // Get bill items from stock_reg table
         const itemsStmt = db.prepare('SELECT *, item_narration FROM stock_reg WHERE bill_id = ? AND firm_id = ? ORDER BY created_at');
@@ -815,11 +974,51 @@ exports.getAllBills = (req, res) => {
         const bills = stmt.all(req.user.firm_id);
         
         // Check GST status to determine if tax calculations were enabled when the bills were created
-        const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
-        const gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+        // First check for firm-specific GST setting
+        const firmGstSetting = db.prepare(
+            'SELECT setting_value FROM firm_settings WHERE firm_id = ? AND setting_key = ?'
+        ).get(req.user.firm_id, 'gst_enabled');
+        
+        let gstEnabled;
+        if (firmGstSetting) {
+            // Use firm-specific setting
+            gstEnabled = firmGstSetting.setting_value === 'true';
+        } else {
+            // Fall back to global setting if no firm-specific setting exists
+            const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+            gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+        }
         
         // Parse the oth_chg_json field for each bill
         const processedBills = bills.map(bill => {
+            // Mask sensitive data for cancelled or deleted bills
+            if (bill.status === 'CANCELLED' || bill.status === 'DELETED') {
+                return {
+                    id: bill.id,
+                    bno: bill.bno,
+                    bdate: bill.bdate,
+                    status: bill.status,
+                    cancellation_reason: bill.cancellation_reason,
+                    cancelled_at: bill.cancelled_at,
+                    firm_id: bill.firm_id,
+                    // Mask everything else
+                    supply: '***',
+                    addr: '***',
+                    gstin: '***',
+                    state: '***',
+                    gtot: 0,
+                    ntot: 0,
+                    rof: 0,
+                    cgst: 0,
+                    sgst: 0,
+                    igst: 0,
+                    usern: bill.usern,
+                    firm: '***',
+                    otherCharges: [],
+                    items: []
+                };
+            }
+
             if (bill.oth_chg_json) {
                 try {
                     bill.otherCharges = JSON.parse(bill.oth_chg_json);
@@ -978,8 +1177,20 @@ exports.updateBill = async (req, res) => {
     }
 
     // Check GST status to determine if tax calculations should be performed
-    const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
-    const gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+    // First check for firm-specific GST setting
+    const firmGstSetting = db.prepare(
+        'SELECT setting_value FROM firm_settings WHERE firm_id = ? AND setting_key = ?'
+    ).get(req.user.firm_id, 'gst_enabled');
+    
+    let gstEnabled;
+    if (firmGstSetting) {
+        // Use firm-specific setting
+        gstEnabled = firmGstSetting.setting_value === 'true';
+    } else {
+        // Fall back to global setting if no firm-specific setting exists
+        const gstSetting = db.prepare('SELECT setting_value FROM settings WHERE setting_key = ?').get('gst_enabled');
+        gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
+    }
 
     // 1. Calculate Header Totals
     let gtot = 0; // Taxable Total (items + other charges)
@@ -1028,7 +1239,10 @@ exports.updateBill = async (req, res) => {
     // For reverse charge, tax is calculated but not added to ntot (grand total)
     // The tax liability shifts to the recipient
     // When GST is disabled, tax values are 0, so ntot = gtot only
-    const ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
+    let ntot = gtot + (meta.reverseCharge ? 0 : totalTax + otherChargesGstTotal); // Grand Total
+    const roundedNtot = Math.round(ntot);
+    const rof = (roundedNtot - ntot).toFixed(2);
+    ntot = roundedNtot;
     const supplyState = party.state || 'Local';
 
     // 2. Get the existing bill to restore stock quantities
@@ -1224,6 +1438,140 @@ exports.updateBill = async (req, res) => {
                 updated_at: now(),
                 firm_id: req.user.firm_id
             });
+        });
+
+        // F. Ledger Postings
+        // First, delete existing ledger entries for this bill
+        db.prepare('DELETE FROM ledger WHERE voucher_id = ? AND voucher_type = ? AND firm_id = ?').run(id, 'SALES', req.user.firm_id);
+
+        const insertLedger = db.prepare(`
+            INSERT INTO ledger (
+                voucher_id, voucher_type, voucher_no, account_head, account_type,
+                debit_amount, credit_amount, narration, bill_id, party_id,
+                tax_type, tax_rate, transaction_date, created_by, firm_id,
+                created_at, updated_at
+            ) VALUES (
+                @voucher_id, @voucher_type, @voucher_no, @account_head, @account_type,
+                @debit_amount, @credit_amount, @narration, @bill_id, @party_id,
+                @tax_type, @tax_rate, @transaction_date, @created_by, @firm_id,
+                @created_at, @updated_at
+            )
+        `);
+
+        const ledgerBase = {
+            voucher_id: id,
+            voucher_type: 'SALES',
+            voucher_no: meta.billNo,
+            bill_id: id,
+            transaction_date: meta.billDate,
+            created_by: actorUsername,
+            firm_id: req.user.firm_id,
+            created_at: now(),
+            updated_at: now()
+        };
+
+        // 1. Party DR Post
+        insertLedger.run({
+            ...ledgerBase,
+            account_head: party.firm,
+            account_type: 'DEBTOR',
+            debit_amount: ntot,
+            credit_amount: 0,
+            narration: `Sales Bill No: ${meta.billNo} (Updated)`,
+            party_id: party.id || null,
+            tax_type: null,
+            tax_rate: null
+        });
+
+        // 2. GST Posts
+        if (cgst > 0) {
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'CGST',
+                account_type: 'TAX',
+                debit_amount: 0,
+                credit_amount: cgst,
+                narration: `CGST on Bill No: ${meta.billNo} (Updated)`,
+                party_id: null,
+                tax_type: 'CGST',
+                tax_rate: null
+            });
+        }
+        if (sgst > 0) {
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'SGST',
+                account_type: 'TAX',
+                debit_amount: 0,
+                credit_amount: sgst,
+                narration: `SGST on Bill No: ${meta.billNo} (Updated)`,
+                party_id: null,
+                tax_type: 'SGST',
+                tax_rate: null
+            });
+        }
+        if (igst > 0) {
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'IGST',
+                account_type: 'TAX',
+                debit_amount: 0,
+                credit_amount: igst,
+                narration: `IGST on Bill No: ${meta.billNo} (Updated)`,
+                party_id: null,
+                tax_type: 'IGST',
+                tax_rate: null
+            });
+        }
+
+        // 3. Round Off Post
+        if (Math.abs(parseFloat(rof)) > 0) {
+            const rofVal = parseFloat(rof);
+            insertLedger.run({
+                ...ledgerBase,
+                account_head: 'Round Off',
+                account_type: 'INDIRECT EXPENSE',
+                debit_amount: rofVal < 0 ? Math.abs(rofVal) : 0,
+                credit_amount: rofVal > 0 ? rofVal : 0,
+                narration: `Round off on Bill No: ${meta.billNo} (Updated)`,
+                party_id: null,
+                tax_type: null,
+                tax_rate: null
+            });
+        }
+
+        // 4. Other Charges Post (Dynamic)
+        if (otherCharges && otherCharges.length > 0) {
+            otherCharges.forEach(charge => {
+                const chargeAmount = parseFloat(charge.amount) || 0;
+                if (chargeAmount > 0) {
+                    insertLedger.run({
+                        ...ledgerBase,
+                        account_head: charge.name || charge.type || 'Other Charges',
+                        account_type: 'INCOME',
+                        debit_amount: 0,
+                        credit_amount: chargeAmount,
+                        narration: `${charge.name || charge.type || 'Other Charges'} on Bill No: ${meta.billNo} (Updated)`,
+                        party_id: null,
+                        tax_type: null,
+                        tax_rate: null
+                    });
+                }
+            });
+        }
+
+        // 5. Sales Account Post (To balance the ledger)
+        const taxableItemsTotal = cart.reduce((sum, item) => sum + (item.qty * item.rate * (1 - (item.disc || 0)/100)), 0);
+        insertLedger.run({
+            ...ledgerBase,
+            account_head: 'Sales',
+            account_type: 'INCOME',
+            debit_amount: 0,
+            credit_amount: taxableItemsTotal,
+            narration: `Sales on Bill No: ${meta.billNo} (Updated)`,
+            party_id: null,
+            tax_type: null,
+            tax_rate: null
         });
 
         return id;
@@ -1669,5 +2017,111 @@ exports.createStockMovement = async (req, res) => {
     } catch (err) {
         console.error('Error creating stock movement:', err);
         res.status(500).json({ error: 'Failed to record stock movement: ' + err.message });
+    }
+};
+
+// Cancel or Delete a bill
+exports.cancelBill = (req, res) => {
+    const { id } = req.params;
+    const { cancellation_reason, action } = req.body; // action: 'cancel' or 'delete'
+    const status = action === 'delete' ? 'DELETED' : 'CANCELLED';
+
+    const actorUsername = getActorUsername(req);
+    if (!actorUsername) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if user has firm access
+    if (!req.user || !req.user.firm_id) {
+        return res.status(403).json({ error: 'User is not associated with any firm' });
+    }
+
+    const transaction = db.transaction(() => {
+        // 1. Get the bill header
+        const bill = db.prepare('SELECT * FROM bills WHERE id = ? AND firm_id = ?').get(id, req.user.firm_id);
+        if (!bill) {
+            throw new Error('Bill not found or does not belong to your firm');
+        }
+
+        if (bill.status !== 'ACTIVE') {
+            throw new Error(`Bill is already ${bill.status}`);
+        }
+
+        // 2. Restore Stock Quantities
+        // Get bill items from stock_reg
+        const items = db.prepare('SELECT * FROM stock_reg WHERE bill_id = ? AND firm_id = ?').all(id, req.user.firm_id);
+
+        items.forEach(item => {
+            const stockRecord = db.prepare('SELECT * FROM stocks WHERE id = ? AND firm_id = ?').get(item.stock_id, req.user.firm_id);
+            if (!stockRecord) {
+                console.warn(`Stock record not found for item ${item.item} (ID: ${item.stock_id}) during cancellation. Skipping stock restoration for this item.`);
+                return;
+            }
+
+            // Parse batches
+            let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
+            
+            // Find the specific batch to restore to
+            let batchIndex = -1;
+            if (item.batch === null || item.batch === undefined || item.batch === '') {
+                batchIndex = batches.findIndex(b => b.batch === null || b.batch === undefined || b.batch === '');
+            } else {
+                batchIndex = batches.findIndex(b => b.batch === item.batch);
+            }
+
+            if (batchIndex !== -1) {
+                // Add back the quantity
+                batches[batchIndex].qty += item.qty;
+                
+                // Calculate new total quantity
+                const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
+                
+                // Update stock record
+                db.prepare(`
+                    UPDATE stocks 
+                    SET qty = @qty, batches = @batches, user = @user, updated_at = @updated_at
+                    WHERE id = @id AND firm_id = @firm_id
+                `).run({
+                    id: item.stock_id,
+                    qty: newTotalQty,
+                    batches: JSON.stringify(batches),
+                    user: actorUsername,
+                    updated_at: now(),
+                    firm_id: req.user.firm_id
+                });
+            }
+        });
+
+        // 3. Remove Ledger Entries
+        db.prepare('DELETE FROM ledger WHERE voucher_id = ? AND voucher_type = ? AND firm_id = ?').run(id, 'SALES', req.user.firm_id);
+
+        // 4. Update Bill Status
+        db.prepare(`
+            UPDATE bills SET 
+                status = @status, 
+                cancellation_reason = @reason, 
+                cancelled_at = @at, 
+                cancelled_by = @by,
+                updated_at = @updated_at
+            WHERE id = @id AND firm_id = @firm_id
+        `).run({
+            status: status,
+            reason: cancellation_reason || `Bill ${status.toLowerCase()} by user`,
+            at: now(),
+            by: req.user.id,
+            updated_at: now(),
+            id: id,
+            firm_id: req.user.firm_id
+        });
+
+        return id;
+    });
+
+    try {
+        transaction();
+        res.json({ message: `Bill ${status.toLowerCase()} successfully` });
+    } catch (err) {
+        console.error("Cancellation Error:", err.message);
+        res.status(500).json({ error: "Failed to cancel bill: " + err.message });
     }
 };

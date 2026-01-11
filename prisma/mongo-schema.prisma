@@ -1,5 +1,3 @@
-// prisma/mongo-schema.prisma
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma_mongo"
@@ -7,206 +5,878 @@ generator client {
 
 datasource mongodb {
   provider = "mongodb"
-  url      = env("MONGODB_URI") // Default to mongodb://localhost:27017/your_database_name
+  url      = env("MONGODB_URI")
+}
+
+type AihistoriesMetadata {
+  autoSaved          Boolean?
+  isFullConversation Boolean?
+  manualSaved        Boolean?
+  messageCount       Int?
+  model              String?
+  source             String?
+  timestamp          DateTime? @mongodb.Date
+}
+
+type ApilogsQuery {
+  t          String? @map("_t")
+  interval   String?
+  symbol     String?
+  unreadOnly String?
+}
+
+type BillsGstSelection {
+  firmGST          BillsGstSelectionFirmGst
+  gstApplicability String
+  selectedBy       String                   @mongodb.ObjectId
+  selectionDate    DateTime                 @mongodb.Date
+  selectionMethod  String
+  transactionType  String
+}
+
+type BillsGstSelectionFirmGst {
+  address          String
+  city             String?
+  gstNumber        String
+  isActive         Boolean?
+  isDefault        Boolean?
+  locationName     String
+  pincode          String?
+  registrationType String?
+  state            String
+  stateCode        Int
+}
+
+type BillsOthChg {
+  description String
+  oth_amt     Int
+  /// Multiple data types found: Float: 25%, Int: 75% out of 4 sampled entries
+  oth_cgst    Json
+  oth_grate   Int
+  oth_hsn     String
+  /// Multiple data types found: Float: 25%, Int: 75% out of 4 sampled entries
+  oth_igst    Json
+  /// Multiple data types found: Float: 25%, Int: 75% out of 4 sampled entries
+  oth_sgst    Json
+  /// Multiple data types found: Float: 25%, Int: 75% out of 4 sampled entries
+  oth_tot     Json
+}
+
+type EmployeeadvancesRepaymentTerms {
+  durationMonths    Int
+  installmentAmount Int
+}
+
+type ExpensePartiesBankDetails {
+  accountHolderName String
+  accountNumber     String
+  bankName          String
+  branch            String
+  ifscCode          String
+}
+
+type ExpensesPaymentMode {
+  bankId       String?
+  instrumentNo String?
+  type         String
+}
+
+type FirmsAdditionalGsTs {
+  address          String
+  city             String
+  gstNumber        String
+  isActive         Boolean
+  isDefault        Boolean
+  locationName     String
+  pincode          String
+  registrationDate DateTime @mongodb.Date
+  registrationType String
+  state            String
+  stateCode        Int
+  validFrom        DateTime @mongodb.Date
+}
+
+type LedgersBankDetails {
+  accountNumber String
+  bankName      String
+  branch        String
+  ifscCode      String
+}
+
+type PartiesAdditionalGsTs {
+  address          String
+  city             String
+  contactNumber    String
+  contactPerson    String
+  gstNumber        String
+  isActive         Boolean
+  isDefault        Boolean
+  locationName     String
+  pincode          String
+  registrationType String
+  state            String
+  stateCode        Int
+  transactionCount Int
+  validFrom        DateTime @mongodb.Date
+}
+
+type SubcontractorsContactInfo {
+  address        String
+  alternateEmail String
+  phone          String
+}
+
+type SubcontractorsPaymentDetails {
+  accountNumber String
+  bankName      String
+  ifscCode      String
+  upiId         String
+}
+
+type SubcontractorsRates {
+  dailyRate  Int
+  hourlyRate Int
+}
+
+type SubcontractorsTaxInfo {
+  gstNumber String
+  panNumber String
+}
+
+type SubsModelsContactInfo {
+  address String?
+  email   String?
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  phone   Json?
+}
+
+type SupabaseconfigsTestConnection {
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  errorMessage Json?
+  lastTested   DateTime @mongodb.Date
+  status       String
+}
+
+model NSE_LIVE {
+  id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  /// Multiple data types found: Float: 87.2%, Int: 12.8% out of 1000 sampled entries
+  close       Json
+  date        String
+  /// Multiple data types found: Float: 72.2%, Int: 27.8% out of 1000 sampled entries
+  high        Json
+  inserted_at DateTime @mongodb.Date
+  /// Multiple data types found: Float: 74.4%, Int: 25.6% out of 1000 sampled entries
+  low         Json
+  /// Multiple data types found: Float: 61.9%, Int: 38.1% out of 1000 sampled entries
+  open        Json
+  symbol      String
+  timestamp   String
+  token       String
+  updated_at  String
+  /// Multiple data types found: Float: 0.2%, Int: 99.8% out of 1000 sampled entries
+  volume      Json
+
+  @@unique([token, date], map: "token_1_date_1")
+}
+
+model advancerecoveries {
+  id             String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v              Int      @map("__v")
+  advanceId      String   @mongodb.ObjectId
+  createdAt      DateTime @mongodb.Date
+  employeeId     String   @mongodb.ObjectId
+  employeeName   String
+  firmId         String   @mongodb.ObjectId
+  recoveryAmount Int
+  recoveryDate   DateTime @mongodb.Date
+  recoveryMethod String
+  remarks        String
+  updatedAt      DateTime @mongodb.Date
+  userId         String   @mongodb.ObjectId
+  wageId         String?  @mongodb.ObjectId
+}
+
+model aihistories {
+  id           String               @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v            Int                  @map("__v")
+  answer       String
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  conversation Json?
+  createdAt    DateTime             @mongodb.Date
+  isReply      Boolean
+  metadata     AihistoriesMetadata?
+  question     String
+  type         String
+  updatedAt    DateTime             @mongodb.Date
+  /// Multiple data types found: String: 4%, String (ObjectId): 96% out of 25 sampled entries
+  userId       Json
+}
+
+model apilogs {
+  id           String        @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v            Int           @map("__v")
+  createdAt    DateTime      @mongodb.Date
+  headers      String
+  ip           String
+  method       String
+  path         String
+  query        ApilogsQuery?
+  responseTime Int
+  statusCode   Int
+  timestamp    DateTime      @mongodb.Date
+  updatedAt    DateTime      @mongodb.Date
+  userAgent    String
+  userId       String?
+
+  @@index([timestamp], map: "timestamp_1")
+  @@index([method], map: "method_1")
+  @@index([path], map: "path_1")
+  @@index([userId], map: "userId_1")
+  @@index([statusCode], map: "statusCode_1")
+  @@index([userId, timestamp(sort: Desc)], map: "userId_1_timestamp_-1")
+  @@index([path, timestamp(sort: Desc)], map: "path_1_timestamp_-1")
+  @@index([statusCode, timestamp(sort: Desc)], map: "statusCode_1_timestamp_-1")
 }
 
 model bills {
-  id                  String   @id @map("_id") @default(auto()) @mongodb.ObjectId
-  bno                 String   @unique
-  bdate               DateTime
-  supply              String
-  addr                String?
-  gstin               String?  @default("UNREGISTERED")
-  state               String?
-  pin                 Int?
-  gtot                Float
-  disc                Float?
-  cgst                Float?
-  usern               String
-  sgst                Float?
-  firm                String
-  igst                Float?
-  rof                 Float?
-  ntot                Float
-  btype               String   @default("SALES")
-  order_no            String?
-  order_date          DateTime?
-  dispatch_through    String?
-  docket_no           String?
-  vehicle_no          String?
-  consignee_name      String?
-  consignee_gstin     String?
-  consignee_address   String?
-  consignee_state     String?
-  consignee_pin       String?
-  reason_for_note     String?
-  original_bill_no    String?
-  original_bill_date  DateTime?
-  narration           String?
-  status              String?  @default("ACTIVE")
-  cancellation_reason String?
-  cancelled_at        String?
-  cancelled_by        String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  attachment_url      String?
-  attachment_file_id  String?
-  party_id            String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  oth_chg_json        String?
-  gst_selection_json  String?
-  reverse_charge      Int?     @default(0)
-  created_at          DateTime
-  updated_at          DateTime
-  firm_id             String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  users               users?   @relation(fields: [cancelled_by], references: [id])
-  parties             parties? @relation(fields: [party_id], references: [id])
-  firms               firms?   @relation(fields: [firm_id], references: [id])
-  stock_reg           stock_reg[]
+  id               String             @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                Int                @map("__v")
+  addr             String
+  attachmentFileId String?
+  attachmentUrl    String?
+  bdate            DateTime           @mongodb.Date
+  bno              String
+  btype            String
+  /// Multiple data types found: Float: 50%, Int: 50% out of 8 sampled entries
+  cgst             Json
+  consigneeAddress String?
+  consigneeGstin   String?
+  consigneeName    String?
+  consigneePin     String?
+  consigneeState   String?
+  createdAt        DateTime           @mongodb.Date
+  disc             Int?
+  dispatchThrough  String
+  docketNo         String
+  firm             String
+  gstSelection     BillsGstSelection?
+  gstin            String
+  /// Multiple data types found: Float: 25%, Int: 75% out of 8 sampled entries
+  gtot             Json
+  /// Multiple data types found: Float: 50%, Int: 50% out of 8 sampled entries
+  igst             Json
+  narration        String?
+  ntot             Int
+  orderDate        DateTime?          @mongodb.Date
+  orderNo          String
+  oth_chg          BillsOthChg[]
+  partyId          String?            @mongodb.ObjectId
+  pin              Int?
+  rof              Float
+  /// Multiple data types found: Float: 50%, Int: 50% out of 8 sampled entries
+  sgst             Json
+  state            String
+  status           String
+  stockRegIds      String[]
+  supply           String
+  updatedAt        DateTime           @mongodb.Date
+  usern            String
+  vehicleNo        String
+}
+
+model chatmessages {
+  id         String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v          Int      @map("__v")
+  content    String
+  read       Boolean
+  receiverId String
+  senderId   String
+  timestamp  DateTime @mongodb.Date
+
+  @@index([senderId], map: "senderId_1")
+  @@index([receiverId], map: "receiverId_1")
+  @@index([timestamp], map: "timestamp_1")
+  @@index([senderId, receiverId, timestamp(sort: Desc)], map: "senderId_1_receiverId_1_timestamp_-1")
+  @@index([receiverId, senderId, timestamp(sort: Desc)], map: "receiverId_1_senderId_1_timestamp_-1")
+}
+
+model cnnotes {
+  id        String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  Folio_rec String[]
+  v         Int      @map("__v")
+  broker    String
+  cn_date   DateTime @mongodb.Date
+  cn_no     String
+  createdAt DateTime @mongodb.Date
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  documents Json?
+  /// Multiple data types found: Float: 50%, Int: 50% out of 2 sampled entries
+  famt      Json
+  firmId    String
+  folio     String
+  oth_chg   Float
+  type      String
+  updatedAt DateTime @mongodb.Date
+  user      String
+
+  @@unique([cn_no, user], map: "cn_no_1_user_1")
+  @@unique([firmId, cn_no], map: "firmId_1_cn_no_1")
+  @@index([firmId], map: "firmId_1")
+}
+
+model cosmosdbconfigs {
+  id         String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  configName Json?
+  /// Field referred in an index, but found no data to define the type.
+  firmId     Json?
+  /// Field referred in an index, but found no data to define the type.
+  isActive   Json?
+
+  @@unique([firmId, configName], map: "firmId_1_configName_1")
+  @@index([firmId, isActive], map: "firmId_1_isActive_1")
+}
+
+model documents {
+  id          String    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v           Int       @map("__v")
+  closedDate  DateTime? @mongodb.Date
+  createdAt   DateTime  @mongodb.Date
+  description String
+  expiryDate  DateTime  @mongodb.Date
+  file        String
+  fileId      String
+  firmId      String    @mongodb.ObjectId
+  name        String
+  oExpiryDate DateTime  @mongodb.Date
+  ref_no      String
+  startDate   DateTime  @mongodb.Date
+  status      String
+  updatedAt   DateTime  @mongodb.Date
+  userId      String
+  /// Multiple data types found: Float: 96.4%, Int: 3.6% out of 28 sampled entries
+  value       Json
+}
+
+model employeeadvances {
+  id               String                         @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                Int                            @map("__v")
+  amount           Int
+  createdAt        DateTime                       @mongodb.Date
+  date             DateTime                       @mongodb.Date
+  employeeName     String
+  firmId           String                         @mongodb.ObjectId
+  masterRollId     String                         @mongodb.ObjectId
+  purpose          String
+  remainingBalance Int
+  repaymentTerms   EmployeeadvancesRepaymentTerms
+  status           String
+  updatedAt        DateTime                       @mongodb.Date
+  userId           String                         @mongodb.ObjectId
+}
+
+model expenseParties {
+  id          String                    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v           Int                       @map("__v")
+  address     String
+  bankDetails ExpensePartiesBankDetails
+  contact     String
+  createdAt   DateTime                  @mongodb.Date
+  firmId      String
+  gstin       String
+  name        String
+  pan         String
+  pin         String
+  state       String
+  updatedAt   DateTime                  @mongodb.Date
+  userId      String
+}
+
+model expenses {
+  id              String              @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v               Int                 @map("__v")
+  amount          Int
+  category        String
+  createdAt       DateTime            @mongodb.Date
+  date            DateTime            @mongodb.Date
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  deductions      Json?
+  description     String
+  expenseId       String?
+  firmId          String
+  hasDeductions   Boolean
+  isTransfer      Boolean
+  netAmount       Int
+  paidTo          String
+  paidToGroup     String
+  paymentMode     ExpensesPaymentMode
+  project         String
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  transferDetails Json?
+  updatedAt       DateTime            @mongodb.Date
+  userId          String
 }
 
 model firms {
-  id           String      @id @map("_id") @default(auto()) @mongodb.ObjectId
-  name         String      @unique
-  address      String?
-  contact_info String?
-  created_at   DateTime
-  updated_at   DateTime
-  bills        bills[]
-  parties      parties[]
-  stock_reg    stock_reg[]
-  stocks       stocks[]
-  users        users[]
+  id              String                @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v               Int                   @map("__v")
+  additionalGSTs  FirmsAdditionalGsTs[]
+  address         String
+  businessType    String?
+  code            String?               @unique(map: "code_1")
+  contactNo       String?
+  contactPerson   String?
+  createdAt       DateTime?             @mongodb.Date
+  description     String?
+  email           String
+  gstNo           String?
+  hasMultipleGSTs Boolean?
+  name            String                @unique(map: "name_1")
+  phone           String?
+  state           String?
+  status          String?
+  updatedAt       DateTime?             @mongodb.Date
+}
+
+model folios {
+  id              String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v               Int      @map("__v")
+  age             Int
+  amt             Float
+  broker          String
+  brokerage       Float
+  cnNoteId        String   @mongodb.ObjectId
+  cn_no           String
+  /// Multiple data types found: Float: 75%, Int: 25% out of 4 sampled entries
+  cprice          Json
+  createdAt       DateTime @mongodb.Date
+  /// Multiple data types found: Float: 75%, Int: 25% out of 4 sampled entries
+  cval            Json
+  /// Multiple data types found: Float: 75%, Int: 25% out of 4 sampled entries
+  dayPL           Json
+  dayPLPercentage Float
+  folio           String
+  namt            Float
+  pdate           DateTime @mongodb.Date
+  pl              Float
+  /// Multiple data types found: Float: 75%, Int: 25% out of 4 sampled entries
+  prevDayPrice    Json
+  price           Float
+  qnty            Int
+  rid             String
+  sector          String
+  symbol          String
+  type            String
+  updatedAt       DateTime @mongodb.Date
+  user            String
+}
+
+model idmappings {
+  id            String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v             Int      @map("__v")
+  collection    String
+  cosmosId      String   @mongodb.ObjectId
+  createdAt     DateTime @mongodb.Date
+  /// Field referred in an index, but found no data to define the type.
+  firmId        Json?
+  lastSynced    DateTime @mongodb.Date
+  mongoId       String   @mongodb.ObjectId
+  syncDirection String
+  updatedAt     DateTime @mongodb.Date
+
+  @@unique([mongoId, collection, firmId], map: "mongoId_1_collection_1_firmId_1")
+  @@unique([cosmosId, collection, firmId], map: "cosmosId_1_collection_1_firmId_1")
+  @@unique([mongoId, collection], map: "mongoId_1_collection_1")
+  @@unique([cosmosId, collection], map: "cosmosId_1_collection_1")
+  @@index([mongoId], map: "mongoId_1")
+  @@index([cosmosId], map: "cosmosId_1")
+  @@index([collection], map: "collection_1")
+  @@index([firmId], map: "firmId_1")
+  @@index([collection, firmId], map: "collection_1_firmId_1")
+}
+
+model ledgerTransactions {
+  id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v           Int      @map("__v")
+  amount      Int
+  balance     Int
+  billId      String?
+  createdAt   DateTime @mongodb.Date
+  date        DateTime @mongodb.Date
+  description String
+  expenseId   String?
+  firmId      String
+  ledgerId    String
+  paymentId   String?
+  type        String
+  updatedAt   DateTime @mongodb.Date
+  userId      String
+}
+
+model ledgers {
+  id             String              @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v              Int                 @map("__v")
+  bankDetails    LedgersBankDetails?
+  createdAt      DateTime            @mongodb.Date
+  currentBalance Int
+  firmId         String
+  isActive       Boolean
+  name           String
+  openingBalance Int
+  type           String
+  updatedAt      DateTime            @mongodb.Date
+  userId         String
+}
+
+model managercodes {
+  id        String    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v         Int       @map("__v")
+  code      String    @unique(map: "code_1")
+  createdAt DateTime  @mongodb.Date
+  used      Boolean
+  usedAt    DateTime? @mongodb.Date
+  usedBy    String?   @mongodb.ObjectId
+}
+
+model masterrolls {
+  id                String    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                 Int       @map("__v")
+  aadhar            String    @unique(map: "aadhar_1")
+  accountNo         String
+  address           String
+  bank              String
+  branch            String
+  category          String
+  createdAt         DateTime  @mongodb.Date
+  dateOfBirth       DateTime  @mongodb.Date
+  dateOfExit        DateTime? @mongodb.Date
+  dateOfJoining     DateTime  @mongodb.Date
+  doeRem            String?
+  employeeName      String
+  esicNo            String?
+  fatherHusbandName String
+  firmId            String    @mongodb.ObjectId
+  ifsc              String
+  pDayWage          Int
+  pan               String?
+  phoneNo           String
+  project           String?
+  sKalyanNo         String?
+  site              String?
+  status            String
+  uan               String?
+  updatedAt         DateTime  @mongodb.Date
+  userId            String    @mongodb.ObjectId
+}
+
+model mutualfundinvestments {
+  id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+}
+
+model mutualfunds {
+  id                   String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                    Int      @map("__v")
+  broker               String
+  category             String
+  createdAt            DateTime @mongodb.Date
+  currentNAV           Float
+  currentValue         Float
+  dayPL                Float
+  dayPLPercentage      Float
+  dividendOption       String
+  /// Multiple data types found: Float: 1.9%, Int: 98.1% out of 1000 sampled entries
+  expense              Json
+  folioNumber          String
+  fundHouse            String
+  /// Multiple data types found: Float: 2.9%, Int: 97.1% out of 1000 sampled entries
+  investmentAmount     Json
+  lastNAVUpdate        DateTime @mongodb.Date
+  prevDayNAV           Float
+  profitLoss           Float
+  profitLossPercentage Float
+  purchaseDate         DateTime @mongodb.Date
+  /// Multiple data types found: Float: 99.7%, Int: 0.3% out of 1000 sampled entries
+  purchaseNAV          Json
+  schemeCode           String
+  schemeName           String
+  sipAmount            Int
+  sipDay               Int
+  sipFlag              Boolean
+  sipFrequency         String
+  units                Float
+  updatedAt            DateTime @mongodb.Date
+  user                 String
+}
+
+model mutualfundschemes {
+  id         String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  schemeCode Json?  @unique(map: "schemeCode_1")
+}
+
+model mutualfundsips {
+  id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+}
+
+model notes {
+  id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+}
+
+model notifications {
+  id        String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  read      Json?
+  /// Field referred in an index, but found no data to define the type.
+  timestamp Json?
+  /// Field referred in an index, but found no data to define the type.
+  type      Json?
+  /// Field referred in an index, but found no data to define the type.
+  userId    Json?
+
+  @@index([userId], map: "userId_1")
+  @@index([type], map: "type_1")
+  @@index([timestamp], map: "timestamp_1")
+  @@index([read], map: "read_1")
+  @@index([userId, timestamp(sort: Desc)], map: "userId_1_timestamp_-1")
+  @@index([userId, read, timestamp(sort: Desc)], map: "userId_1_read_1_timestamp_-1")
+  @@index([userId, type, timestamp(sort: Desc)], map: "userId_1_type_1_timestamp_-1")
+}
+
+model notificationsettings {
+  id                         String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                          Int      @map("__v")
+  createdAt                  DateTime @mongodb.Date
+  enableBrowserNotifications Boolean
+  enableEmailNotifications   Boolean
+  enablePriceAlerts          Boolean
+  enableSipReminders         Boolean
+  priceAlertThreshold        Int
+  sipReminderDays            Int
+  updatedAt                  DateTime @mongodb.Date
+  userId                     String   @unique(map: "userId_1")
+}
+
+model nsedocuments {
+  id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+}
+
+model nses {
+  id     String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  SYMBOL Json?  @unique(map: "SYMBOL_1")
+}
+
+model paidToGroups {
+  id String @id @default(auto()) @map("_id") @mongodb.ObjectId
 }
 
 model parties {
-  id                String       @id @map("_id") @default(auto()) @mongodb.ObjectId
-  supply            String
-  addr              String?
-  gstin             String?      @default("UNREGISTERED")
-  state             String?
-  state_code        Int?
-  pin               Int?
-  pan               String?
-  contact           String?
-  usern             String
-  firm              String
-  has_multiple_gsts Int?         @default(0)
-  created_at        DateTime
-  updated_at        DateTime
-  firm_id           String?      @mongodb.ObjectId // Changed from Int to String for MongoDB
-  bills             bills[]
-  firms             firms?       @relation(fields: [firm_id], references: [id])
-  party_gsts        party_gsts[]
+  id              String                  @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v               Int                     @map("__v")
+  additionalGSTs  PartiesAdditionalGsTs[]
+  addr            String
+  billIds         String[]
+  contact         String
+  createdAt       DateTime                @mongodb.Date
+  firm            String
+  gstin           String
+  hasMultipleGSTs Boolean
+  pan             String
+  pin             Int
+  state           String
+  state_code      Int
+  supply          String
+  updatedAt       DateTime                @mongodb.Date
+  usern           String
 }
 
-model party_gsts {
-  id                String    @id @map("_id") @default(auto()) @mongodb.ObjectId
-  party_id          String    @mongodb.ObjectId // Changed from Int to String for MongoDB
-  gst_number        String
-  state             String
-  state_code        Int
-  location_name     String
-  address           String
-  city              String
-  pincode           String
-  contact_person    String?
-  contact_number    String?
-  is_active         Int?      @default(1)
-  is_default        Int?      @default(0)
-  registration_type String?   @default("regular")
-  valid_from        DateTime
-  valid_to          DateTime?
-  last_used_date    DateTime?
-  transaction_count Int?      @default(0)
-  parties           parties   @relation(fields: [party_id], references: [id])
+model roles {
+  id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v           Int      @map("__v")
+  createdAt   DateTime @mongodb.Date
+  description String
+  id_         String   @unique(map: "id_1") @map("id")
+  name        String   @unique(map: "name_1")
+  updatedAt   DateTime @mongodb.Date
 }
 
-model request_logs {
-  id         String   @id @map("_id") @default(auto()) @mongodb.ObjectId
-  method     String
-  url        String
-  ip         String?
-  username   String?
-  user_agent String?
-  timestamp  DateTime @default(now())
-}
-
-model settings {
-  id            String   @id @map("_id") @default(auto()) @mongodb.ObjectId
-  setting_key   String   @unique
-  setting_value String
-  description   String?
-  created_at    DateTime
-  updated_at    DateTime
-}
-
-model stock_reg {
-  id             String   @id @map("_id") @default(auto()) @mongodb.ObjectId
-  type           String
+model stockregs {
+  id             String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v              Int      @map("__v")
+  bdate          DateTime @mongodb.Date
+  billId         String   @mongodb.ObjectId
   bno            String
-  bdate          DateTime
-  supply         String
+  cgst           Float?
+  createdAt      DateTime @mongodb.Date
+  disc           Int?
+  /// Multiple data types found: Float: 28.6%, Int: 71.4% out of 7 sampled entries
+  discamt        Json?
+  firm           String
+  grate          Int
+  hsn            String
+  /// Multiple data types found: Float: 83.3%, Int: 16.7% out of 6 sampled entries
+  igst           Json?
   item           String
   item_narration String?
-  pno            String?
-  batch          String?
-  oem            String?
-  hsn            String
-  qty            Float
-  qtyh           Float
-  uom            String
-  rate           Float
-  grate          Float?
-  cgst           Float?
+  oem            String
+  qty            Int
+  qtyh           Int
+  rate           Int
   sgst           Float?
-  igst           Float?
-  disc           Float?
-  discamt        Float?
-  total          Float
-  mrp            Float?
-  expiry_date    DateTime?
-  project        String?
+  stockId        String   @mongodb.ObjectId
+  supply         String
+  /// Multiple data types found: Float: 18.2%, Int: 81.8% out of 11 sampled entries
+  total          Json
+  type           String
+  uom            String
+  updatedAt      DateTime @mongodb.Date
   user           String
-  firm           String
-  stock_id       String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  bill_id        String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  created_at     DateTime
-  updated_at     DateTime
-  firm_id        String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  bills          bills?   @relation(fields: [bill_id], references: [id])
-  stocks         stocks?  @relation(fields: [stock_id], references: [id])
-  firms          firms?   @relation(fields: [firm_id], references: [id])
 }
 
 model stocks {
-  id         String      @id @map("_id") @default(auto()) @mongodb.ObjectId
-  item       String
-  pno        String?
-  oem        String?
-  hsn        String
-  qty        Float
-  uom        String
-  rate       Float
-  grate      Float
-  total      Float
-  mrp        Float?
-  batches    String?
-  user       String
-  created_at DateTime
-  updated_at DateTime
-  firm_id    String?     @mongodb.ObjectId // Changed from Int to String for MongoDB
-  stock_reg  stock_reg[]
-  firms      firms?      @relation(fields: [firm_id], references: [id])
+  id        String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v         Int      @map("__v")
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  batch     Json?
+  createdAt DateTime @mongodb.Date
+  firm      String
+  grate     Int
+  hsn       String
+  item      String
+  oem       String
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  pno       Json?
+  qty       Int
+  rate      Int
+  total     Int
+  uom       String
+  updatedAt DateTime @mongodb.Date
+  user      String
+}
+
+model subcontractors {
+  id             String                       @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v              Int                          @map("__v")
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  activeProjects Json?
+  contactInfo    SubcontractorsContactInfo
+  createdAt      DateTime                     @mongodb.Date
+  firmId         String                       @mongodb.ObjectId
+  paymentDetails SubcontractorsPaymentDetails
+  rates          SubcontractorsRates
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  skills         Json?
+  status         String
+  taxInfo        SubcontractorsTaxInfo
+  updatedAt      DateTime                     @mongodb.Date
+  userId         String                       @mongodb.ObjectId
+
+  @@unique([userId, firmId], map: "userId_1_firmId_1")
+}
+
+model subs {
+  id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+}
+
+model subsModels {
+  id           String                @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v            Int                   @map("__v")
+  balance      Int
+  contactInfo  SubsModelsContactInfo
+  createdAt    DateTime              @mongodb.Date
+  firmId       String
+  isActive     Boolean
+  name         String
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  transactions Json?
+  updatedAt    DateTime              @mongodb.Date
+  userId       String
+}
+
+model subsTransactions {
+  id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v           Int      @map("__v")
+  amount      Int
+  category    String?
+  createdAt   DateTime @mongodb.Date
+  date        DateTime @mongodb.Date
+  description String
+  firmId      String
+  paidTo      String?
+  project     String
+  subsModelId String
+  type        String
+  updatedAt   DateTime @mongodb.Date
+  userId      String
+}
+
+model supabaseconfigs {
+  id                 String                        @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                  Int                           @map("__v")
+  configName         String
+  createdAt          DateTime                      @mongodb.Date
+  firmId             String                        @mongodb.ObjectId
+  isActive           Boolean
+  supabaseAnonKey    String
+  supabaseServiceKey String
+  supabaseUrl        String
+  testConnection     SupabaseconfigsTestConnection
+  updatedAt          DateTime                      @mongodb.Date
+  userId             String                        @mongodb.ObjectId
 }
 
 model users {
-  id         String   @id @map("_id") @default(auto()) @mongodb.ObjectId
-  fullname   String
-  username   String   @unique
-  email      String   @unique
-  password   String
-  firm_id    String?  @mongodb.ObjectId // Changed from Int to String for MongoDB
-  role       Int?
-  created_at DateTime
-  updated_at DateTime
-  bills      bills[]
-  firms      firms?   @relation(fields: [firm_id], references: [id])
+  id                   String    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                    Int       @map("__v")
+  activeSessions       String[]
+  createdAt            DateTime? @mongodb.Date
+  email                String    @unique(map: "email_1")
+  failedLoginAttempts  Int?
+  firmId               String?   @mongodb.ObjectId
+  fullName             String?
+  fullname             String?
+  lastLogin            DateTime? @mongodb.Date
+  lastPasswordChange   DateTime? @mongodb.Date
+  lastmailsent         DateTime? @mongodb.Date
+  password             String
+  passwordHistory      String[]
+  passwordResetExpires DateTime? @mongodb.Date
+  passwordResetToken   String?
+  refreshToken         String?
+  role                 String
+  roleId               String?
+  status               Int?
+  updatedAt            DateTime  @mongodb.Date
+  username             String    @unique(map: "username_1")
+}
+
+model wages {
+  id                  String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v                   Int      @map("__v")
+  accountNo           String
+  advance_recovery    Int
+  advance_recovery_id String?  @mongodb.ObjectId
+  bank                String
+  branch              String
+  cheque_no           String
+  createdAt           DateTime @mongodb.Date
+  employeeName        String
+  epf_deduction       Int
+  esic_deduction      Int
+  firmId              String   @mongodb.ObjectId
+  gross_salary        Int
+  ifsc                String
+  masterRollId        String   @mongodb.ObjectId
+  net_salary          Int
+  other_benefit       Int
+  other_deduction     Int
+  pDayWage            Int
+  paid_date           DateTime @mongodb.Date
+  paid_from_bank_ac   String
+  project             String
+  salary_month        DateTime @mongodb.Date
+  site                String
+  updatedAt           DateTime @mongodb.Date
+  userId              String   @mongodb.ObjectId
+  wage_Days           Int
 }

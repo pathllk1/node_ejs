@@ -34,6 +34,16 @@ function initAuth() {
         }
 
         container.appendChild(toast);
+        
+        // Add event listener to the toast for the close button using event delegation
+        toast.addEventListener('click', function(event) {
+            if (event.target.closest('.toast-close-btn')) {
+                event.preventDefault();
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }
+        });
+        
         setTimeout(() => toast.classList.remove('translate-x-full', 'opacity-0'), 10);
         setTimeout(() => {
             toast.classList.add('translate-x-full', 'opacity-0');
@@ -127,6 +137,7 @@ function initAuth() {
 
     window.startTokenTimer = startTokenTimer;
     window.stopTokenTimer = stopTokenTimer;
+    window.updateNavbar = updateNavbar;
 
     if (localStorage.getItem('access_token')) startTokenTimer();
 

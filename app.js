@@ -15,6 +15,8 @@ var usersRouter = require('./routes/users');
 var aiPyRouter = require('./routes/ai_py_route');
 var adminRouter = require('./routes/admin');
 var inventoryRouter = require('./routes/inventory');
+var ledgerRouter = require('./routes/ledger');
+var masterrollsRouter = require('./routes/masterrolls');
 
 var app = express();
 
@@ -50,6 +52,8 @@ app.use('/users', usersRouter);
 app.use('/ai', verifyToken, aiPyRouter);
 app.use('/admin', verifyToken, adminRouter);
 app.use('/inventory', verifyToken, inventoryRouter);
+app.use('/ledger', verifyToken, ledgerRouter);
+app.use('/masterrolls', verifyToken, masterrollsRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

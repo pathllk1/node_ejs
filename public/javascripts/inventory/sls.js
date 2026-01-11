@@ -153,8 +153,8 @@
         container.innerHTML = `
         <div class="h-[calc(100vh-140px)] flex flex-col bg-gray-50 text-slate-800 font-sans text-sm border border-gray-300 rounded-lg shadow-sm overflow-hidden">
             
-            <div class="bg-white border-b border-gray-200 p-2 flex justify-between items-center shadow-sm z-20">
-                <div class="flex items-center gap-4">
+            <div class="bg-white border-b border-gray-200 p-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm z-20">
+                <div class="flex flex-col sm:flex-row flex-wrap gap-2">
                     <div class="flex flex-col">
                         <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Bill No</label>
                         <input type="text" value="${state.meta.billNo}" readonly class="border border-gray-300 rounded px-2 py-1 text-xs font-bold w-32 bg-gray-100 text-slate-500 cursor-not-allowed" title="Auto-generated when saved">
@@ -171,10 +171,10 @@
                         </select>
                     </div>
                     
-                    <div class="flex items-center pt-4 gap-2">
+                    <div class="flex items-center gap-2 pt-4">
                         <label class="flex items-center cursor-pointer">
                             <input type="checkbox" id="reverse-charge-toggle" ${state.meta.reverseCharge ? 'checked' : ''} class="form-checkbox h-4 w-4 text-blue-600 rounded">
-                            <span class="ml-2 text-[10px] uppercase text-gray-500 font-bold tracking-wider">Reverse Charge</span>
+                            <span class="ml-2 text-[10px] uppercase text-gray-500 font-bold tracking-wider whitespace-nowrap">Reverse Charge</span>
                         </label>
                         <div class="text-[10px] font-bold px-2 py-1 rounded ${state.gstEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                             GST: ${state.gstEnabled ? 'ON' : 'OFF'}
@@ -182,10 +182,10 @@
                     </div>
                 </div>
 
-                <div class="flex gap-2">
-                    <button id="btn-other-charges" class="px-3 py-1.5 text-xs text-blue-600 border border-blue-200 bg-blue-50 rounded hover:bg-blue-100 transition-colors">Other Charges</button>
-                    <button id="btn-reset" class="px-3 py-1.5 text-xs text-red-600 border border-red-200 bg-red-50 rounded hover:bg-red-100 transition-colors">Reset</button>
-                    <button id="btn-save" class="px-4 py-1.5 bg-slate-800 text-white text-xs rounded hover:bg-slate-900 shadow font-medium flex items-center gap-2 transition-colors">
+                <div class="flex flex-wrap gap-2">
+                    <button id="btn-other-charges" class="px-3 py-1.5 text-xs text-blue-600 border border-blue-200 bg-blue-50 rounded hover:bg-blue-100 transition-colors whitespace-nowrap">Other Charges</button>
+                    <button id="btn-reset" class="px-3 py-1.5 text-xs text-red-600 border border-red-200 bg-red-50 rounded hover:bg-red-100 transition-colors whitespace-nowrap">Reset</button>
+                    <button id="btn-save" class="px-4 py-1.5 bg-slate-800 text-white text-xs rounded hover:bg-slate-900 shadow font-medium flex items-center gap-2 transition-colors whitespace-nowrap">
                         <span>💾</span> Save Invoice
                     </button>
                 </div>

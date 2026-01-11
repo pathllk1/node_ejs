@@ -34,6 +34,7 @@ router.post('/api/bills', verifyFirmAccess, controller.createBill);
 router.put('/api/bills/:id', verifyFirmAccess, controller.updateBill);
 router.get('/api/bills/next-number', verifyFirmAccess, controller.getNextBillNumber);
 router.get('/api/bills/:id', verifyFirmAccess, controller.getBillById);
+router.patch('/api/bills/:id/cancel', verifyFirmAccess, controller.cancelBill);
 router.get('/api/bills/:id/pdf', verifyFirmAccess, invoicePdfController.getBillPdfById);
 
 // --- API Routes: History ---

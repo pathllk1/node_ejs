@@ -49,6 +49,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mInventoryBtn && mInventoryDropdown) {
         mInventoryBtn.addEventListener('click', () => mInventoryDropdown.classList.toggle('hidden'));
     }
+    
+    // --- 4. Desktop HR Toggle ---
+    const hrBtn = document.getElementById('hr-menu-btn');
+    const hrDropdown = document.getElementById('hr-dropdown');
+    if (hrBtn && hrDropdown) {
+        hrBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hrDropdown.classList.toggle('hidden');
+        });
+        document.addEventListener('click', (e) => {
+            if (!hrBtn.contains(e.target) && !hrDropdown.contains(e.target)) {
+                hrDropdown.classList.add('hidden');
+            }
+        });
+    }
+    
+    // --- 5. Mobile HR Toggle ---
+    const mHrBtn = document.getElementById('mobile-hr-btn');
+    const mHrDropdown = document.getElementById('mobile-hr-dropdown');
+    if (mHrBtn && mHrDropdown) {
+        mHrBtn.addEventListener('click', () => mHrDropdown.classList.toggle('hidden'));
+    }
 });
 
 // --- AJAX NAVIGATION INTERCEPTOR ---
@@ -95,6 +117,12 @@ document.addEventListener('click', async (e) => {
         shouldIntercept = true;
     }
     else if (path === '/admin/firms-management') {
+        shouldIntercept = true;
+    }
+    else if (path === '/ledger') {
+        shouldIntercept = true;
+    }
+    else if (path === '/masterrolls') {
         shouldIntercept = true;
     }
 
@@ -164,8 +192,17 @@ document.addEventListener('click', async (e) => {
 
                 const mobileInventoryMenu = document.getElementById('mobile-inventory-menu');
                 const mobileInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
+                const hrDropdown = document.getElementById('hr-dropdown');
+                const mobileHrDropdown = document.getElementById('mobile-hr-dropdown');
                 if (mobileInventoryMenu) mobileInventoryMenu.classList.add('hidden');
                 if (mobileInventoryDropdown) mobileInventoryDropdown.classList.add('hidden');
+                if (hrDropdown) hrDropdown.classList.add('hidden');
+                if (mobileHrDropdown) mobileHrDropdown.classList.add('hidden');
+
+                // Update navbar state after AJAX navigation
+                if (typeof updateNavbar === 'function') {
+                    updateNavbar();
+                }
             }
 
         } catch (err) {
@@ -188,7 +225,11 @@ function closeAllMenus() {
     if (inventoryDropdown) inventoryDropdown.classList.add('hidden');
 
     const mobileInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
+    const hrDropdown = document.getElementById('hr-dropdown');
+    const mobileHrDropdown = document.getElementById('mobile-hr-dropdown');
     if (mobileInventoryDropdown) mobileInventoryDropdown.classList.add('hidden');
+    if (hrDropdown) hrDropdown.classList.add('hidden');
+    if (mobileHrDropdown) mobileHrDropdown.classList.add('hidden');
 }
 // Handle Back/Forward buttons
 window.addEventListener('popstate', () => {

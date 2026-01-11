@@ -272,6 +272,22 @@ try {
     console.error('Error inserting default GST setting:', e.message);
 }
 
+// 9. Firm Settings Table
+// Stores firm-specific settings including GST enable/disable status
+db.exec(`
+    CREATE TABLE IF NOT EXISTS firm_settings (
+        id INTEGER PRIMARY KEY,
+        firm_id INTEGER NOT NULL,
+        setting_key TEXT NOT NULL,
+        setting_value TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(firm_id) REFERENCES firms(id),
+        UNIQUE(firm_id, setting_key)
+    ) STRICT;
+`);
+
 // Bills Table Migration for reverse_charge
 try {
     db.exec(`ALTER TABLE bills ADD COLUMN reverse_charge INTEGER DEFAULT 0;`);
@@ -394,6 +410,43 @@ try {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_party_id ON bills(party_id);`);
 } catch (e) {
     console.error("Index creation error:", e.message);
+}
+
+// 10. Ledger Table
+db.exec(`
+    CREATE TABLE IF NOT EXISTS ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        voucher_id INTEGER NOT NULL,              -- Reference to source transaction (bills.id)
+        voucher_type TEXT NOT NULL,               -- Type of voucher (SALES, PURCHASE, JOURNAL, etc.)
+        voucher_no TEXT NOT NULL,                 -- Voucher number (bill number)
+        account_head TEXT NOT NULL,               -- Account name (e.g., Party Name, CGST, SGST, etc.)
+        account_type TEXT NOT NULL,               -- Account classification (DEBTOR, CREDITOR, TAX, EXPENSE, INCOME, ASSET, LIABILITY)
+        debit_amount REAL DEFAULT 0,              -- Debit amount
+        credit_amount REAL DEFAULT 0,             -- Credit amount
+        narration TEXT,                           -- Description of the transaction
+        bill_id INTEGER,                          -- Foreign key to bills table
+        party_id INTEGER,                         -- Foreign key to parties table
+        tax_type TEXT,                            -- Tax type (CGST, SGST, IGST)
+        tax_rate REAL,                            -- Tax rate
+        transaction_date TEXT NOT NULL,           -- Date of transaction
+        created_by TEXT NOT NULL,                 -- User who created the entry
+        firm_id INTEGER NOT NULL,                 -- Multi-tenancy support
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY(firm_id) REFERENCES firms(id) ON DELETE CASCADE,
+        FOREIGN KEY(bill_id) REFERENCES bills(id) ON DELETE SET NULL,
+        FOREIGN KEY(party_id) REFERENCES parties(id) ON DELETE SET NULL
+    ) STRICT;
+`);
+
+// Ledger Indexes for performance
+try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_firm_id ON ledger(firm_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_account_head_firm ON ledger(account_head, firm_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_voucher_id_firm ON ledger(voucher_id, firm_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_transaction_date ON ledger(transaction_date);`);
+} catch (e) {
+    console.error("Ledger index creation error:", e.message);
 }
 
 // Export the database instance

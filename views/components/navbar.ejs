@@ -88,7 +88,28 @@
                                      <a href="/inventory/bills"
                                         class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Bills</a>
                                      <a href="/inventory/sales-report"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>    
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>
+                                     <a href="/ledger"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">General Ledger</a>
+                                </div>
+                            </div>
+                            
+                            <div class="relative ml-2">
+                                <button id="hr-menu-btn"
+                                    class="flex items-center space-x-1 text-white hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium transition focus:outline-none">
+                                    <span>HR</span>
+                                    <svg class="w-4 h-4 transition-transform duration-200" id="hr-menu-icon" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+
+                                <div id="hr-dropdown"
+                                    class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 origin-top-right transition-all">
+                                    <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">HR</div>
+                                    <a href="/masterrolls"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Employee Management</a>
                                 </div>
                             </div>
                         </div>
@@ -196,6 +217,26 @@
                             class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Bills</a>
                         <a href="/inventory/sales-report"
                             class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>
+                        <a href="/ledger"
+                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">General Ledger</a>
+                    </div>
+                    
+                    <button id="mobile-hr-btn"
+                        class="w-full text-left text-white flex justify-between items-center px-3 py-2 rounded-md text-base font-medium hover:bg-white/20 transition focus:outline-none mt-1">
+                        <span>HR</span>
+                        <svg class="w-4 h-4 transition-transform duration-200" id="mobile-hr-icon" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    
+                    <div id="mobile-hr-dropdown"
+                        class="hidden pl-4 bg-black/10 rounded-md mt-1 pb-2">
+                        <div class="px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">HR
+                        </div>
+                        <a href="/masterrolls"
+                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Employee Management</a>
                     </div>
                 </div>
 

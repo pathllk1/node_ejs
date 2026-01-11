@@ -95,8 +95,13 @@
         let totalSales = 0;
         let totalItems = 0;
         let totalOtherCharges = 0;
+        let activeInvoiceCount = 0;
 
         filteredData.forEach(bill => {
+            // Only include active bills in totals
+            if (bill.status !== 'ACTIVE' && bill.status !== undefined) return;
+
+            activeInvoiceCount++;
             totalSales += bill.ntot || 0;
             
             if (bill.oth_chg_json) {
@@ -110,12 +115,12 @@
         });
 
         totalSalesEl.textContent = formatCurrency(totalSales);
-        totalInvoicesEl.textContent = filteredData.length;
-        avgInvoiceValueEl.textContent = formatCurrency(totalSales / filteredData.length);
+        totalInvoicesEl.textContent = activeInvoiceCount;
+        avgInvoiceValueEl.textContent = formatCurrency(activeInvoiceCount > 0 ? totalSales / activeInvoiceCount : 0);
         
         // For total items sold, we'll calculate from bill items if available
         // In a real implementation, we might have this data in the bills API
-        totalItemsSoldEl.textContent = filteredData.length; // Placeholder - would need to fetch bill items for accurate count
+        totalItemsSoldEl.textContent = activeInvoiceCount; // Placeholder - would need to fetch bill items for accurate count
     }
 
     // Render sales report table
@@ -144,19 +149,23 @@
             
             // Calculate tax amount: ntot - gtot = total tax amount (Indian GST standard)
             const taxAmount = (bill.ntot || 0) - (bill.gtot || 0);
+            const isCancelled = bill.status === 'CANCELLED' || bill.status === 'DELETED';
 
             return `
-                <tr class="hover:bg-blue-50 transition-colors">
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${bill.bno || ''}</td>
+                <tr class="hover:bg-blue-50 transition-colors ${isCancelled ? 'bg-gray-100 opacity-60' : ''}">
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${bill.bno || ''}
+                        ${isCancelled ? `<br><span class="text-[10px] uppercase px-1 rounded ${bill.status === 'CANCELLED' ? 'bg-orange-200 text-orange-800' : 'bg-red-200 text-red-800'}">${bill.status}</span>` : ''}
+                    </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${bill.bdate || ''}</td>
-                    <td class="px-4 py-3 text-sm text-gray-500">${bill.firm || ''}</td>
-                    <td class="px-4 py-3 text-sm text-gray-500">${bill.order_no || ''}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(bill.gtot || 0)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(taxAmount)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${formatCurrency(otherChargesTotal)}</td>
-                    <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">${formatCurrency(bill.ntot || 0)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${isCancelled ? '***' : (bill.firm || '')}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${isCancelled ? '***' : (bill.order_no || '')}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(bill.gtot || 0)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(taxAmount)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(otherChargesTotal)}</td>
+                    <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(bill.ntot || 0)}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">
-                        ${bill.reverseCharge ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Yes</span>' : '<span class="text-gray-400 text-xs">No</span>'}
+                        ${!isCancelled && bill.reverseCharge ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Yes</span>' : '<span class="text-gray-400 text-xs">No</span>'}
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-500">
                         <button class="view-btn text-blue-600 hover:text-blue-900 font-medium" data-id="${bill.id}">View</button>
@@ -988,16 +997,38 @@
             modalHtml += '</div>';
         }
         
-        modalHtml += '<div class="flex justify-end space-x-3 pt-4">';
-        modalHtml += '<button id="edit-bill" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">';
-        modalHtml += 'Edit Bill';
-        modalHtml += '</button>';
+        modalHtml += '<div class="flex justify-between items-center pt-4 border-t">';
+        
+        if (bill.status === 'ACTIVE') {
+            modalHtml += '<div class="flex space-x-2">';
+            modalHtml += '<button id="cancel-bill" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm font-medium">';
+            modalHtml += 'Cancel Bill';
+            modalHtml += '</button>';
+            modalHtml += '<button id="delete-bill" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-medium">';
+            modalHtml += 'Delete Bill';
+            modalHtml += '</button>';
+            modalHtml += '<button id="edit-bill" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">';
+            modalHtml += 'Edit Bill';
+            modalHtml += '</button>';
+            modalHtml += '</div>';
+        } else {
+            modalHtml += '<div class="flex items-center space-x-2">';
+            modalHtml += `<span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${bill.status === 'CANCELLED' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}">${bill.status}</span>`;
+            if (bill.cancellation_reason) {
+                modalHtml += `<span class="text-xs text-gray-500 italic">Reason: ${bill.cancellation_reason}</span>`;
+            }
+            modalHtml += '</div>';
+        }
+
+        modalHtml += '<div class="flex space-x-2">';
         modalHtml += '<button id="export-bill-pdf" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">';
         modalHtml += 'Export PDF';
         modalHtml += '</button>';
         modalHtml += '<button id="export-bill-excel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">';
         modalHtml += 'Export as Excel';
         modalHtml += '</button>';
+        modalHtml += '</div>';
+        modalHtml += '</div>';
         modalHtml += '<button id="close-bill-modal-bottom" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-medium">';
         modalHtml += 'Close';
         modalHtml += '</button>';
@@ -1010,17 +1041,35 @@
         // Add modal to document
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         
-        // Add event listeners
-        document.getElementById('close-bill-modal').onclick = closeBillModal;
-        document.getElementById('close-bill-modal-bottom').onclick = closeBillModal;
-        document.getElementById('export-bill-pdf').onclick = () => exportBillToPdf(bill);
-        document.getElementById('export-bill-excel').onclick = () => exportBillToExcel(bill);
-        document.getElementById('edit-bill').onclick = () => {
-            // Close the modal first
-            closeBillModal();
-            // Navigate to the sales page in edit mode
-            window.location.href = `/inventory/sales?edit=${bill.id}`;
-        };
+        // Add event listeners - check if elements exist before attaching
+        const closeModalTop = document.getElementById('close-bill-modal');
+        const closeModalBottom = document.getElementById('close-bill-modal-bottom');
+        const exportPdfBtn = document.getElementById('export-bill-pdf');
+        const exportExcelBtn = document.getElementById('export-bill-excel');
+        const editBillBtn = document.getElementById('edit-bill');
+        const cancelBillBtn = document.getElementById('cancel-bill');
+        const deleteBillBtn = document.getElementById('delete-bill');
+        
+        if (closeModalTop) closeModalTop.onclick = closeBillModal;
+        if (closeModalBottom) closeModalBottom.onclick = closeBillModal;
+        if (exportPdfBtn) exportPdfBtn.onclick = () => exportBillToPdf(bill);
+        if (exportExcelBtn) exportExcelBtn.onclick = () => exportBillToExcel(bill);
+        
+        if (editBillBtn) {
+            editBillBtn.onclick = () => {
+                // Close the modal first
+                closeBillModal();
+                // Navigate to the sales page in edit mode
+                window.location.href = `/inventory/sales?edit=${bill.id}`;
+            };
+        }
+
+        if (cancelBillBtn) {
+            cancelBillBtn.onclick = () => handleBillCancellation(bill, 'cancel');
+        }
+        if (deleteBillBtn) {
+            deleteBillBtn.onclick = () => handleBillCancellation(bill, 'delete');
+        }
         
         // Close modal on backdrop click
         document.getElementById('bill-details-modal').onclick = function(e) {
@@ -1030,6 +1079,38 @@
         };
     }
     
+    async function handleBillCancellation(bill, action) {
+        const actionText = action === 'delete' ? 'delete' : 'cancel';
+        const reason = prompt(`Are you sure you want to ${actionText} this bill? This action is irreversible and will restore item quantities to stock and remove ledger entries.\n\nPlease enter a reason:`);
+        
+        if (reason === null) return; // User cancelled prompt
+        
+        if (!reason.trim()) {
+            alert('A reason is required to ' + actionText + ' the bill.');
+            return;
+        }
+
+        try {
+            const response = await window.api.patch(`/inventory/api/bills/${bill.id}/cancel`, {
+                cancellation_reason: reason,
+                action: action
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || `Failed to ${actionText} bill`);
+            }
+
+            alert(`Bill ${actionText}ed successfully.`);
+            closeBillModal();
+            fetchSalesData(); // Refresh the report
+        } catch (error) {
+            console.error(`Error ${actionText}ing bill:`, error);
+            alert(`Error ${actionText}ing bill: ` + error.message);
+        }
+    }
+
     function renderItemsTable(items) {
         let html = '';
         items.forEach(item => {
@@ -1086,8 +1167,10 @@
         
         // Data rows
         filteredData.forEach(bill => {
+            const isCancelled = bill.status === 'CANCELLED' || bill.status === 'DELETED';
+            
             let otherChargesTotal = 0;
-            if (bill.oth_chg_json) {
+            if (!isCancelled && bill.oth_chg_json) {
                 try {
                     const otherCharges = JSON.parse(bill.oth_chg_json);
                     otherChargesTotal = otherCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
@@ -1098,7 +1181,7 @@
             
             // Calculate tax amount based on GST status
             let taxAmount = 0;
-            if (gstEnabled) {
+            if (!isCancelled && gstEnabled) {
                 // Calculate tax amount using stored values: CGST+SGST for intra-state, IGST for inter-state
                 if (bill.btype && bill.btype.toLowerCase().includes('intra')) {
                     taxAmount = (bill.cgst || 0) + (bill.sgst || 0);
@@ -1110,13 +1193,13 @@
             ws_data.push([
                 bill.bno || '',
                 bill.bdate || '',
-                bill.firm || '',
-                bill.order_no || '',
-                bill.gtot || 0,
-                taxAmount,
-                otherChargesTotal,
-                bill.ntot || 0,
-                bill.reverseCharge ? 'Yes' : 'No'
+                isCancelled ? `[${bill.status}]` : (bill.firm || ''),
+                isCancelled ? '***' : (bill.order_no || ''),
+                isCancelled ? 0 : (bill.gtot || 0),
+                isCancelled ? 0 : taxAmount,
+                isCancelled ? 0 : otherChargesTotal,
+                isCancelled ? 0 : (bill.ntot || 0),
+                isCancelled ? '***' : (bill.reverseCharge ? 'Yes' : 'No')
             ]);
         });
 

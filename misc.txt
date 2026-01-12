@@ -8,3 +8,22 @@
 npx prisma generate --schema prisma/mongo-schema.prisma
 npx prisma studio --schema prisma/mongo-schema.prisma
 npx prisma generate --schema prisma/postgres-schema.prisma
+
+
+cd python_service
+linux
+
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+sudo apt install python3-venv  # Ensure the tool is installed
+python3 -m venv venv           # Create the folder
+source venv/bin/activate       # Turn it on
+pip install uvicorn            # Install the server
+pip install -r requirements.txt # Install your libraries
+
+windows
+python -m venv venv
+.\venv\Scripts\Activate.ps1

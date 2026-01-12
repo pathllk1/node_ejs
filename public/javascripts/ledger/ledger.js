@@ -44,9 +44,18 @@ async function loadAccountBalances() {
     }
 }
 
-async function loadAccountDetails(accountHead) {
+async function loadAccountDetails(accountHead, startDate = null, endDate = null) {
     try {
-        const response = await window.api.get(`/ledger/api/details/${encodeURIComponent(accountHead)}`);
+        let url = `/ledger/api/details/${encodeURIComponent(accountHead)}`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        const response = await window.api.get(url);
         const details = await response.json();
         
         if (response.ok) {
@@ -101,11 +110,9 @@ function renderPagination() {
     const endIndex = Math.min(currentPage * state.itemsPerPage, state.filteredAccounts.length);
     
     if (elements.currentPageStart) elements.currentPageStart.textContent = startIndex;
-    if (elements.currentPageEnd) elements.currentPageEnd.textContent = endIndex;
     if (elements.totalRecords) elements.totalRecords.textContent = state.filteredAccounts.length;
     
     if (elements.currentPageStartDesktop) elements.currentPageStartDesktop.textContent = startIndex;
-    if (elements.currentPageEndDesktop) elements.currentPageEndDesktop.textContent = endIndex;
     if (elements.totalRecordsDesktop) elements.totalRecordsDesktop.textContent = state.filteredAccounts.length;
     
     // Update pagination buttons
@@ -140,6 +147,79 @@ function renderPagination() {
             };
             elements.pageNumbers.appendChild(pageLink);
         }
+    }
+}
+
+// --- EXPORT FUNCTIONS ---
+
+async function exportAccountLedgerPdf(accountHead, startDate = null, endDate = null) {
+    try {
+        // Show loading state
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        if (exportPdfBtn) {
+            exportPdfBtn.disabled = true;
+            exportPdfBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...';
+        }
+        
+        let url = `/ledger/api/export-pdf/${encodeURIComponent(accountHead)}`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        const response = await window.api.get(url);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Export failed with status ${response.status}`);
+        }
+        
+        // Create a blob from the PDF response
+        const blob = await response.blob();
+        const urlObject = window.URL.createObjectURL(blob);
+        
+        // Create a temporary link and trigger download
+        const a = document.createElement('a');
+        a.href = urlObject;
+        
+        // Create filename with date range if provided
+        let filename = `Ledger_${accountHead.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        if (startDate && endDate) {
+            filename += `_from_${startDate}_to_${endDate}`;
+        } else if (startDate) {
+            filename += `_from_${startDate}`;
+        } else if (endDate) {
+            filename += `_to_${endDate}`;
+        }
+        filename += '.pdf';
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(urlObject);
+        document.body.removeChild(a);
+        
+        // Restore button
+        if (exportPdfBtn) {
+            exportPdfBtn.disabled = false;
+            exportPdfBtn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg> Export PDF';
+        }
+    } catch (err) {
+        console.error('PDF export failed:', err);
+        
+        // Restore button
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        if (exportPdfBtn) {
+            exportPdfBtn.disabled = false;
+            exportPdfBtn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg> Export PDF';
+        }
+        
+        alert('PDF export failed: ' + err.message);
     }
 }
 
@@ -339,7 +419,36 @@ function renderAccountDetails(details) {
         }
     });
     
+    // Extract the account head from the modal title
+    const accountHead = elements.modalTitle.textContent.split(' - ')[0];
+    
     elements.modalBody.innerHTML = `
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex space-x-2">
+                    <div class="flex items-center space-x-1">
+                        <label class="text-xs font-medium text-gray-700">From:</label>
+                        <input type="date" id="startDateFilter" class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <label class="text-xs font-medium text-gray-700">To:</label>
+                        <input type="date" id="endDateFilter" class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button id="applyDateFilter" class="px-2 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:ring-offset-1 transition-colors duration-150">
+                        Apply
+                    </button>
+                    <button id="clearDateFilter" class="px-2 py-1.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-500 focus:ring-offset-1 transition-colors duration-150">
+                        Clear
+                    </button>
+                </div>
+                <button id="exportPdfBtn" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-red-500 focus:ring-offset-1 transition-colors duration-150 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                    Export PDF
+                </button>
+            </div>
+        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -379,6 +488,85 @@ function renderAccountDetails(details) {
             </table>
         </div>
     `;
+    
+    // Add event listener for the export PDF button
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', () => {
+            // Get current date range filters if they exist
+            const startDate = document.getElementById('startDateFilter')?.value;
+            const endDate = document.getElementById('endDateFilter')?.value;
+            exportAccountLedgerPdf(accountHead, startDate, endDate);
+        });
+    }
+    
+    // Add event listeners for date filter controls
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+    const applyFilterBtn = document.getElementById('applyDateFilter');
+    const clearFilterBtn = document.getElementById('clearDateFilter');
+    
+    if (startDateInput && endDateInput && applyFilterBtn) {
+        applyFilterBtn.addEventListener('click', async () => {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+                alert('Start date cannot be greater than end date');
+                return;
+            }
+            
+            // Show loading state
+            elements.modalBody.innerHTML = `
+                <div class="flex flex-col items-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                    <p class="text-gray-600">Loading filtered account details...</p>
+                </div>
+            `;
+            
+            // Reload account details with date range
+            const filteredDetails = await loadAccountDetails(accountHead, startDate, endDate);
+            
+            if (filteredDetails.length > 0) {
+                renderAccountDetails(filteredDetails);
+            } else {
+                elements.modalBody.innerHTML = `
+                    <div class="py-12 text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p class="text-lg font-medium text-gray-700">No transactions found</p>
+                        <p class="text-sm text-gray-500 mt-1">There are no transactions recorded for this account in the selected date range.</p>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    if (clearFilterBtn) {
+        clearFilterBtn.addEventListener('click', async () => {
+            // Clear the date inputs
+            if (startDateInput) startDateInput.value = '';
+            if (endDateInput) endDateInput.value = '';
+            
+            // Reload account details without date range
+            const allDetails = await loadAccountDetails(accountHead);
+            
+            if (allDetails.length > 0) {
+                renderAccountDetails(allDetails);
+            } else {
+                elements.modalBody.innerHTML = `
+                    <div class="py-12 text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p class="text-lg font-medium text-gray-700">No transactions found</p>
+                        <p class="text-sm text-gray-500 mt-1">There are no transactions recorded for this account.</p>
+                    </div>
+                `;
+            }
+        });
+    }
 }
 
 function getVoucherTypeColor(voucherType) {
@@ -468,10 +656,8 @@ function initLedger() {
         nextPage: document.getElementById('nextPage'),
         pageNumbers: document.getElementById('pageNumbers'),
         currentPageStart: document.getElementById('currentPageStart'),
-        currentPageEnd: document.getElementById('currentPageEnd'),
         totalRecords: document.getElementById('totalRecords'),
         currentPageStartDesktop: document.getElementById('currentPageStartDesktop'),
-        currentPageEndDesktop: document.getElementById('currentPageEndDesktop'),
         totalRecordsDesktop: document.getElementById('totalRecordsDesktop')
     };
     

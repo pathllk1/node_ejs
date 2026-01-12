@@ -8,43 +8,65 @@
         <p class="text-gray-600 mt-2">Comprehensive view of all account transactions</p>
     </div>
 
-    <!-- Search and Filter Controls -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div class="flex flex-col md:flex-row gap-4">
-            <div class="flex-1">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Search Accounts</label>
-                <div class="relative">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        placeholder="Search by account head, type..." 
-                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                    >
-                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+    <!-- Data Table with Gradient Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <!-- Compact Toolbar -->
+        <div class="bg-gray-50 px-4 py-2 flex flex-col sm:flex-row items-center justify-between border-b border-gray-200 gap-2">
+            <div class="flex flex-1 items-center gap-2">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-medium text-gray-700 hidden sm:block">Search:</label>
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            placeholder="Search accounts..." 
+                            class="text-sm pl-8 pr-2 py-1.5 w-40 sm:w-48 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                        >
+                        <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-medium text-gray-700 hidden sm:block">Type:</label>
+                    <select id="accountTypeFilter" class="text-sm py-1.5 px-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition w-32">
+                        <option value="">All</option>
+                        <option value="ASSET">Asset</option>
+                        <option value="LIABILITY">Liability</option>
+                        <option value="EQUITY">Equity</option>
+                        <option value="INCOME">Income</option>
+                        <option value="EXPENSE">Expense</option>
+                        <option value="DEBTOR">Debtor</option>
+                        <option value="CREDITOR">Creditor</option>
+                        <option value="TAX">Tax</option>
+                    </select>
                 </div>
             </div>
             
-            <div class="w-48">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
-                <select id="accountTypeFilter" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                    <option value="">All Types</option>
-                    <option value="ASSET">Asset</option>
-                    <option value="LIABILITY">Liability</option>
-                    <option value="EQUITY">Equity</option>
-                    <option value="INCOME">Income</option>
-                    <option value="EXPENSE">Expense</option>
-                    <option value="DEBTOR">Debtor</option>
-                    <option value="CREDITOR">Creditor</option>
-                    <option value="TAX">Tax</option>
-                </select>
+            <div class="flex items-center gap-2">
+                <div class="text-xs text-gray-700 hidden sm:block">
+                    <span id="paginationInfoDesktop">Showing <span id="currentPageStartDesktop">0</span> of <span id="totalRecordsDesktop">0</span></span>
+                </div>
+                <div class="text-xs text-gray-700 sm:hidden">
+                    <span id="paginationInfo">Show <span id="currentPageStart">0</span> of <span id="totalRecords">0</span></span>
+                </div>
+                <nav id="paginationControls" class="relative z-0 inline-flex rounded shadow-sm -space-x-px" aria-label="Pagination">
+                    <a href="#" id="prevPage" class="pagination-btn relative inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 border border-gray-300 rounded-l">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                    <span id="pageNumbers" class="flex"></span>
+                    <a href="#" id="nextPage" class="pagination-btn relative inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 border border-gray-300 rounded-r">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                </nav>
             </div>
         </div>
-    </div>
-
-    <!-- Data Table with Gradient Header -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
@@ -70,41 +92,6 @@
                     </tr>
                 </tbody>
             </table>
-        </div>
-        
-        <!-- Pagination Controls -->
-        <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
-            <div class="flex-1 flex items-center justify-between sm:hidden">
-                <div class="sm:block">
-                    <p id="paginationInfo" class="text-sm text-gray-700">
-                        Showing <span id="currentPageStart">0</span> to <span id="currentPageEnd">0</span> of <span id="totalRecords">0</span> results
-                    </p>
-                </div>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <p id="paginationInfoDesktop" class="text-sm text-gray-700">
-                        Showing <span id="currentPageStartDesktop">0</span> to <span id="currentPageEndDesktop">0</span> of <span id="totalRecordsDesktop">0</span> results
-                    </p>
-                </div>
-                <div>
-                    <nav id="paginationControls" class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        <a href="#" id="prevPage" class="pagination-btn relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                            <span class="sr-only">Previous</span>
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </a>
-                        <span id="pageNumbers" class="flex"></span>
-                        <a href="#" id="nextPage" class="pagination-btn relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                            <span class="sr-only">Next</span>
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </a>
-                    </nav>
-                </div>
-            </div>
         </div>
     </div>
 </div>

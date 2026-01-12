@@ -6,8 +6,8 @@
     "start": "node ./bin/www",
     "build:css": "npx @tailwindcss/cli -i ./styles/input.css -o ./public/stylesheets/style.css",
     "watch:css": "npx @tailwindcss/cli -i ./styles/input.css -o ./public/stylesheets/style.css --watch",
-    "watch:server": "nodemon ./bin/www",
-    "watch:python": "cd python_service && ./venv/bin/python -m uvicorn main:app --reload --port 5200",
+    "watch:server": "nodemon ./bin/www --ignore venv --ignore node_modules",
+    "watch:python": "cd python_service && venv\\Scripts\\python -m uvicorn main:app --reload --port 5200",
     "dev": "concurrently \"npm run watch:css\" \"npm run watch:server\" \"npm run watch:python\""
   },
   "dependencies": {

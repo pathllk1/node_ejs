@@ -1,4 +1,6 @@
 const db = require('../../config/db');
+// Export the function from the pdfController
+exports.exportAccountLedgerPdf = require('./pdfController').exportAccountLedgerPdf;
 
 // Helper to get current ISO time
 const now = () => new Date().toISOString();
@@ -55,18 +57,32 @@ exports.getLedgerAccounts = (req, res) => {
 exports.getAccountDetails = (req, res) => {
     try {
         const { account_head } = req.params;
+        const { start_date, end_date } = req.query;
         if (!req.user || !req.user.firm_id) {
             return res.status(403).json({ error: 'User is not associated with any firm' });
         }
 
-        const query = `
+        let query = `
             SELECT * FROM ledger 
             WHERE firm_id = ? AND account_head = ?
-            ORDER BY transaction_date DESC, created_at DESC
         `;
         
+        const queryParams = [req.user.firm_id, account_head];
+        
+        if (start_date) {
+            query += ` AND transaction_date >= ?`;
+            queryParams.push(start_date);
+        }
+        
+        if (end_date) {
+            query += ` AND transaction_date <= ?`;
+            queryParams.push(end_date);
+        }
+        
+        query += ` ORDER BY transaction_date DESC, created_at DESC`;
+        
         const stmt = db.prepare(query);
-        const records = stmt.all(req.user.firm_id, account_head);
+        const records = stmt.all(...queryParams);
         
         res.json(records);
     } catch (err) {

@@ -33,6 +33,98 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', (e) => {
             if (!inventoryBtn.contains(e.target) && !inventoryDropdown.contains(e.target)) {
                 inventoryDropdown.classList.add('hidden');
+                // Also close nested submenus
+                document.querySelectorAll('#stocks-submenu, #bills-submenu, #ledger-submenu').forEach(submenu => {
+                    submenu.classList.add('hidden');
+                });
+            }
+        });
+    }
+
+    // --- Nested Inventory Submenus ---
+    const stocksSubmenuBtn = document.getElementById('stocks-submenu-btn');
+    const stocksSubmenu = document.getElementById('stocks-submenu');
+    if (stocksSubmenuBtn && stocksSubmenu) {
+        stocksSubmenuBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Close other submenus
+            document.querySelectorAll('#bills-submenu, #ledger-submenu').forEach(submenu => {
+                submenu.classList.add('hidden');
+            });
+            // Toggle current submenu
+            stocksSubmenu.classList.toggle('hidden');
+        });
+
+        // Mouse enter event for hover effect
+        stocksSubmenuBtn.addEventListener('mouseenter', () => {
+            if (window.innerWidth > 768) { // Only on desktop
+                stocksSubmenu.classList.remove('hidden');
+            }
+        });
+
+        // Mouse leave event to close submenu
+        stocksSubmenuBtn.parentElement.addEventListener('mouseleave', () => {
+            if (window.innerWidth > 768) { // Only on desktop
+                stocksSubmenu.classList.add('hidden');
+            }
+        });
+    }
+
+    const billsSubmenuBtn = document.getElementById('bills-submenu-btn');
+    const billsSubmenu = document.getElementById('bills-submenu');
+    if (billsSubmenuBtn && billsSubmenu) {
+        billsSubmenuBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Close other submenus
+            document.querySelectorAll('#stocks-submenu, #ledger-submenu').forEach(submenu => {
+                submenu.classList.add('hidden');
+            });
+            // Toggle current submenu
+            billsSubmenu.classList.toggle('hidden');
+        });
+
+        // Mouse enter event for hover effect
+        billsSubmenuBtn.addEventListener('mouseenter', () => {
+            if (window.innerWidth > 768) { // Only on desktop
+                billsSubmenu.classList.remove('hidden');
+            }
+        });
+
+        // Mouse leave event to close submenu
+        billsSubmenuBtn.parentElement.addEventListener('mouseleave', () => {
+            if (window.innerWidth > 768) { // Only on desktop
+                billsSubmenu.classList.add('hidden');
+            }
+        });
+    }
+
+    const ledgerSubmenuBtn = document.getElementById('ledger-submenu-btn');
+    const ledgerSubmenu = document.getElementById('ledger-submenu');
+    if (ledgerSubmenuBtn && ledgerSubmenu) {
+        ledgerSubmenuBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Close other submenus
+            document.querySelectorAll('#stocks-submenu, #bills-submenu').forEach(submenu => {
+                submenu.classList.add('hidden');
+            });
+            // Toggle current submenu
+            ledgerSubmenu.classList.toggle('hidden');
+        });
+
+        // Mouse enter event for hover effect
+        ledgerSubmenuBtn.addEventListener('mouseenter', () => {
+            if (window.innerWidth > 768) { // Only on desktop
+                ledgerSubmenu.classList.remove('hidden');
+            }
+        });
+
+        // Mouse leave event to close submenu
+        ledgerSubmenuBtn.parentElement.addEventListener('mouseleave', () => {
+            if (window.innerWidth > 768) { // Only on desktop
+                ledgerSubmenu.classList.add('hidden');
             }
         });
     }
@@ -49,7 +141,50 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mInventoryBtn && mInventoryDropdown) {
         mInventoryBtn.addEventListener('click', () => mInventoryDropdown.classList.toggle('hidden'));
     }
-    
+
+    // --- Mobile Inventory Submenus ---
+    const mobileStocksBtn = document.getElementById('mobile-stocks-btn');
+    const mobileStocksSubmenu = document.getElementById('mobile-stocks-submenu');
+    if (mobileStocksBtn && mobileStocksSubmenu) {
+        mobileStocksBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Close other mobile submenus
+            document.querySelectorAll('#mobile-bills-submenu, #mobile-ledger-submenu').forEach(submenu => {
+                submenu.classList.add('hidden');
+            });
+            // Toggle current submenu
+            mobileStocksSubmenu.classList.toggle('hidden');
+        });
+    }
+
+    const mobileBillsBtn = document.getElementById('mobile-bills-btn');
+    const mobileBillsSubmenu = document.getElementById('mobile-bills-submenu');
+    if (mobileBillsBtn && mobileBillsSubmenu) {
+        mobileBillsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Close other mobile submenus
+            document.querySelectorAll('#mobile-stocks-submenu, #mobile-ledger-submenu').forEach(submenu => {
+                submenu.classList.add('hidden');
+            });
+            // Toggle current submenu
+            mobileBillsSubmenu.classList.toggle('hidden');
+        });
+    }
+
+    const mobileLedgerBtn = document.getElementById('mobile-ledger-btn');
+    const mobileLedgerSubmenu = document.getElementById('mobile-ledger-submenu');
+    if (mobileLedgerBtn && mobileLedgerSubmenu) {
+        mobileLedgerBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Close other mobile submenus
+            document.querySelectorAll('#mobile-stocks-submenu, #mobile-bills-submenu').forEach(submenu => {
+                submenu.classList.add('hidden');
+            });
+            // Toggle current submenu
+            mobileLedgerSubmenu.classList.toggle('hidden');
+        });
+    }
+
     // --- 4. Desktop HR Toggle ---
     const hrBtn = document.getElementById('hr-menu-btn');
     const hrDropdown = document.getElementById('hr-dropdown');

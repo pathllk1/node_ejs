@@ -200,7 +200,25 @@
                             <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Bill To</label>
                         </div>
                         <div id="party-display">
-                            ${renderPartyCard()}
+                            <div class="group bg-blue-50 p-3 rounded border border-blue-200 shadow-sm">
+                                <div>
+                                    <h3 class="font-bold text-sm text-blue-900 truncate">Loading...</h3>
+                                    <p class="text-[11px] text-gray-600 truncate mt-1">Please wait</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200">GST: -</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="bg-gray-100 text-gray-800 text-[10px] font-mono px-2 py-0.5 rounded border border-gray-200">
+                                            BAL: Loading...
+                                        </span>
+                                    </div>
+                                    <div class="mt-2 text-right">
+                                        <button id="btn-change-party" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 hover:border-blue-300 whitespace-nowrap">
+                                            Change
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -327,6 +345,17 @@
         </div>
         `;
 
+        // After rendering the layout, update the party display with async data
+        const partyContainer = document.getElementById('party-display');
+        if (partyContainer) {
+            renderPartyCard().then(html => {
+                partyContainer.innerHTML = html;
+                
+                const changeBtn = document.getElementById('btn-change-party');
+                if (changeBtn) changeBtn.addEventListener('click', openPartyModal);
+            });
+        }
+        
         attachGlobalListeners();
         attachTableListeners();
     }
@@ -363,16 +392,37 @@
         }).join('');
     }
     
-    function renderPartyCard() {
+    async function renderPartyCard() {
         if (state.selectedParty) {
+            // Fetch party balance
+            let balanceInfo = null;
+            try {
+                const balanceResponse = await window.api.get(`/inventory/api/parties/${state.selectedParty.id}/balance`);
+                balanceInfo = await balanceResponse.json();
+            } catch (error) {
+                console.error('Error fetching party balance:', error);
+                balanceInfo = { balance: 0, balanceType: 'Credit', balanceFormatted: '₹0.00' };
+            }
+            
             return `
-                <div class="relative group bg-blue-50 p-3 rounded border border-blue-200 shadow-sm">
-                    <h3 class="font-bold text-sm text-blue-900 truncate" title="${state.selectedParty.firm}">${state.selectedParty.firm}</h3>
-                    <p class="text-[11px] text-gray-600 truncate mt-1">${state.selectedParty.addr}</p>
-                    <div class="flex items-center gap-2 mt-2">
-                        <span class="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200">GST: ${state.selectedParty.gstin}</span>
+                <div class="group bg-blue-50 p-3 rounded border border-blue-200 shadow-sm">
+                    <div>
+                        <h3 class="font-bold text-sm text-blue-900 truncate" title="${state.selectedParty.firm}">${state.selectedParty.firm}</h3>
+                        <p class="text-[11px] text-gray-600 truncate mt-1">${state.selectedParty.addr}</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200">GST: ${state.selectedParty.gstin}</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="${balanceInfo.balance >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} text-[10px] font-mono px-2 py-0.5 rounded border ${balanceInfo.balance >= 0 ? 'border-green-200' : 'border-red-200'}">
+                                BAL: ${balanceInfo.balanceType} ${balanceInfo.balanceFormatted}
+                            </span>
+                        </div>
+                        <div class="mt-2 text-right">
+                            <button id="btn-change-party" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 hover:border-blue-300 whitespace-nowrap">
+                                Change
+                            </button>
+                        </div>
                     </div>
-                    <button id="btn-change-party" class="absolute top-2 right-2 text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 hover:border-blue-300">Change</button>
                 </div>
             `;
         }
@@ -1798,10 +1848,14 @@
                     document.getElementById('modal-backdrop').classList.add('hidden');
 
                     const partyContainer = document.getElementById('party-display');
-                    if (partyContainer) partyContainer.innerHTML = renderPartyCard();
-
-                    const changeBtn = document.getElementById('btn-change-party');
-                    if (changeBtn) changeBtn.addEventListener('click', openPartyModal);
+                    if (partyContainer) {
+                        renderPartyCard().then(html => {
+                            partyContainer.innerHTML = html;
+                            
+                            const changeBtn = document.getElementById('btn-change-party');
+                            if (changeBtn) changeBtn.addEventListener('click', openPartyModal);
+                        });
+                    }
                 });
             });
         };
@@ -1952,7 +2006,14 @@
                 state.selectedParty = state.parties.find(p => p.firm === data.firm);
                 state.historyCache = {};
                 const partyContainer = document.getElementById('party-display');
-                if (partyContainer) partyContainer.innerHTML = renderPartyCard();
+                if (partyContainer) {
+                    renderPartyCard().then(html => {
+                        partyContainer.innerHTML = html;
+                        
+                        const changeBtn = document.getElementById('btn-change-party');
+                        if (changeBtn) changeBtn.addEventListener('click', openPartyModal);
+                    });
+                }
                 document.getElementById('modal-backdrop').classList.add('hidden');
 
             } catch (err) {
@@ -2000,8 +2061,7 @@
         const partyBtn = document.getElementById('btn-select-party');
         if (partyBtn) partyBtn.onclick = openPartyModal;
 
-        const changePartyBtn = document.getElementById('btn-change-party');
-        if (changePartyBtn) changePartyBtn.addEventListener('click', openPartyModal);
+        // Note: The change party button event listener is handled in renderPartyCard() after async rendering
         
         // Other charges button
         const otherChargesBtn = document.getElementById('btn-other-charges');

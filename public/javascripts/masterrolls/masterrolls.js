@@ -11,6 +11,19 @@
      * 1. TOAST NOTIFICATION SYSTEM
      * ==========================================
      */
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        try {
+            // Handle both ISO strings and other formats
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '-'; // Invalid date
+            return date.toLocaleDateString();
+        } catch (e) {
+            console.warn('Invalid date format:', dateString);
+            return '-';
+        }
+    }
+
     function showToast(message, type = 'success') {
         const container = document.getElementById('toast-container');
         const template = document.getElementById('toast-template');
@@ -297,9 +310,9 @@
         document.getElementById('detailStatus').textContent = employee.status || '-';
         
         // Format dates
-        document.getElementById('detailDateOfBirth').textContent = employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString() : '-';
-        document.getElementById('detailDateOfJoining').textContent = employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : '-';
-        document.getElementById('detailDateOfExit').textContent = employee.dateOfExit ? new Date(employee.dateOfExit).toLocaleDateString() : '-';
+        document.getElementById('detailDateOfBirth').textContent = formatDate(employee.dateOfBirth);
+        document.getElementById('detailDateOfJoining').textContent = formatDate(employee.dateOfJoining);
+        document.getElementById('detailDateOfExit').textContent = formatDate(employee.dateOfExit);
         
         document.getElementById('detailPDayWage').textContent = employee.pDayWage ? `₹${employee.pDayWage}` : '-';
         document.getElementById('detailBank').textContent = employee.bank || '-';
@@ -340,14 +353,17 @@
             title.textContent = 'Edit Employee: ' + employee.employeeName;
             document.getElementById('formEmployeeId').value = employee.id;
             
-            // Fill form fields
-            const formData = new FormData(form);
-            for (let [key, value] of formData.entries()) {
-                if (employee[key] !== undefined) {
+            // Fill form fields by iterating through employee properties
+            for (let key in employee) {
+                if (employee.hasOwnProperty(key)) {
                     const input = form.elements[key];
                     if (input) {
                         if (input.type === 'date' && employee[key]) {
-                            input.value = new Date(employee[key]).toISOString().split('T')[0];
+                            // Convert date string to YYYY-MM-DD format for input
+                            const dateStr = new Date(employee[key]).toISOString().split('T')[0];
+                            input.value = dateStr;
+                        } else if (input.type === 'select-one') {
+                            input.value = employee[key] || '';
                         } else {
                             input.value = employee[key] || '';
                         }
@@ -442,9 +458,9 @@
                 'Phone': employee.phoneNo,
                 'Category': employee.category,
                 'Status': employee.status,
-                'Date of Birth': employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString() : '',
-                'Date of Joining': employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : '',
-                'Date of Exit': employee.dateOfExit ? new Date(employee.dateOfExit).toLocaleDateString() : '',
+                'Date of Birth': formatDate(employee.dateOfBirth),
+                'Date of Joining': formatDate(employee.dateOfJoining),
+                'Date of Exit': formatDate(employee.dateOfExit),
                 'Daily Wage': employee.pDayWage,
                 'Bank': employee.bank,
                 'Branch': employee.branch,

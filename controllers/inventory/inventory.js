@@ -2125,3 +2125,54 @@ exports.cancelBill = (req, res) => {
         res.status(500).json({ error: "Failed to cancel bill: " + err.message });
     }
 };
+
+// Get party balance
+exports.getPartyBalance = (req, res) => {
+    try {
+        const { partyId } = req.params;
+        
+        // Check if user has firm access
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+        
+        // Get party details
+        const partyStmt = db.prepare('SELECT * FROM parties WHERE id = ? AND firm_id = ?');
+        const party = partyStmt.get(partyId, req.user.firm_id);
+        
+        if (!party) {
+            return res.status(404).json({ error: 'Party not found or does not belong to your firm' });
+        }
+        
+        // Calculate party balance from ledger
+        // Debit amount represents money owed TO the party (negative balance)
+        // Credit amount represents money owed BY the party (positive balance)
+        const balanceQuery = `
+            SELECT 
+                SUM(debit_amount) as total_debit,
+                SUM(credit_amount) as total_credit,
+                (SUM(credit_amount) - SUM(debit_amount)) as balance
+            FROM ledger 
+            WHERE firm_id = ? AND account_head = ?
+        `;
+        
+        const balanceStmt = db.prepare(balanceQuery);
+        const balanceResult = balanceStmt.get(req.user.firm_id, party.firm);
+        
+        const balance = balanceResult.balance || 0;
+        
+        res.json({
+            partyId: party.id,
+            partyName: party.firm,
+            balance: balance,
+            balanceFormatted: new Intl.NumberFormat('en-IN', { 
+                style: 'currency', 
+                currency: 'INR' 
+            }).format(Math.abs(balance)),
+            balanceType: balance >= 0 ? 'Credit' : 'Debit'
+        });
+    } catch (err) {
+        console.error('Error fetching party balance:', err);
+        res.status(500).json({ error: err.message });
+    }
+};

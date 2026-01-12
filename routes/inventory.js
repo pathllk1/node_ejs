@@ -53,4 +53,7 @@ router.get('/api/gst-lookup', controller.lookupGST);
 // API route to get current user's firm name
 router.get('/api/current-user-firm-name', verifyFirmAccess, controller.getCurrentUserFirmName);
 
+// API route to get party balance
+router.get('/api/parties/:partyId/balance', verifyFirmAccess, controller.getPartyBalance);
+
 module.exports = router;

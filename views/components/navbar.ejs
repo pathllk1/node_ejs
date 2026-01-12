@@ -81,16 +81,61 @@
                                     class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 origin-top-right transition-all">
                                     <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                         Inventory</div>
-                                    <a href="/inventory/stocks"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stocks</a>
-                                    <a href="/inventory/stock-movements"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stock Movements</a>
-                                     <a href="/inventory/bills"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Bills</a>
-                                     <a href="/inventory/sales-report"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>
-                                     <a href="/ledger"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">General Ledger</a>
+                                    
+                                    <!-- Stocks Dropdown -->
+                                    <div class="relative">
+                                        <a href="#" id="stocks-submenu-btn"
+                                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                            Stocks
+                                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                            </svg>
+                                        </a>
+                                        
+                                        <div id="stocks-submenu"
+                                            class="hidden absolute left-full top-0 w-48 bg-white rounded-lg shadow-xl py-2 z-60 border border-gray-100 origin-top-right transition-all">
+                                            <a href="/inventory/stocks"
+                                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stocks</a>
+                                            <a href="/inventory/stock-movements"
+                                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stock Movements</a>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Bills Dropdown -->
+                                    <div class="relative">
+                                        <a href="#" id="bills-submenu-btn"
+                                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                            Bills
+                                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                            </svg>
+                                        </a>
+                                        
+                                        <div id="bills-submenu"
+                                            class="hidden absolute left-full top-0 w-48 bg-white rounded-lg shadow-xl py-2 z-60 border border-gray-100 origin-top-right transition-all">
+                                            <a href="/inventory/bills"
+                                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Bills</a>
+                                            <a href="/inventory/sales-report"
+                                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- General Ledger Dropdown -->
+                                    <div class="relative">
+                                        <a href="#" id="ledger-submenu-btn"
+                                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                            General Ledger
+                                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                            </svg>
+                                        </a>
+                                        
+                                        <div id="ledger-submenu"
+                                            class="hidden absolute left-full top-0 w-48 bg-white rounded-lg shadow-xl py-2 z-60 border border-gray-100 origin-top-right transition-all">
+                                            <a href="/ledger"
+                                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">General Ledger</a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -209,16 +254,61 @@
                         class="hidden pl-4 bg-black/10 rounded-md mt-1 pb-2">
                         <div class="px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Inventory
                         </div>
-                        <a href="/inventory/stocks"
-                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stocks</a>
-                        <a href="/inventory/stock-movements"
-                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stock Movements</a>
-                        <a href="/inventory/bills"
-                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Bills</a>
-                        <a href="/inventory/sales-report"
-                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>
-                        <a href="/ledger"
-                            class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">General Ledger</a>
+                        
+                        <!-- Mobile Stocks Submenu -->
+                        <div class="relative">
+                            <button id="mobile-stocks-btn"
+                                class="w-full text-left text-gray-700 flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600">
+                                Stocks
+                                <svg class="w-4 h-4 transition-transform duration-200" id="mobile-stocks-icon" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="mobile-stocks-submenu" class="hidden pl-4 bg-gray-50 rounded mt-1 pb-2">
+                                <a href="/inventory/stocks"
+                                    class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stocks</a>
+                                <a href="/inventory/stock-movements"
+                                    class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Stock Movements</a>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Bills Submenu -->
+                        <div class="relative">
+                            <button id="mobile-bills-btn"
+                                class="w-full text-left text-gray-700 flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600">
+                                Bills
+                                <svg class="w-4 h-4 transition-transform duration-200" id="mobile-bills-icon" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="mobile-bills-submenu" class="hidden pl-4 bg-gray-50 rounded mt-1 pb-2">
+                                <a href="/inventory/bills"
+                                    class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Bills</a>
+                                <a href="/inventory/sales-report"
+                                    class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Sales Report</a>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Ledger Submenu -->
+                        <div class="relative">
+                            <button id="mobile-ledger-btn"
+                                class="w-full text-left text-gray-700 flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600">
+                                General Ledger
+                                <svg class="w-4 h-4 transition-transform duration-200" id="mobile-ledger-icon" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="mobile-ledger-submenu" class="hidden pl-4 bg-gray-50 rounded mt-1 pb-2">
+                                <a href="/ledger"
+                                    class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">General Ledger</a>
+                            </div>
+                        </div>
                     </div>
                     
                     <button id="mobile-hr-btn"

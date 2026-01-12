@@ -65,174 +65,174 @@
     </div>
 </div>
 
-<div id="employeeModal" class="fixed inset-0 bg-gray-900/60 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl transform transition-all scale-100 overflow-hidden">
+<div id="employeeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all scale-100 overflow-hidden">
         
-        <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 flex justify-between items-center">
-            <h2 id="modalTitle" class="text-lg font-bold text-white tracking-wide">Employee Details</h2>
-            <button id="closeModalBtn" class="text-white/80 hover:text-white text-2xl font-light leading-none">&times;</button>
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-5 py-3 flex justify-between items-center">
+            <h2 id="modalTitle" class="text-base font-semibold text-white tracking-wide">Employee Details</h2>
+            <button id="closeModalBtn" class="text-white/80 hover:text-white text-xl font-light leading-none">&times;</button>
         </div>
         
-        <div id="employeeDetails" class="p-6 overflow-y-auto max-h-[70vh]">
+        <div id="employeeDetails" class="p-4 overflow-y-auto max-h-[70vh]">
             <!-- Employee details will be loaded here -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div class="space-y-2">
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Employee Name</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Employee Name</label>
                         <div id="detailEmployeeName" class="text-gray-800 font-medium"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Father/Husband Name</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Father/Husband Name</label>
                         <div id="detailFatherHusbandName" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Aadhar</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Aadhar</label>
                         <div id="detailAadhar" class="text-gray-800 font-mono"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Phone</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Phone</label>
                         <div id="detailPhone" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Category</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Category</label>
                         <div id="detailCategory" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Status</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Status</label>
                         <div id="detailStatus" class="text-gray-800"></div>
                     </div>
                 </div>
                 
-                <div class="space-y-3">
+                <div class="space-y-2">
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Date of Birth</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Date of Birth</label>
                         <div id="detailDateOfBirth" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Date of Joining</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Date of Joining</label>
                         <div id="detailDateOfJoining" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Date of Exit</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Date of Exit</label>
                         <div id="detailDateOfExit" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Daily Wage</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Daily Wage</label>
                         <div id="detailPDayWage" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Bank</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Bank</label>
                         <div id="detailBank" class="text-gray-800"></div>
                     </div>
                     <div>
-                        <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Branch</label>
+                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Branch</label>
                         <div id="detailBranch" class="text-gray-800"></div>
                     </div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Address</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Address</label>
                     <div id="detailAddress" class="text-gray-800"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Account Number</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Account Number</label>
                     <div id="detailAccountNo" class="text-gray-800 font-mono"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">IFSC Code</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">IFSC Code</label>
                     <div id="detailIfsc" class="text-gray-800 font-mono"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">ESIC Number</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">ESIC Number</label>
                     <div id="detailEsicNo" class="text-gray-800"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">PAN Number</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">PAN Number</label>
                     <div id="detailPan" class="text-gray-800"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">SKalyan Number</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">SKalyan Number</label>
                     <div id="detailSKalyanNo" class="text-gray-800"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Project</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Project</label>
                     <div id="detailProject" class="text-gray-800"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">Site</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Site</label>
                     <div id="detailSite" class="text-gray-800"></div>
                 </div>
                 
                 <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-xs uppercase font-semibold mb-1">UAN</label>
+                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">UAN</label>
                     <div id="detailUan" class="text-gray-800"></div>
                 </div>
             </div>
         </div>
         
-        <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end items-center bg-gray-50 -mx-6 -mb-6 px-6 py-4">
-            <button id="editEmployeeBtn" class="px-5 py-2 mr-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition">Edit Employee</button>
-            <button id="deleteEmployeeBtn" class="px-5 py-2 mr-auto text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-sm transition">Delete</button>
-            <button id="closeModalBtn2" class="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition">Close</button>
+        <div class="pt-3 border-t border-gray-100 flex justify-end items-center bg-gray-50 -mx-4 -mb-4 px-4 py-3">
+            <button id="editEmployeeBtn" class="px-4 py-1.5 mr-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition shadow-sm">Edit</button>
+            <button id="deleteEmployeeBtn" class="px-4 py-1.5 mr-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition shadow-sm">Delete</button>
+            <button id="closeModalBtn2" class="px-4 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition shadow-sm">Close</button>
         </div>
     </div>
 </div>
 
 <!-- Employee Form Modal (Create/Edit) -->
-<div id="employeeFormModal" class="fixed inset-0 bg-gray-900/60 hidden items-center justify-center z-[60] backdrop-blur-sm transition-opacity">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl transform transition-all scale-100 overflow-hidden">
+<div id="employeeFormModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60] backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl transform transition-all scale-100 overflow-hidden">
         
-        <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 flex justify-between items-center">
-            <h2 id="formModalTitle" class="text-lg font-bold text-white tracking-wide">Add New Employee</h2>
-            <button id="closeFormModalBtn" class="text-white/80 hover:text-white text-2xl font-light leading-none">&times;</button>
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-5 py-3 flex justify-between items-center">
+            <h2 id="formModalTitle" class="text-base font-semibold text-white tracking-wide">Add New Employee</h2>
+            <button id="closeFormModalBtn" class="text-white/80 hover:text-white text-xl font-light leading-none">&times;</button>
         </div>
         
-        <form id="employeeForm" class="p-6">
+        <form id="employeeForm" class="p-4">
             <input type="hidden" name="id" id="formEmployeeId">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm max-h-[70vh] overflow-y-auto pr-2">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs max-h-[70vh] overflow-y-auto pr-1">
                 
                 <!-- Personal Info -->
-                <div class="space-y-3">
-                    <h3 class="font-bold text-indigo-600 border-b pb-1">Personal Info</h3>
+                <div class="space-y-2">
+                    <h3 class="font-semibold text-blue-600 text-[11px] border-b pb-1">Personal Info</h3>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Employee Name *</label>
-                        <input type="text" name="employeeName" required class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Employee Name *</label>
+                        <input type="text" name="employeeName" required class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Father/Husband Name</label>
-                        <input type="text" name="fatherHusbandName" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Father/Husband Name</label>
+                        <input type="text" name="fatherHusbandName" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Aadhar Number *</label>
-                        <input type="text" name="aadhar" required class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Aadhar Number *</label>
+                        <input type="text" name="aadhar" required class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Phone Number *</label>
-                        <input type="text" name="phoneNo" required class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Phone Number *</label>
+                        <input type="text" name="phoneNo" required class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Date of Birth</label>
-                        <input type="date" name="dateOfBirth" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Date of Birth</label>
+                        <input type="date" name="dateOfBirth" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Address</label>
-                        <textarea name="address" rows="2" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none"></textarea>
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Address</label>
+                        <textarea name="address" rows="2" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs"></textarea>
                     </div>
                 </div>
 
                 <!-- Employment Details -->
-                <div class="space-y-3">
-                    <h3 class="font-bold text-indigo-600 border-b pb-1">Employment</h3>
+                <div class="space-y-2">
+                    <h3 class="font-semibold text-blue-600 text-[11px] border-b pb-1">Employment</h3>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Category *</label>
-                        <select name="category" required class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Category *</label>
+                        <select name="category" required class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                             <option value="">Select Category</option>
                             <option value="Skilled">Skilled</option>
                             <option value="Unskilled">Unskilled</option>
@@ -241,88 +241,92 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Status *</label>
-                        <select name="status" required class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Status *</label>
+                        <select name="status" required class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="exited">Exited</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Date of Joining</label>
-                        <input type="date" name="dateOfJoining" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Date of Joining</label>
+                        <input type="date" name="dateOfJoining" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Date of Exit</label>
-                        <input type="date" name="dateOfExit" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Date of Exit</label>
+                        <input type="date" name="dateOfExit" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Daily Wage (₹)</label>
-                        <input type="number" name="pDayWage" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Daily Wage (₹)</label>
+                        <input type="number" name="pDayWage" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Project</label>
-                        <input type="text" name="project" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Project</label>
+                        <input type="text" name="project" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Site</label>
-                        <input type="text" name="site" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Site</label>
+                        <input type="text" name="site" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                 </div>
 
                 <!-- Statutory & Bank -->
-                <div class="space-y-3">
-                    <h3 class="font-bold text-indigo-600 border-b pb-1">Statutory & Bank</h3>
+                <div class="space-y-2">
+                    <h3 class="font-semibold text-blue-600 text-[11px] border-b pb-1">Statutory & Bank</h3>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Bank Name</label>
-                        <input type="text" name="bank" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Bank Name</label>
+                        <input type="text" name="bank" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">Account Number</label>
-                        <input type="text" name="accountNo" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Branch</label>
+                        <input type="text" name="branch" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">IFSC Code</label>
-                        <input type="text" name="ifsc" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">Account Number</label>
+                        <input type="text" name="accountNo" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">PAN Number</label>
-                        <input type="text" name="pan" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">IFSC Code</label>
+                        <input type="text" name="ifsc" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">UAN</label>
-                        <input type="text" name="uan" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">PAN Number</label>
+                        <input type="text" name="pan" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">ESIC Number</label>
-                        <input type="text" name="esicNo" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">UAN</label>
+                        <input type="text" name="uan" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                     <div>
-                        <label class="block text-gray-600 text-xs font-semibold mb-1">SKalyan Number</label>
-                        <input type="text" name="sKalyanNo" class="w-full border border-gray-300 rounded px-3 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">ESIC Number</label>
+                        <input type="text" name="esicNo" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 text-[10px] font-semibold mb-0.5">SKalyan Number</label>
+                        <input type="text" name="sKalyanNo" class="w-full border border-gray-300 rounded-sm px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none text-xs">
                     </div>
                 </div>
             </div>
 
-            <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end items-center">
-                <button type="button" id="cancelFormBtn" class="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition mr-2">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition">Save Employee</button>
+            <div class="mt-3 pt-2 border-t border-gray-100 flex justify-end items-center">
+                <button type="button" id="cancelFormBtn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition shadow-sm mr-1.5">Cancel</button>
+                <button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-sm hover:bg-blue-700 shadow-sm transition">Save</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div id="deleteConfirmModal" class="fixed inset-0 bg-gray-900/60 hidden items-center justify-center z-[70] backdrop-blur-sm transition-opacity">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all scale-100 p-6 text-center">
-        <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+<div id="deleteConfirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[70] backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm transform transition-all scale-100 p-4 text-center">
+        <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
         </div>
-        <h3 class="text-xl font-bold text-gray-800 mb-2">Delete Employee?</h3>
-        <p class="text-gray-600 mb-6">Are you sure you want to delete <span id="deleteEmployeeName" class="font-bold"></span>? This action cannot be undone.</p>
-        <div class="flex justify-center gap-3">
-            <button id="cancelDeleteBtn" class="px-5 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">No, Cancel</button>
-            <button id="confirmDeleteBtn" class="px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">Yes, Delete</button>
+        <h3 class="text-base font-semibold text-gray-800 mb-1">Delete Employee?</h3>
+        <p class="text-xs text-gray-600 mb-3">Are you sure you want to delete <span id="deleteEmployeeName" class="font-semibold"></span>? This action cannot be undone.</p>
+        <div class="flex justify-center gap-2">
+            <button id="cancelDeleteBtn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition">Cancel</button>
+            <button id="confirmDeleteBtn" class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-sm hover:bg-red-700 transition">Delete</button>
         </div>
     </div>
 </div>

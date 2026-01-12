@@ -8,8 +8,10 @@
         itemsPerPage: 10,
         allAccounts: [],
         filteredAccounts: [],
+        accountTypeSummaries: [],
         searchTerm: '',
-        accountTypeFilter: ''
+        accountTypeFilter: '',
+        activeTab: 'tab-content-2'
     };
 
 // --- HELPER FUNCTIONS ---
@@ -21,6 +23,10 @@ function formatCurrency(amount) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(amount);
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('en-IN').format(num);
 }
 
 // --- API FUNCTIONS ---
@@ -68,6 +74,23 @@ async function loadAccountDetails(accountHead, startDate = null, endDate = null)
         console.error('Error loading account details:', error);
         showError('Error loading account details');
         return [];
+    }
+}
+
+async function loadAccountTypeSummaries() {
+    try {
+        const response = await window.api.get('/ledger/api/type-summaries');
+        const summaries = await response.json();
+        
+        if (response.ok) {
+            state.accountTypeSummaries = summaries;
+            renderAccountTypeSummaries();
+        } else {
+            showErrorInSummaryTab(`Failed to load account type summaries: ${summaries.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error loading account type summaries:', error);
+        showErrorInSummaryTab('Error loading account type summaries');
     }
 }
 
@@ -308,6 +331,84 @@ function showError(message) {
     }
 }
 
+function renderAccountTypeSummaries() {
+    if (!elements.accountTypeSummaryBody) return;
+    
+    if (state.accountTypeSummaries.length === 0) {
+        elements.accountTypeSummaryBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                    <div class="flex flex-col items-center">
+                        <svg class="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>No account type summaries found</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    elements.accountTypeSummaryBody.innerHTML = state.accountTypeSummaries.map(summary => {
+        const balance = summary.total_balance || 0;
+        const balanceClass = balance > 0 ? 'text-green-600' : balance < 0 ? 'text-red-600' : 'text-gray-700';
+        const balanceLabel = balance > 0 ? 'DR' : balance < 0 ? 'CR' : '0';
+        
+        return `
+            <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        ${summary.account_type}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-sm text-right text-gray-900">${formatNumber(summary.account_count)}</td>
+                <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(summary.total_debit || 0)}</td>
+                <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(summary.total_credit || 0)}</td>
+                <td class="px-4 py-3 text-sm text-right font-medium ${balanceClass}">
+                    ${formatCurrency(Math.abs(balance))} <span class="text-xs">${balanceLabel}</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <button 
+                        data-account-type="${summary.account_type.replace(/"/g, '&quot;')}" 
+                        class="view-type-accounts-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
+                        title="View accounts of type ${summary.account_type}"
+                    >
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // Add event listeners to the view buttons using event delegation
+    elements.accountTypeSummaryBody.querySelectorAll('.view-type-accounts-btn').forEach(btn => {
+        btn.removeEventListener('click', handleViewTypeAccountsClick); // Remove any existing listener
+        btn.addEventListener('click', handleViewTypeAccountsClick);
+    });
+}
+
+function showErrorInSummaryTab(message) {
+    if (elements.accountTypeSummaryBody) {
+        elements.accountTypeSummaryBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-red-600 font-medium">
+                    <div class="flex flex-col items-center">
+                        <svg class="w-12 h-12 text-red-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        ${message}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
 // --- EVENT HANDLERS ---
 
 function handleViewAccountClick(event) {
@@ -348,6 +449,132 @@ function handleNextPage(event) {
         state.currentPage++;
         renderAccountTable();
         renderPagination();
+    }
+}
+
+function handleViewTypeAccountsClick(event) {
+    event.preventDefault();
+    const accountType = event.currentTarget.getAttribute('data-account-type');
+    if (accountType) {
+        openAccountTypeDetails(accountType);
+    }
+}
+
+async function openAccountTypeDetails(accountType) {
+    try {
+        // Show loading state
+        elements.modalBody.innerHTML = `
+            <div class="flex flex-col items-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p class="text-gray-600">Loading ${accountType} accounts...</p>
+            </div>
+        `;
+        
+        elements.modalTitle.textContent = `${accountType} Accounts - Transaction Details`;
+        elements.modal.classList.remove('hidden');
+        
+        // Load all accounts and filter by type
+        const response = await window.api.get('/ledger/api/accounts');
+        const allAccounts = await response.json();
+        
+        if (response.ok) {
+            const accountsOfType = allAccounts.filter(acc => acc.account_type === accountType);
+            
+            if (accountsOfType.length > 0) {
+                renderAccountTypeDetails(accountsOfType, accountType);
+            } else {
+                elements.modalBody.innerHTML = `
+                    <div class="py-12 text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p class="text-lg font-medium text-gray-700">No accounts found</p>
+                        <p class="text-sm text-gray-500 mt-1">There are no accounts of type ${accountType}.</p>
+                    </div>
+                `;
+            }
+        } else {
+            showErrorInModal(`Failed to load accounts: ${allAccounts.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error opening account type details:', error);
+        showErrorInModal(error.message || 'An unknown error occurred');
+    }
+}
+
+function renderAccountTypeDetails(accounts, accountType) {
+    if (!elements.modalBody) return;
+    
+    elements.modalBody.innerHTML = `
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <div class="text-sm text-gray-600">
+                    Showing ${accounts.length} account(s) of type ${accountType}
+                </div>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Head</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit Total</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Total</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    ${accounts.map(account => {
+                        const balance = account.balance || 0;
+                        const balanceClass = balance > 0 ? 'text-green-600' : balance < 0 ? 'text-red-600' : 'text-gray-700';
+                        const balanceLabel = balance > 0 ? 'DR' : balance < 0 ? 'CR' : '0';
+                        
+                        return `
+                            <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${account.account_head}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">${formatCurrency(account.total_debit || 0)}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">${formatCurrency(account.total_credit || 0)}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium ${balanceClass}">${formatCurrency(Math.abs(balance))} <span class="text-xs">${balanceLabel}</span></td>
+                                <td class="px-4 py-3 text-center">
+                                    <button 
+                                        data-account-head="${account.account_head.replace(/"/g, '&quot;')}" 
+                                        class="view-account-btn inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
+                                        title="View details for ${account.account_head}"
+                                    >
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    // Add event listeners to the view buttons using event delegation
+    elements.modalBody.querySelectorAll('.view-account-btn').forEach(btn => {
+        btn.removeEventListener('click', handleViewAccountClick); // Remove any existing listener
+        btn.addEventListener('click', handleViewAccountClick);
+    });
+}
+
+function showErrorInModal(message) {
+    if (elements.modalBody) {
+        elements.modalBody.innerHTML = `
+            <div class="py-12 text-center text-red-500">
+                <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-lg font-medium">Error loading details</p>
+                <p class="text-sm mt-1">${message}</p>
+            </div>
+        `;
     }
 }
 
@@ -637,6 +864,81 @@ function setupEventListeners() {
         elements.nextPage.removeEventListener('click', handleNextPage);
         elements.nextPage.addEventListener('click', handleNextPage);
     }
+    
+    // Tab switching
+    if (elements.tab1) {
+        elements.tab1.removeEventListener('click', handleTabSwitch);
+        elements.tab1.addEventListener('click', handleTabSwitch);
+    }
+    
+    if (elements.tab2) {
+        elements.tab2.removeEventListener('click', handleTabSwitch);
+        elements.tab2.addEventListener('click', handleTabSwitch);
+    }
+}
+
+function handleTabSwitch(event) {
+    event.preventDefault();
+    
+    const tabId = event.currentTarget.dataset.tab;
+    
+    // Update active tab state
+    state.activeTab = tabId;
+    
+    // Hide all tab contents
+    elements.tabContent1.classList.add('hidden');
+    elements.tabContent2.classList.add('hidden');
+    
+    // Remove active class from all tabs
+    elements.tab1.classList.remove('active-tab');
+    elements.tab1.classList.remove('bg-blue-50');
+    elements.tab1.classList.add('inactive-tab');
+    elements.tab1.classList.add('text-gray-500');
+    elements.tab1.classList.add('hover:text-gray-700');
+    elements.tab1.classList.add('hover:border-gray-300');
+    elements.tab1.classList.remove('border-b-2');
+    elements.tab1.classList.remove('border-blue-600');
+    elements.tab1.classList.remove('text-blue-600');
+    
+    elements.tab2.classList.remove('active-tab');
+    elements.tab2.classList.remove('bg-blue-50');
+    elements.tab2.classList.add('inactive-tab');
+    elements.tab2.classList.add('text-gray-500');
+    elements.tab2.classList.add('hover:text-gray-700');
+    elements.tab2.classList.add('hover:border-gray-300');
+    elements.tab2.classList.remove('border-b-2');
+    elements.tab2.classList.remove('border-blue-600');
+    elements.tab2.classList.remove('text-blue-600');
+    
+    // Show selected tab content
+    if (tabId === 'tab-content-1') {
+        elements.tabContent1.classList.remove('hidden');
+        elements.tab1.classList.remove('inactive-tab');
+        elements.tab1.classList.remove('text-gray-500');
+        elements.tab1.classList.remove('hover:text-gray-700');
+        elements.tab1.classList.remove('hover:border-gray-300');
+        elements.tab1.classList.add('active-tab');
+        elements.tab1.classList.add('bg-blue-50');
+        elements.tab1.classList.add('border-b-2');
+        elements.tab1.classList.add('border-blue-600');
+        elements.tab1.classList.add('text-blue-600');
+    } else if (tabId === 'tab-content-2') {
+        elements.tabContent2.classList.remove('hidden');
+        elements.tab2.classList.remove('inactive-tab');
+        elements.tab2.classList.remove('text-gray-500');
+        elements.tab2.classList.remove('hover:text-gray-700');
+        elements.tab2.classList.remove('hover:border-gray-300');
+        elements.tab2.classList.add('active-tab');
+        elements.tab2.classList.add('bg-blue-50');
+        elements.tab2.classList.add('border-b-2');
+        elements.tab2.classList.add('border-blue-600');
+        elements.tab2.classList.add('text-blue-600');
+        
+        // Load account type summaries if not already loaded
+        if (state.accountTypeSummaries.length === 0) {
+            loadAccountTypeSummaries();
+        }
+    }
 }
 
 // Initialize the ledger system
@@ -646,6 +948,7 @@ function initLedger() {
     // Cache DOM elements
     elements = {
         accountTableBody: document.getElementById('accountTableBody'),
+        accountTypeSummaryBody: document.getElementById('accountTypeSummaryBody'),
         modal: document.getElementById('ledgerModal'),
         modalTitle: document.getElementById('modalTitle'),
         modalBody: document.getElementById('modalBody'),
@@ -658,7 +961,11 @@ function initLedger() {
         currentPageStart: document.getElementById('currentPageStart'),
         totalRecords: document.getElementById('totalRecords'),
         currentPageStartDesktop: document.getElementById('currentPageStartDesktop'),
-        totalRecordsDesktop: document.getElementById('totalRecordsDesktop')
+        totalRecordsDesktop: document.getElementById('totalRecordsDesktop'),
+        tab1: document.getElementById('tab1'),
+        tab2: document.getElementById('tab2'),
+        tabContent1: document.getElementById('tab-content-1'),
+        tabContent2: document.getElementById('tab-content-2')
     };
     
     // Validate elements exist
@@ -670,6 +977,35 @@ function initLedger() {
         console.error('Ledger: Missing required DOM elements:', missingElements);
         return;
     }
+    
+    // Set initial tab state
+    // Initially hide both tabs
+    elements.tabContent1.classList.add('hidden');
+    elements.tabContent2.classList.remove('hidden'); // Show second tab by default
+    
+    // Update tab button states
+    elements.tab1.classList.remove('active-tab');
+    elements.tab1.classList.remove('bg-blue-50');
+    elements.tab1.classList.add('inactive-tab');
+    elements.tab1.classList.add('text-gray-500');
+    elements.tab1.classList.add('hover:text-gray-700');
+    elements.tab1.classList.add('hover:border-gray-300');
+    elements.tab1.classList.remove('border-b-2');
+    elements.tab1.classList.remove('border-blue-600');
+    elements.tab1.classList.remove('text-blue-600');
+    
+    elements.tab2.classList.remove('inactive-tab');
+    elements.tab2.classList.remove('text-gray-500');
+    elements.tab2.classList.remove('hover:text-gray-700');
+    elements.tab2.classList.remove('hover:border-gray-300');
+    elements.tab2.classList.add('active-tab');
+    elements.tab2.classList.add('bg-blue-50');
+    elements.tab2.classList.add('border-b-2');
+    elements.tab2.classList.add('border-blue-600');
+    elements.tab2.classList.add('text-blue-600');
+    
+    // Load account type summaries for the second tab
+    loadAccountTypeSummaries();
     
     // Initialize modal close functionality
     initializeModalClose();

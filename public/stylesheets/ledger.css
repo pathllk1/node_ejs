@@ -73,6 +73,31 @@
     background: linear-gradient(90deg, #2563eb, #9333ea);
 }
 
+/* Tab Styles */
+.tab-content {
+    display: block;
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
+.active-tab {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background-color: #eff6ff;
+    font-weight: 500;
+}
+
+.inactive-tab {
+    color: #6b7280;
+}
+
+.inactive-tab:hover {
+    color: #374151;
+    border-bottom-color: #d1d5db;
+}
+
 /* Responsive Design */
 @media (max-width: 640px) {
     .flex-col.md\:flex-row {

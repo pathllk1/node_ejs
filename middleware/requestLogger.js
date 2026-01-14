@@ -53,7 +53,8 @@ const requestLogger = (req, res, next) => {
         // Run the insert synchronously (better-sqlite3 is fast enough for this usually)
         insertLog.run(method, url, ip, username, userAgent, timestamp);
     } catch (err) {
-        console.error('Logging failed:', err.message);
+        // Only log error internally, don't expose to user
+        console.error('Request logging failed:', err.message);
     }
 
     next();

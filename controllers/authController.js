@@ -3,8 +3,20 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const SALT_ROUNDS = 10;
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'fallback_access_token_secret_for_dev';
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'fallback_refresh_token_secret_for_dev';
+// Use secure secrets from environment variables - no fallbacks to prevent weak secrets
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
+
+// Validate that secrets are properly set
+if (!ACCESS_TOKEN_SECRET || ACCESS_TOKEN_SECRET.length < 32) {
+    console.error('CRITICAL ERROR: ACCESS_TOKEN_SECRET is not set or is too weak (minimum 32 characters required)');
+    process.exit(1);
+}
+
+if (!REFRESH_TOKEN_SECRET || REFRESH_TOKEN_SECRET.length < 32) {
+    console.error('CRITICAL ERROR: REFRESH_TOKEN_SECRET is not set or is too weak (minimum 32 characters required)');
+    process.exit(1);
+}
 
 // Generate both tokens
 const generateTokens = (user) => {
@@ -57,7 +69,8 @@ exports.signup = async (req, res) => {
         res.status(201).json({ message: 'Account created successfully! Please login.' });
 
     } catch (err) {
-        console.error(err);
+        console.error('Signup error:', err.message);
+        // Don't expose internal error details to client
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -95,7 +108,8 @@ exports.login = async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err);
+        console.error('Login error:', err.message);
+        // Don't expose internal error details to client
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -114,7 +128,8 @@ exports.getUserProfile = (req, res) => {
 
         res.json({ user });
     } catch (err) {
-        console.error(err);
+        console.error('Get user profile error:', err.message);
+        // Don't expose internal error details to client
         res.status(500).json({ error: 'Server error' });
     }
 };

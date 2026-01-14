@@ -4,17 +4,23 @@ const db = require('../config/db');
 exports.getAllFirms = (req, res) => {
     try {
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+        // Validate that admin role is properly configured
+        if (!process.env.ADMIN_ROLE_VALUE) {
+            console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-        if (!currentUser || currentUser.role !== adminRoleValue) {
+        if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
         }
         
         const firms = db.prepare('SELECT * FROM firms ORDER BY created_at DESC').all();
         res.json({ firms });
     } catch (err) {
-        console.error('Error fetching firms:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error fetching firms:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -22,9 +28,15 @@ exports.getAllFirms = (req, res) => {
 exports.getFirm = (req, res) => {
     try {
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+        // Validate that admin role is properly configured
+        if (!process.env.ADMIN_ROLE_VALUE) {
+            console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-        if (!currentUser || currentUser.role !== adminRoleValue) {
+        if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
         }
         
@@ -37,8 +49,8 @@ exports.getFirm = (req, res) => {
         
         res.json(firm);
     } catch (err) {
-        console.error('Error fetching firm:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error fetching firm:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -52,9 +64,15 @@ exports.createFirm = (req, res) => {
         }
         
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+        // Validate that admin role is properly configured
+        if (!process.env.ADMIN_ROLE_VALUE) {
+            console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-        if (!currentUser || currentUser.role !== adminRoleValue) {
+        if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
         }
         
@@ -73,8 +91,8 @@ exports.createFirm = (req, res) => {
         
         res.json({ id: result.lastInsertRowid, message: 'Firm created successfully' });
     } catch (err) {
-        console.error('Error creating firm:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error creating firm:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -112,8 +130,8 @@ exports.updateFirm = (req, res) => {
         
         res.json({ message: 'Firm updated successfully' });
     } catch (err) {
-        console.error('Error updating firm:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error updating firm:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -144,8 +162,8 @@ exports.deleteFirm = (req, res) => {
         
         res.json({ message: 'Firm deleted successfully' });
     } catch (err) {
-        console.error('Error deleting firm:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error deleting firm:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -165,9 +183,15 @@ exports.assignUserToFirm = (req, res) => {
         }
         
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+        // Validate that admin role is properly configured
+        if (!process.env.ADMIN_ROLE_VALUE) {
+            console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-        if (!currentUser || currentUser.role !== adminRoleValue) {
+        if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
         }
         
@@ -185,8 +209,8 @@ exports.assignUserToFirm = (req, res) => {
         
         res.json({ message: 'User assigned to firm successfully' });
     } catch (err) {
-        console.error('Error assigning user to firm:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error assigning user to firm:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -194,9 +218,15 @@ exports.assignUserToFirm = (req, res) => {
 exports.getAllUsersWithFirms = (req, res) => {
     try {
         // Check if current user has admin role - check directly from database
-        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+        // Validate that admin role is properly configured
+        if (!process.env.ADMIN_ROLE_VALUE) {
+            console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
         const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-        if (!currentUser || currentUser.role !== adminRoleValue) {
+        if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
             return res.status(403).json({ error: 'You are not permitted to perform this action' });
         }
         
@@ -209,7 +239,7 @@ exports.getAllUsersWithFirms = (req, res) => {
         
         res.json({ users });
     } catch (err) {
-        console.error('Error fetching users with firms:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Error fetching users with firms:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };

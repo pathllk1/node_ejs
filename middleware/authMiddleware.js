@@ -16,7 +16,30 @@ const verifyToken = (req, res, next) => {
         refreshToken = req.cookies['refresh_token'];
     }
 
-    // 3. Logic: If no token found at all
+    // 3. Validate JWT format before processing
+    if (accessToken) {
+        // Check if token has proper JWT format (header.payload.signature)
+        const tokenParts = accessToken.split('.');
+        if (tokenParts.length !== 3) {
+            // Malformed JWT token - not in proper format
+            if (req.accepts('html')) {
+                return res.redirect('/users/login');
+            }
+            return res.status(401).json({ error: 'Invalid token format' });
+        }
+        
+        // Additional validation: check if each part is base64url encoded (basic check)
+        const base64UrlRegex = /^[A-Za-z0-9-_]+$/;
+        if (!tokenParts.every(part => part && base64UrlRegex.test(part))) {
+            // Token parts are not properly base64url encoded
+            if (req.accepts('html')) {
+                return res.redirect('/users/login');
+            }
+            return res.status(401).json({ error: 'Invalid token format' });
+        }
+    }
+
+    // 4. Logic: If no token found at all
     if (!accessToken) {
         // If the browser is asking for HTML (User refreshed page), redirect to login
         if (req.accepts('html')) {
@@ -26,9 +49,14 @@ const verifyToken = (req, res, next) => {
         return res.status(401).json({ error: 'Missing tokens' });
     }
 
-    // 4. Verify Access Token
-    jwt.verify(accessToken, ACCESS_TOKEN_SECRET, (err, accessData) => {
+    // 4. Verify Access Token with explicit algorithm
+    jwt.verify(accessToken, ACCESS_TOKEN_SECRET, { algorithms: ['HS256'] }, (err, accessData) => {
         if (!err) {
+            // Verify that the token is valid and not malformed
+            if (!accessData || typeof accessData !== 'object' || !accessData.id) {
+                if (req.accepts('html')) return res.redirect('/users/login');
+                return res.status(401).json({ error: 'Invalid token' });
+            }
             req.user = accessData;
             return next(); // Valid token, proceed
         }
@@ -39,11 +67,17 @@ const verifyToken = (req, res, next) => {
             return res.status(401).json({ error: 'Token expired' });
         }
 
-        jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (refreshErr, refreshData) => {
+        jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, { algorithms: ['HS256'] }, (refreshErr, refreshData) => {
             if (refreshErr) {
                 // Both tokens dead
                 if (req.accepts('html')) return res.redirect('/users/login');
                 return res.status(401).json({ error: 'Token expired. Please login again.' });
+            }
+
+            // Validate refresh token data
+            if (!refreshData || typeof refreshData !== 'object' || !refreshData.id) {
+                if (req.accepts('html')) return res.redirect('/users/login');
+                return res.status(401).json({ error: 'Invalid refresh token' });
             }
 
             // 6. Refresh Valid -> Generate New Pair

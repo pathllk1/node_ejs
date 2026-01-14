@@ -1,6 +1,29 @@
 const db = require('../config/db');
 exports.viewLogs = async (req, res) => {
     try {
+        // Check if current user has admin role - check directly from database
+        // Validate that admin role is properly configured
+        if (!process.env.ADMIN_ROLE_VALUE) {
+            console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+            return res.status(500).render('admin/logs', {
+                layout: 'layouts/main',
+                title: 'System Logs',
+                error: "Server configuration error",
+                logs: []
+            });
+        }
+        
+        const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
+        const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
+            return res.status(403).render('admin/logs', {
+                layout: 'layouts/main',
+                title: 'System Logs',
+                error: 'You are not permitted to perform this action',
+                logs: []
+            });
+        }
+        
         // 1. Fetch from Python Microservice
         const response = await fetch('http://127.0.0.1:5200/logs');
         const data = await response.json();
@@ -17,7 +40,7 @@ exports.viewLogs = async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Log View Error:", error);
+        console.error("Log View Error:", error.message);
         // Render page with empty state + error message
         return res.render('admin/logs', {
             layout: 'layouts/main',
@@ -30,6 +53,27 @@ exports.viewLogs = async (req, res) => {
 
 // Render settings page
 exports.viewSettings = (req, res) => {
+    // Check if current user has admin role - check directly from database
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).render('admin/settings', {
+            layout: 'layouts/main',
+            title: 'System Settings',
+            error: "Server configuration error"
+        });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
+    const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
+        return res.status(403).render('admin/settings', {
+            layout: 'layouts/main',
+            title: 'System Settings',
+            error: 'You are not permitted to perform this action'
+        });
+    }
+    
     res.render('admin/settings', {
         layout: 'layouts/main',
         title: 'System Settings'
@@ -38,6 +82,29 @@ exports.viewSettings = (req, res) => {
 
 // Render firms management page
 exports.viewFirmsManagement = (req, res) => {
+    // Check if current user has admin role - check directly from database
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).render('admin/firms-management', {
+            layout: 'layouts/main',
+            title: 'Firm Management',
+            error: "Server configuration error",
+            user: req.user || { username: 'Guest' }
+        });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
+    const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
+        return res.status(403).render('admin/firms-management', {
+            layout: 'layouts/main',
+            title: 'Firm Management',
+            error: 'You are not permitted to perform this action',
+            user: req.user || { username: 'Guest' }
+        });
+    }
+    
     res.render('admin/firms-management', {
         layout: 'layouts/main',
         title: 'Firm Management',
@@ -47,9 +114,15 @@ exports.viewFirmsManagement = (req, res) => {
 
 // API endpoint to get logs data in JSON format
 exports.getLogsData = async (req, res) => {
-    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
     const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-    if (!currentUser || currentUser.role !== adminRoleValue) {
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });
     }
     try {
@@ -71,10 +144,10 @@ exports.getLogsData = async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Log API Error:", error);
+        console.error("Log API Error:", error.message);
         return res.json({
             success: false,
-            error: error.message,
+            error: 'Internal server error',
             logs: []
         });
     }
@@ -82,9 +155,15 @@ exports.getLogsData = async (req, res) => {
 
 // Database backup functionality
 exports.backupDatabase = async (req, res) => {
-    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
     const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-    if (!currentUser || currentUser.role !== adminRoleValue) {
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });
     }
     try {
@@ -129,19 +208,25 @@ exports.backupDatabase = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Database backup error:', error);
+        console.error('Database backup error:', error.message);
         res.status(500).json({
             success: false,
-            error: error.message
+            error: 'Internal server error'
         });
     }
 };
 
 // Database restore functionality
 exports.restoreDatabase = async (req, res) => {
-    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE || '');
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
     const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-    if (!currentUser || currentUser.role !== adminRoleValue) {
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });
     }
     try {
@@ -209,10 +294,10 @@ exports.restoreDatabase = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Database restore error:', error);
+        console.error('Database restore error:', error.message);
         res.status(500).json({
             success: false,
-            error: error.message
+            error: 'Internal server error'
         });
     }
 };

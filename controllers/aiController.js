@@ -32,7 +32,8 @@ exports.getSentiment = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Microservice Error:", error);
+        console.error("AI sentiment analysis error:", error.message);
+        // Don't expose internal error details to client
         return res.status(500).json({ error: "AI Service is unavailable" });
     }
 };
@@ -54,7 +55,8 @@ exports.chat = async (req, res) => {
         return res.json(data);
 
     } catch (error) {
-        console.error("Chat Error:", error);
+        console.error("AI chat error:", error.message);
+        // Don't expose internal error details to client
         return res.status(500).json({ reply: "Service unreachable." });
     }
 };

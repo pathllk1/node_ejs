@@ -45,7 +45,7 @@ def chat_endpoint(data: ChatInput):
 
         # Call OpenRouter
         response = client.chat.completions.create(
-            model="kwaipilot/kat-coder-pro:free",
+            model="mistralai/devstral-2512:free",
             messages=messages
         )
 

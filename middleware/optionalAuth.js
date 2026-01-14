@@ -32,8 +32,8 @@ const optionalAuth = (req, res, next) => {
             return next();
         }
 
-        // Try to verify the token silently
-        jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
+        // Try to verify the token silently with explicit algorithm
+        jwt.verify(token, ACCESS_TOKEN_SECRET, { algorithms: ['HS256'] }, (err, decoded) => {
             if (!err && decoded) {
                 // Token is valid - attach user info
                 req.user = {

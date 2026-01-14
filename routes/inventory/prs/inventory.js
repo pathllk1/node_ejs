@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 // Adjust path if your folder structure is different
-const controller = require('../controllers/inventory/inventory');
-const invoicePdfController = require('../controllers/inventory/invoicePdfController');
-const { verifyFirmAccess } = require('../middleware/firmMiddleware');
+const controller = require('../../../controllers/inventory/prs/inventory');
+const invoicePdfController = require('../../../controllers/inventory/invoicePdfController');
+const { verifyFirmAccess } = require('../../../middleware/firmMiddleware');
 
 // View Route
 router.get('/stocks', controller.renderStocksPage);
@@ -28,7 +28,7 @@ router.get('/api/stocks/:id/batches', verifyFirmAccess, controller.getStockBatch
 router.get('/api/parties', verifyFirmAccess, controller.getAllParties);
 router.post('/api/parties', verifyFirmAccess, controller.createParty);
 
-// --- API Routes: Bills (Sales) ---
+// --- API Routes: Bills (Purchase) ---
 router.get('/api/bills', verifyFirmAccess, controller.getAllBills);
 router.post('/api/bills', verifyFirmAccess, controller.createBill);
 router.put('/api/bills/:id', verifyFirmAccess, controller.updateBill);

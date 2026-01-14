@@ -351,8 +351,12 @@
             renderPartyCard().then(html => {
                 partyContainer.innerHTML = html;
                 
+                // Attach event listeners for both change and select buttons
                 const changeBtn = document.getElementById('btn-change-party');
                 if (changeBtn) changeBtn.addEventListener('click', openPartyModal);
+                
+                const selectBtn = document.getElementById('btn-select-party');
+                if (selectBtn) selectBtn.addEventListener('click', openPartyModal);
             });
         }
         
@@ -407,7 +411,12 @@
             return `
                 <div class="group bg-blue-50 p-3 rounded border border-blue-200 shadow-sm">
                     <div>
-                        <h3 class="font-bold text-sm text-blue-900 truncate" title="${state.selectedParty.firm}">${state.selectedParty.firm}</h3>
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold text-sm text-blue-900 truncate flex-1" title="${state.selectedParty.firm}">${state.selectedParty.firm}</h3>
+                            <button id="btn-change-party" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-white p-1.5 rounded shadow-sm border border-gray-200 hover:border-blue-300 whitespace-nowrap ml-2" title="Change Party">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            </button>
+                        </div>
                         <p class="text-[11px] text-gray-600 truncate mt-1">${state.selectedParty.addr}</p>
                         <div class="flex items-center gap-2 mt-2">
                             <span class="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200">GST: ${state.selectedParty.gstin}</span>
@@ -416,11 +425,6 @@
                             <span class="${balanceInfo.balance >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} text-[10px] font-mono px-2 py-0.5 rounded border ${balanceInfo.balance >= 0 ? 'border-green-200' : 'border-red-200'}">
                                 BAL: ${balanceInfo.balanceType} ${balanceInfo.balanceFormatted}
                             </span>
-                        </div>
-                        <div class="mt-2 text-right">
-                            <button id="btn-change-party" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 hover:border-blue-300 whitespace-nowrap">
-                                Change
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1854,6 +1858,9 @@
                             
                             const changeBtn = document.getElementById('btn-change-party');
                             if (changeBtn) changeBtn.addEventListener('click', openPartyModal);
+                            
+                            const selectBtn = document.getElementById('btn-select-party');
+                            if (selectBtn) selectBtn.addEventListener('click', openPartyModal);
                         });
                     }
                 });

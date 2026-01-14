@@ -1,6 +1,6 @@
-const db = require('../../config/db');
-const { verifyFirmAccess, verifyFirmOwnership, addFirmId } = require('../../middleware/firmMiddleware');
-const { getNextBillNumber, getCurrentFinancialYear, getNextBillNumberPreview, getCurrentSequence } = require('../../utils/billNumberGenerator');
+const db = require('../../../config/db');
+const { verifyFirmAccess, verifyFirmOwnership, addFirmId } = require('../../../middleware/firmMiddleware');
+const { getNextBillNumber, getCurrentFinancialYear, getNextBillNumberPreview, getCurrentSequence } = require('../../../utils/billNumberGenerator');
 
 // Helper to get current ISO time
 const now = () => new Date().toISOString();
@@ -141,7 +141,7 @@ exports.getPartyItemHistory = (req, res) => {
             JOIN bills b ON b.id = sr.bill_id
             WHERE b.party_id = ?
               AND sr.stock_id = ?
-              AND sr.type = 'SALE'
+              AND sr.type = 'PURCHASE'
             ORDER BY COALESCE(sr.bdate, b.bdate, sr.created_at) DESC
         `;
         
@@ -509,7 +509,7 @@ exports.createParty = (req, res) => {
     }
 };
 
-// --- BILLS API (Sales Transaction) ---
+// --- BILLS API (Purchase Transaction) ---
 
 exports.createBill = (req, res) => {
     // Expects: { meta: {}, party: {}, cart: [], otherCharges: [], user: '' }
@@ -641,7 +641,7 @@ exports.createBill = (req, res) => {
             gtot: gtot,
             ntot: ntot,
             rof: rof,
-            btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
+            btype: meta.billType ? meta.billType.toUpperCase() : 'PURCHASE',
             usern: actorUsername,
             firm: party.firm,
             party_id: party.id || null,
@@ -668,15 +668,13 @@ exports.createBill = (req, res) => {
                 qty, uom, rate, grate, disc, total, 
                 stock_id, bill_id, user, firm, created_at, updated_at, qtyh, firm_id
             ) VALUES (
-                'SALE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
+                'PURCHASE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
                 @qty, @uom, @rate, @grate, @disc, @total,
                 @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0, @firm_id
             )
         `);
 
-        const updateStockQty = db.prepare(`
-            UPDATE stocks SET qty = qty - @qty WHERE id = @id AND firm_id = @firm_id
-        `);
+        // Note: updateStockQty is not used in purchase transactions since we use the updateStockBatchesStmt instead
 
             // C. Process Items
         cart.forEach(item => {
@@ -691,7 +689,7 @@ exports.createBill = (req, res) => {
             // Parse existing batches
             let batches = stockRecord.batches ? JSON.parse(stockRecord.batches) : [];
             
-            // Find the specific batch to deduct from
+            // Find the specific batch to add to
             let batchIndex = -1;
             if (item.batch === null || item.batch === undefined || item.batch === '') {
                 // Look for a batch with null/undefined/empty string value
@@ -700,15 +698,20 @@ exports.createBill = (req, res) => {
                 batchIndex = batches.findIndex(b => b.batch === item.batch);
             }
             
+            // If batch doesn't exist, add new batch
             if (batchIndex === -1) {
-                throw new Error(`Batch ${item.batch} not found for item ${item.item}`);
+                batches.push({
+                    batch: item.batch || null,
+                    qty: 0,
+                    rate: item.rate,
+                    expiry: null,
+                    mrp: null
+                });
+                batchIndex = batches.length - 1; // Point to the newly added batch
             }
             
-            // Update the specific batch quantity
-            batches[batchIndex].qty -= item.qty;
-            if (batches[batchIndex].qty < 0) {
-                throw new Error(`Insufficient quantity in batch ${item.batch} for item ${item.item}`);
-            }
+            // Update the specific batch quantity by adding the purchase quantity
+            batches[batchIndex].qty += item.qty;
             
             // Calculate new total quantity
             const newTotalQty = batches.reduce((sum, b) => sum + b.qty, 0);
@@ -770,7 +773,7 @@ exports.createBill = (req, res) => {
 
         const ledgerBase = {
             voucher_id: billId,
-            voucher_type: 'SALES',
+            voucher_type: 'PURCHASE',
             voucher_no: meta.billNo,
             bill_id: billId,
             transaction_date: meta.billDate,
@@ -784,10 +787,10 @@ exports.createBill = (req, res) => {
         insertLedger.run({
             ...ledgerBase,
             account_head: party.firm,
-            account_type: 'DEBTOR',
-            debit_amount: ntot,
-            credit_amount: 0,
-            narration: `Sales Bill No: ${meta.billNo}`,
+            account_type: 'CREDITOR',
+            debit_amount: 0,
+            credit_amount: ntot,
+            narration: `Purchase Bill No: ${meta.billNo}`,
             party_id: party.id || null,
             tax_type: null,
             tax_rate: null
@@ -870,15 +873,15 @@ exports.createBill = (req, res) => {
             });
         }
 
-        // 5. Sales Account Post (To balance the ledger)
+        // 5. Purchase Account Post (To balance the ledger)
         const taxableItemsTotal = cart.reduce((sum, item) => sum + (item.qty * item.rate * (1 - (item.disc || 0)/100)), 0);
         insertLedger.run({
             ...ledgerBase,
-            account_head: 'Sales',
-            account_type: 'INCOME',
-            debit_amount: 0,
-            credit_amount: taxableItemsTotal,
-            narration: `Sales on Bill No: ${meta.billNo}`,
+            account_head: 'Purchase',
+            account_type: 'EXPENSE',
+            debit_amount: taxableItemsTotal,
+            credit_amount: 0,
+            narration: `Purchase on Bill No: ${meta.billNo}`,
             party_id: null,
             tax_type: null,
             tax_rate: null
@@ -1332,7 +1335,7 @@ exports.updateBill = async (req, res) => {
             state: party.state || '',
             gtot: gtot,
             ntot: ntot,
-            btype: meta.billType ? meta.billType.toUpperCase() : 'SALES',
+            btype: meta.billType ? meta.billType.toUpperCase() : 'PURCHASE',
             usern: actorUsername,
             firm: party.firm,
             party_id: party.id || null,
@@ -1359,7 +1362,7 @@ exports.updateBill = async (req, res) => {
                 qty, uom, rate, grate, disc, total, 
                 stock_id, bill_id, user, firm, created_at, updated_at, qtyh, firm_id
             ) VALUES (
-                'SALE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
+                'PURCHASE', @bno, @bdate, @supply, @item, @item_narration, @batch, @hsn,
                 @qty, @uom, @rate, @grate, @disc, @total,
                 @stock_id, @bill_id, @user, @firm, @created_at, @updated_at, 0, @firm_id
             )
@@ -1986,7 +1989,7 @@ exports.createStockMovement = async (req, res) => {
             // For now, we'll add to stock quantity
             let newQty = stock.qty + Math.abs(qty);
             
-            if (type === 'SALE') {
+            if (type === 'PURCHASE') {
                 newQty = stock.qty - Math.abs(qty); // This shouldn't happen for manual movements
             }
 

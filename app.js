@@ -14,7 +14,9 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var aiPyRouter = require('./routes/ai_py_route');
 var adminRouter = require('./routes/admin');
-var inventoryRouter = require('./routes/inventory');
+var inventorySlsRouter = require('./routes/inventory/sls/inventory');
+var inventoryPrsRouter = require('./routes/inventory/prs/inventory');
+var inventoryRouter = require('./routes/inventory/sls/inventory'); // Default to SLS for backward compatibility
 var ledgerRouter = require('./routes/ledger');
 var masterrollsRouter = require('./routes/masterrolls');
 
@@ -52,6 +54,8 @@ app.use('/users', usersRouter);
 app.use('/ai', verifyToken, aiPyRouter);
 app.use('/admin', verifyToken, adminRouter);
 app.use('/inventory', verifyToken, inventoryRouter);
+app.use('/inventory/sls', verifyToken, inventorySlsRouter);
+app.use('/inventory/prs', verifyToken, inventoryPrsRouter);
 app.use('/ledger', verifyToken, ledgerRouter);
 app.use('/masterrolls', verifyToken, masterrollsRouter);
 

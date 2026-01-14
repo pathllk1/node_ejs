@@ -7,7 +7,7 @@ const { verifyFirmAccess } = require('../../../middleware/firmMiddleware');
 
 // View Route
 router.get('/stocks', controller.renderStocksPage);
-router.get('/sales', controller.renderSalesPage);
+router.get('/purchase', controller.renderPurchasePage);
 
 router.get('/bills', controller.renderBillsPage);
 

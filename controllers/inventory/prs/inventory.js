@@ -26,7 +26,7 @@ exports.renderStocksPage = (req, res) => {
     });
 };
 
-exports.renderSalesPage = (req, res) => {
+exports.renderPurchasePage = (req, res) => {
     // Fetch firm name for the logged-in user
     let firmName = '';
     if (req.user && req.user.firm_id) {
@@ -36,8 +36,8 @@ exports.renderSalesPage = (req, res) => {
     }
     
     // You can pass the logged-in user here if available in req.user
-    res.render('inventory/sales', { 
-        title: 'Sales', 
+    res.render('inventory/purchase', { 
+        title: 'Purchase', 
         user: { 
             ...req.user, 
             firm_name: firmName 
@@ -802,8 +802,8 @@ exports.createBill = (req, res) => {
                 ...ledgerBase,
                 account_head: 'CGST',
                 account_type: 'TAX',
-                debit_amount: 0,
-                credit_amount: cgst,
+                debit_amount: cgst,
+                credit_amount: 0,
                 narration: `CGST on Bill No: ${meta.billNo}`,
                 party_id: null,
                 tax_type: 'CGST',
@@ -815,8 +815,8 @@ exports.createBill = (req, res) => {
                 ...ledgerBase,
                 account_head: 'SGST',
                 account_type: 'TAX',
-                debit_amount: 0,
-                credit_amount: sgst,
+                debit_amount: sgst,
+                credit_amount: 0,
                 narration: `SGST on Bill No: ${meta.billNo}`,
                 party_id: null,
                 tax_type: 'SGST',
@@ -828,8 +828,8 @@ exports.createBill = (req, res) => {
                 ...ledgerBase,
                 account_head: 'IGST',
                 account_type: 'TAX',
-                debit_amount: 0,
-                credit_amount: igst,
+                debit_amount: igst,
+                credit_amount: 0,
                 narration: `IGST on Bill No: ${meta.billNo}`,
                 party_id: null,
                 tax_type: 'IGST',
@@ -861,9 +861,9 @@ exports.createBill = (req, res) => {
                     insertLedger.run({
                         ...ledgerBase,
                         account_head: charge.name || charge.type || 'Other Charges',
-                        account_type: 'INCOME',
-                        debit_amount: 0,
-                        credit_amount: chargeAmount,
+                        account_type: 'EXPENSE',
+                        debit_amount: chargeAmount,
+                        credit_amount: 0,
                         narration: `${charge.name || charge.type || 'Other Charges'} on Bill No: ${meta.billNo}`,
                         party_id: null,
                         tax_type: null,

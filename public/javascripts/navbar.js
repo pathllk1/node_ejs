@@ -325,11 +325,9 @@ document.addEventListener('click', async (e) => {
                 if (toolsDropdown) toolsDropdown.classList.add('hidden');
                 if (inventoryDropdown) inventoryDropdown.classList.add('hidden');
 
-                const mobileInventoryMenu = document.getElementById('mobile-inventory-menu');
                 const mobileInventoryDropdown = document.getElementById('mobile-inventory-dropdown');
                 const hrDropdown = document.getElementById('hr-dropdown');
                 const mobileHrDropdown = document.getElementById('mobile-hr-dropdown');
-                if (mobileInventoryMenu) mobileInventoryMenu.classList.add('hidden');
                 if (mobileInventoryDropdown) mobileInventoryDropdown.classList.add('hidden');
                 if (hrDropdown) hrDropdown.classList.add('hidden');
                 if (mobileHrDropdown) mobileHrDropdown.classList.add('hidden');

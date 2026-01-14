@@ -1,0 +1,126 @@
+# INVOICE TYPE IDENTIFICATION FIX PLAN
+## Inventory & Ledger System Enhancement
+
+### PROBLEM STATEMENT
+The Sales Report page does not identify or distinguish between different invoice types (sale/purchase/cr note/dr note), making it difficult for users to understand the nature of each transaction.
+
+### CURRENT STATE ANALYSIS
+- Database: bills table has 'btype' column storing transaction types (SALES, PURCHASE, etc.)
+- Frontend: sales-report.js renders all bills uniformly without type indication
+- UI: Missing visual distinction between different invoice types
+
+### ROOT CAUSE
+The sales report table in sales-report.ejs and its JavaScript handler do not include an invoice type column or indicator.
+
+### SOLUTION DESIGN
+
+#### Phase 1: Add Invoice Type Column to Sales Report
+**Files to Modify:**
+1. `views/inventory/sales-report.ejs` - Add table header for invoice type
+2. `public/javascripts/inventory/sales-report.js` - Update renderReport function to show invoice type
+
+#### Phase 2: Enhance Data Processing
+- Update the bill data mapping to include normalized invoice type labels
+- Create a mapping function to convert raw btype values to user-friendly labels
+
+#### Phase 3: Visual Enhancement
+- Add color coding or badges for different invoice types
+- Ensure responsive design compatibility
+
+### DETAILED IMPLEMENTATION STEPS
+
+#### Step 1: Update the EJS Template
+Modify `views/inventory/sales-report.ejs` to add invoice type column:
+
+Change from:
+<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+To:
+<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+#### Step 2: Update JavaScript Render Function
+In `public/javascripts/inventory/sales-report.js`, modify the renderReport function:
+
+A. Update table header mapping to include invoice type
+B. Add invoice type display logic with user-friendly labels
+C. Add conditional styling for different invoice types
+
+#### Step 3: Create Invoice Type Mapping
+Add a helper function to map raw btype values to friendly labels:
+- 'SALES' → 'Sales Invoice'
+- 'PURCHASE' → 'Purchase Invoice' 
+- 'CREDIT_NOTE' → 'Credit Note'
+- 'DEBIT_NOTE' → 'Debit Note'
+- 'SALES_RETURN' → 'Sales Return'
+- 'PURCHASE_RETURN' → 'Purchase Return'
+
+#### Step 4: Update Excel Export
+Modify the exportToExcel function to include the invoice type column in exported data.
+
+### TECHNICAL SPECIFICATIONS
+
+#### Invoice Type Mapping Function:
+```javascript
+function getInvoiceTypeLabel(btype) {
+    const typeMap = {
+        'SALES': { label: 'Sales', class: 'bg-green-100 text-green-800' },
+        'PURCHASE': { label: 'Purchase', class: 'bg-blue-100 text-blue-800' },
+        'CREDIT NOTE': { label: 'Credit Note', class: 'bg-yellow-100 text-yellow-800' },
+        'DEBIT NOTE': { label: 'Debit Note', class: 'bg-red-100 text-red-800' },
+        'SALES RETURN': { label: 'Sales Return', class: 'bg-purple-100 text-purple-800' },
+        'PURCHASE RETURN': { label: 'Purchase Return', class: 'bg-indigo-100 text-indigo-800' },
+        'INTER-STATE SALES': { label: 'Inter-State Sales', class: 'bg-green-100 text-green-800' },
+        'INTRA-STATE SALES': { label: 'Intra-State Sales', class: 'bg-teal-100 text-teal-800' },
+        'INTER-STATE PURCHASE': { label: 'Inter-State Purchase', class: 'bg-blue-100 text-blue-800' },
+        'INTRA-STATE PURCHASE': { label: 'Intra-State Purchase', class: 'bg-cyan-100 text-cyan-800' }
+    };
+    
+    const normalizedType = (btype || '').toUpperCase().trim();
+    const match = Object.keys(typeMap).find(key => 
+        normalizedType.includes(key) || key.includes(normalizedType)
+    );
+    
+    return match ? typeMap[match] : { label: btype || 'Unknown', class: 'bg-gray-100 text-gray-800' };
+}
+```
+
+#### Updated renderReport Function Logic:
+```javascript
+<td class="px-4 py-3 text-sm text-gray-500">
+    <span class="px-2 py-1 text-xs font-semibold rounded-full ${getInvoiceTypeLabel(bill.btype).class}">
+        ${getInvoiceTypeLabel(bill.btype).label}
+    </span>
+</td>
+```
+
+### IMPLEMENTATION RISKS & MITIGATION
+1. **Risk**: Existing btype values may not follow expected format
+   - Mitigation: Create flexible mapping function that handles variations
+   
+2. **Risk**: UI clutter with additional column
+   - Mitigation: Ensure responsive design and consider column ordering
+
+3. **Risk**: Performance impact on large datasets
+   - Mitigation: Optimize mapping function and avoid repeated calculations
+
+### TESTING PLAN
+1. Verify all existing btype values are properly mapped
+2. Test with sample data containing different invoice types
+3. Validate Excel export includes invoice type column
+4. Confirm responsive behavior on mobile devices
+5. Test with cancelled/invalid bills
+
+### SUCCESS CRITERIA
+- [ ] Sales report shows clear invoice type identification
+- [ ] Different invoice types are visually distinct
+- [ ] Excel export includes invoice type column
+- [ ] All existing functionality remains intact
+- [ ] Performance is not negatively impacted
+- [ ] Responsive design maintained
+
+### BUSINESS VALUE
+- Users can quickly identify transaction types without opening details
+- Better audit trail with clear transaction categorization
+- Improved user experience and efficiency
+- Clearer financial reporting and analysis capability

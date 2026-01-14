@@ -914,7 +914,19 @@ exports.getBillById = (req, res) => {
             return res.status(400).json({ error: 'Bill ID is required' });
         }
         
-        const billStmt = db.prepare('SELECT * FROM bills WHERE id = ? AND firm_id = ?');
+        // Join with stock_reg to get the transaction type (SALE/PURCHASE)
+        const billStmt = db.prepare(`
+            SELECT 
+                b.*, 
+                sr.type as transactionType
+            FROM bills b
+            LEFT JOIN (
+                SELECT bill_id, type, MIN(id) as min_id 
+                FROM stock_reg 
+                GROUP BY bill_id
+            ) sr ON b.id = sr.bill_id
+            WHERE b.id = ? AND b.firm_id = ?
+        `);
         let bill = billStmt.get(id, req.user.firm_id);
         
         if (!bill) {
@@ -956,6 +968,13 @@ exports.getBillById = (req, res) => {
             bill.gstEnabled = gstSetting ? gstSetting.setting_value === 'true' : true; // Default to true if not found
         }
         
+        // Map the stock_reg type to a more user-friendly transaction type
+        // If transactionType exists from the joined query, convert it; otherwise default to PURCHASE
+        bill.transactionType = bill.transactionType ? 
+            (bill.transactionType === 'SALE' ? 'SALES' : 
+             bill.transactionType === 'PURCHASE' ? 'PURCHASE' : 
+             bill.transactionType) : 'PURCHASE';  // Default to PURCHASE for PRS
+        
         // Get bill items from stock_reg table
         const itemsStmt = db.prepare('SELECT *, item_narration FROM stock_reg WHERE bill_id = ? AND firm_id = ? ORDER BY created_at');
         bill.items = itemsStmt.all(id, req.user.firm_id);
@@ -973,7 +992,21 @@ exports.getAllBills = (req, res) => {
             return res.status(403).json({ error: 'User is not associated with any firm' });
         }
         
-        const stmt = db.prepare('SELECT * FROM bills WHERE firm_id = ? ORDER BY created_at DESC');
+        // Join with stock_reg to get the transaction type (SALE/PURCHASE)
+        // Use the first occurrence of type from stock_reg for each bill
+        const stmt = db.prepare(`
+            SELECT 
+                b.*, 
+                sr.type as transactionType
+            FROM bills b
+            LEFT JOIN (
+                SELECT bill_id, type, MIN(id) as min_id 
+                FROM stock_reg 
+                GROUP BY bill_id
+            ) sr ON b.id = sr.bill_id
+            WHERE b.firm_id = ?
+            ORDER BY b.created_at DESC
+        `);
         const bills = stmt.all(req.user.firm_id);
         
         // Check GST status to determine if tax calculations were enabled when the bills were created
@@ -1043,6 +1076,13 @@ exports.getAllBills = (req, res) => {
             
             // Add GST enabled status
             bill.gstEnabled = gstEnabled;
+            
+            // Map the stock_reg type to a more user-friendly transaction type
+            // If transactionType exists from the joined query, convert it; otherwise default to PURCHASE
+            bill.transactionType = bill.transactionType ? 
+                (bill.transactionType === 'SALE' ? 'SALES' : 
+                 bill.transactionType === 'PURCHASE' ? 'PURCHASE' : 
+                 bill.transactionType) : 'PURCHASE';  // Default to PURCHASE for PRS
             
             return bill;
         });

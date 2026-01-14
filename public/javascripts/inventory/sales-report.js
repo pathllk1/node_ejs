@@ -25,6 +25,59 @@
     // Format currency function
     const formatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
 
+    // Invoice type mapping function
+    function getInvoiceTypeLabel(bill) {
+        // Use the same logic as in exportBillToExcel function to determine bill type
+        const billTypeSource = (bill.btype || bill.billType || '').toString().toLowerCase();
+        let resolvedBillType;
+        
+        if (billTypeSource.includes('intra')) {
+            resolvedBillType = 'intra-state';
+        } else if (billTypeSource.includes('inter')) {
+            resolvedBillType = 'inter-state';
+        } else {
+            // Default to using tax amounts to determine if it's intra or inter state
+            const cgst = Number(bill.cgst) || 0;
+            const sgst = Number(bill.sgst) || 0;
+            const igst = Number(bill.igst) || 0;
+            resolvedBillType = (cgst > 0 || sgst > 0) ? 'intra-state' : (igst > 0 ? 'inter-state' : 'inter-state');
+        }
+        
+        // Use the transactionType field from the updated API response
+        // which gets the transaction type from stock_reg.type (SALE/PURCHASE)
+        const actualTransactionType = bill.transactionType || 'SALES';
+        
+        // Combine transaction type and state type
+        let fullType;
+        if (actualTransactionType === 'SALES') {
+            fullType = resolvedBillType === 'intra-state' ? 'Intra-State Sales' : 'Inter-State Sales';
+        } else if (actualTransactionType === 'PURCHASE') {
+            fullType = resolvedBillType === 'intra-state' ? 'Intra-State Purchase' : 'Inter-State Purchase';
+        } else if (actualTransactionType === 'CREDIT NOTE') {
+            fullType = 'Credit Note';
+        } else if (actualTransactionType === 'DEBIT NOTE') {
+            fullType = 'Debit Note';
+        } else {
+            fullType = actualTransactionType; // Other transaction types
+        }
+        
+        // Determine the appropriate class
+        let cssClass;
+        if (fullType.includes('Sales')) {
+            cssClass = 'bg-green-100 text-green-800';
+        } else if (fullType.includes('Purchase')) {
+            cssClass = 'bg-blue-100 text-blue-800';
+        } else if (fullType.includes('Credit')) {
+            cssClass = 'bg-yellow-100 text-yellow-800';
+        } else if (fullType.includes('Debit')) {
+            cssClass = 'bg-red-100 text-red-800';
+        } else {
+            cssClass = 'bg-gray-100 text-gray-800';
+        }
+        
+        return { label: fullType, class: cssClass };
+    }
+
     // State for sales data
     let salesData = [];
     let filteredData = [];
@@ -164,6 +217,11 @@
                     <td class="px-4 py-3 text-sm text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(taxAmount)}</td>
                     <td class="px-4 py-3 text-sm text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(otherChargesTotal)}</td>
                     <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">${isCancelled ? '***' : formatCurrency(bill.ntot || 0)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${getInvoiceTypeLabel(bill).class}">
+                            ${getInvoiceTypeLabel(bill).label}
+                        </span>
+                    </td>
                     <td class="px-4 py-3 text-sm text-gray-500">
                         ${!isCancelled && bill.reverseCharge ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Yes</span>' : '<span class="text-gray-400 text-xs">No</span>'}
                     </td>
@@ -1163,7 +1221,7 @@
         ws_data.push([]);
         
         // Column headers
-        ws_data.push(['Bill No', 'Date', 'Party', 'Ref/PO No', 'Taxable', 'Tax', 'Other Charges', 'Total', 'Reverse Charge']);
+        ws_data.push(['Bill No', 'Date', 'Party', 'Ref/PO No', 'Taxable', 'Tax', 'Other Charges', 'Total', 'Type', 'Reverse Charge']);
         
         // Data rows
         filteredData.forEach(bill => {
@@ -1199,6 +1257,7 @@
                 isCancelled ? 0 : taxAmount,
                 isCancelled ? 0 : otherChargesTotal,
                 isCancelled ? 0 : (bill.ntot || 0),
+                getInvoiceTypeLabel(bill).label,
                 isCancelled ? '***' : (bill.reverseCharge ? 'Yes' : 'No')
             ]);
         });
@@ -1234,6 +1293,7 @@
                     return sum + (bill.gtot || 0);
                 }
             }, 0),
+            '', // Placeholder for type column in totals row
             '' // Placeholder for reverse charge column in totals row
         ]);
 
@@ -1244,7 +1304,7 @@
         // Set column widths
         ws['!cols'] = [
             { wch: 15 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
-            { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }
+            { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, "Sales Report");

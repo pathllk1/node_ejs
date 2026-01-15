@@ -65,122 +65,143 @@
     </div>
 </div>
 
-<div id="employeeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all scale-100 overflow-hidden">
+<div id="employeeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity p-3 sm:p-6">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl transform transition-all scale-100 overflow-hidden">
         
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-5 py-3 flex justify-between items-center">
-            <h2 id="modalTitle" class="text-base font-semibold text-white tracking-wide">Employee Details</h2>
-            <button id="closeModalBtn" class="text-white/80 hover:text-white text-xl font-light leading-none">&times;</button>
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 sm:px-6 py-3 flex items-center justify-between">
+            <div class="min-w-0">
+                <h2 id="modalTitle" class="text-sm sm:text-base font-semibold text-white tracking-wide truncate">Employee Details</h2>
+                <div class="text-[11px] text-white/80 leading-4">Review personal, employment, and bank details</div>
+            </div>
+            <button id="closeModalBtn" class="ml-3 shrink-0 h-9 w-9 inline-flex items-center justify-center rounded-md text-white/90 hover:text-white hover:bg-white/10 transition" aria-label="Close">&times;</button>
         </div>
         
-        <div id="employeeDetails" class="p-4 overflow-y-auto max-h-[70vh]">
-            <!-- Employee details will be loaded here -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div class="space-y-2">
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Employee Name</label>
-                        <div id="detailEmployeeName" class="text-gray-800 font-medium"></div>
+        <div id="employeeDetails" class="p-4 sm:p-6 overflow-y-auto max-h-[70vh]">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="rounded-lg border border-gray-100 bg-white">
+                    <div class="px-4 py-3 border-b border-gray-100">
+                        <div class="text-[11px] font-semibold text-gray-700 uppercase tracking-wide">Personal</div>
                     </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Father/Husband Name</label>
-                        <div id="detailFatherHusbandName" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Aadhar</label>
-                        <div id="detailAadhar" class="text-gray-800 font-mono"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Phone</label>
-                        <div id="detailPhone" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Category</label>
-                        <div id="detailCategory" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Status</label>
-                        <div id="detailStatus" class="text-gray-800"></div>
-                    </div>
-                </div>
-                
-                <div class="space-y-2">
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Date of Birth</label>
-                        <div id="detailDateOfBirth" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Date of Joining</label>
-                        <div id="detailDateOfJoining" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Date of Exit</label>
-                        <div id="detailDateOfExit" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Daily Wage</label>
-                        <div id="detailPDayWage" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Bank</label>
-                        <div id="detailBank" class="text-gray-800"></div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Branch</label>
-                        <div id="detailBranch" class="text-gray-800"></div>
+                    <div class="p-4">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs">
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Employee Name</dt>
+                                <dd id="detailEmployeeName" class="mt-1 text-gray-900 font-semibold"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Father/Husband</dt>
+                                <dd id="detailFatherHusbandName" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Aadhar</dt>
+                                <dd id="detailAadhar" class="mt-1 text-gray-800 font-mono"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Phone</dt>
+                                <dd id="detailPhone" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Date of Birth</dt>
+                                <dd id="detailDateOfBirth" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Address</dt>
+                                <dd id="detailAddress" class="mt-1 text-gray-800 whitespace-pre-line"></dd>
+                            </div>
+                        </dl>
                     </div>
                 </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Address</label>
-                    <div id="detailAddress" class="text-gray-800"></div>
+
+                <div class="rounded-lg border border-gray-100 bg-white">
+                    <div class="px-4 py-3 border-b border-gray-100">
+                        <div class="text-[11px] font-semibold text-gray-700 uppercase tracking-wide">Employment</div>
+                    </div>
+                    <div class="p-4">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs">
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Category</dt>
+                                <dd id="detailCategory" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Status</dt>
+                                <dd id="detailStatus" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Date of Joining</dt>
+                                <dd id="detailDateOfJoining" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Date of Exit</dt>
+                                <dd id="detailDateOfExit" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Daily Wage</dt>
+                                <dd id="detailPDayWage" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Project</dt>
+                                <dd id="detailProject" class="mt-1 text-gray-800"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Site</dt>
+                                <dd id="detailSite" class="mt-1 text-gray-800"></dd>
+                            </div>
+                        </dl>
+                    </div>
                 </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Account Number</label>
-                    <div id="detailAccountNo" class="text-gray-800 font-mono"></div>
+            </div>
+
+            <div class="mt-4 rounded-lg border border-gray-100 bg-white">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <div class="text-[11px] font-semibold text-gray-700 uppercase tracking-wide">Bank & Statutory</div>
                 </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">IFSC Code</label>
-                    <div id="detailIfsc" class="text-gray-800 font-mono"></div>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">ESIC Number</label>
-                    <div id="detailEsicNo" class="text-gray-800"></div>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">PAN Number</label>
-                    <div id="detailPan" class="text-gray-800"></div>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">SKalyan Number</label>
-                    <div id="detailSKalyanNo" class="text-gray-800"></div>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Project</label>
-                    <div id="detailProject" class="text-gray-800"></div>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">Site</label>
-                    <div id="detailSite" class="text-gray-800"></div>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-gray-500 text-[10px] uppercase font-semibold mb-0.5">UAN</label>
-                    <div id="detailUan" class="text-gray-800"></div>
+                <div class="p-4">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3 text-xs">
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Bank</dt>
+                            <dd id="detailBank" class="mt-1 text-gray-800"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Branch</dt>
+                            <dd id="detailBranch" class="mt-1 text-gray-800"></dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Account Number</dt>
+                            <dd id="detailAccountNo" class="mt-1 text-gray-800 font-mono"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">IFSC</dt>
+                            <dd id="detailIfsc" class="mt-1 text-gray-800 font-mono"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">ESIC</dt>
+                            <dd id="detailEsicNo" class="mt-1 text-gray-800"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">PAN</dt>
+                            <dd id="detailPan" class="mt-1 text-gray-800"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">SKalyan</dt>
+                            <dd id="detailSKalyanNo" class="mt-1 text-gray-800"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">UAN</dt>
+                            <dd id="detailUan" class="mt-1 text-gray-800"></dd>
+                        </div>
+                    </dl>
                 </div>
             </div>
         </div>
         
-        <div class="pt-3 border-t border-gray-100 flex justify-end items-center bg-gray-50 -mx-4 -mb-4 px-4 py-3">
-            <button id="editEmployeeBtn" class="px-4 py-1.5 mr-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition shadow-sm">Edit</button>
-            <button id="deleteEmployeeBtn" class="px-4 py-1.5 mr-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition shadow-sm">Delete</button>
-            <button id="closeModalBtn2" class="px-4 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition shadow-sm">Close</button>
+        <div class="border-t border-gray-100 bg-white px-4 sm:px-6 py-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <button id="closeModalBtn2" class="inline-flex justify-center items-center px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Close</button>
+                <div class="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                    <button id="deleteEmployeeBtn" class="inline-flex justify-center items-center px-4 py-2 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition">Delete</button>
+                    <button id="editEmployeeBtn" class="inline-flex justify-center items-center px-4 py-2 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition shadow-sm">Edit</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

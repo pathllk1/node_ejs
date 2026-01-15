@@ -188,8 +188,9 @@
         // 5. Action Buttons in Details Modal
         document.getElementById('editEmployeeBtn').addEventListener('click', () => {
             if (currentEmployee) {
+                const employeeToEdit = currentEmployee;
                 closeModal();
-                openFormModal(currentEmployee);
+                openFormModal(employeeToEdit);
             }
         });
 

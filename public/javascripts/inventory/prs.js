@@ -117,15 +117,8 @@
                 state.parties = [];
             }
 
-            // 3. Fetch next bill number info (non-consuming)
-            try {
-                const billNoRes = await window.api.get('/inventory/prs/api/bills/next-number');
-                const billNoData = await billNoRes.json();
-                state.meta.billNo = billNoData.nextBillNo || 'Will be generated on save';
-            } catch (e) {
-                console.warn("Could not fetch next bill number info, using placeholder", e);
-                state.meta.billNo = 'Will be generated on save';
-            }
+            // 3. Set initial empty bill number for manual entry
+            state.meta.billNo = '';
             
             // 4. Fetch GST status
             try {
@@ -157,7 +150,7 @@
                 <div class="flex flex-col sm:flex-row flex-wrap gap-2">
                     <div class="flex flex-col">
                         <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Bill No</label>
-                        <input type="text" value="${state.meta.billNo}" readonly class="border border-gray-300 rounded px-2 py-1 text-xs font-bold w-32 bg-gray-100 text-slate-500 cursor-not-allowed" title="Auto-generated when saved">
+                        <input type="text" value="${state.meta.billNo}" id="prs-bill-no" class="border border-gray-300 rounded px-2 py-1 text-xs font-bold w-32 bg-white text-slate-700 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="Enter Bill No" title="Manual bill number entry">
                     </div>
                     <div class="flex flex-col">
                         <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Date</label>
@@ -2119,6 +2112,14 @@
         if (dispatchThroughInput) {
             dispatchThroughInput.oninput = (e) => {
                 state.meta.dispatchThrough = e.target.value;
+            };
+        }
+        
+        // Bill No input
+        const billNoInput = document.getElementById('prs-bill-no');
+        if (billNoInput) {
+            billNoInput.oninput = (e) => {
+                state.meta.billNo = e.target.value;
             };
         }
         

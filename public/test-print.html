@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Print Invoice</title>
+    <link href="/stylesheets/style.css" rel="stylesheet">
+    <script src="/javascripts/inventory/print-invoice.js"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-6">Test Invoice Printing</h1>
+    
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4">Sample Bill Data</h2>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Bill Number</label>
+                <input type="text" id="billNo" value="INV-2024-001" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Bill Date</label>
+                <input type="date" id="billDate" value="2024-01-15" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Party Name</label>
+                <input type="text" id="partyName" value="ABC Corporation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Total Amount</label>
+                <input type="number" id="totalAmount" value="15000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+        </div>
+        
+        <div class="mt-6">
+            <button onclick="testPrint()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">
+                Test Print Invoice
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function testPrint() {
+            // Create sample bill data
+            const bill = {
+                bno: document.getElementById('billNo').value,
+                bdate: document.getElementById('billDate').value,
+                firm: document.getElementById('partyName').value,
+                addr: '123 Business Street, Mumbai, Maharashtra',
+                state: 'Maharashtra',
+                gstin: '27AABCCDDEEFFGHH',
+                gtot: 12000,
+                cgst: 900,
+                sgst: 900,
+                igst: 0,
+                ntot: 13800,
+                items: [
+                    {
+                        item: 'Product A',
+                        hsn: '123456',
+                        qty: 10,
+                        uom: 'PCS',
+                        rate: 1000,
+                        disc: 10,
+                        grate: 18,
+                        total: 9000,
+                        batch: 'BATCH001',
+                        item_narration: 'Sample product description'
+                    },
+                    {
+                        item: 'Product B',
+                        hsn: '789012',
+                        qty: 5,
+                        uom: 'PCS',
+                        rate: 800,
+                        disc: 5,
+                        grate: 12,
+                        total: 3800
+                    }
+                ],
+                oth_chg_json: JSON.stringify([
+                    {
+                        name: 'Freight Charges',
+                        type: 'Freight',
+                        hsnSac: '996712',
+                        amount: 500,
+                        gstRate: 18,
+                        gstAmount: 90
+                    }
+                ]),
+                narration: 'Sample invoice for demonstration purposes',
+                order_no: 'PO-2024-001',
+                vehicle_no: 'MH12AB1234',
+                dispatch_through: 'Express Logistics'
+            };
+            
+            // Test the print functionality
+            if (window.printInvoiceModule && window.printInvoiceModule.printInvoice) {
+                window.printInvoiceModule.printInvoice(bill);
+            } else {
+                alert('Print module not loaded properly');
+            }
+        }
+    </script>
+</body>
+</html>

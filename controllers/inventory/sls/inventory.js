@@ -1821,14 +1821,18 @@ exports.getCurrentUserFirmName = (req, res) => {
             return res.status(403).json({ error: 'User is not associated with any firm' });
         }
         
-        const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
+        const firmStmt = db.prepare('SELECT name, address, contact_info FROM firms WHERE id = ?');
         const firm = firmStmt.get(req.user.firm_id);
         
         if (!firm) {
             return res.status(404).json({ error: 'Firm not found' });
         }
         
-        res.json({ firmName: firm.name });
+        res.json({ 
+            firmName: firm.name,
+            address: firm.address || '',
+            contact_info: firm.contact_info || ''
+        });
     } catch (err) {
         console.error('Error fetching firm name:', err);
         res.status(500).json({ error: err.message });

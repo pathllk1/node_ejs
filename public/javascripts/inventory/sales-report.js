@@ -1080,7 +1080,7 @@
 
         modalHtml += '<div class="flex space-x-2">';
         modalHtml += '<button id="export-bill-pdf" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">';
-        modalHtml += 'Export PDF';
+        modalHtml += 'Print Invoice';
         modalHtml += '</button>';
         modalHtml += '<button id="export-bill-excel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">';
         modalHtml += 'Export as Excel';
@@ -1110,7 +1110,27 @@
         
         if (closeModalTop) closeModalTop.onclick = closeBillModal;
         if (closeModalBottom) closeModalBottom.onclick = closeBillModal;
-        if (exportPdfBtn) exportPdfBtn.onclick = () => exportBillToPdf(bill);
+        if (exportPdfBtn) exportPdfBtn.onclick = () => {
+            // Load print module dynamically if not already loaded
+            if (typeof window.printInvoiceModule !== 'undefined' && window.printInvoiceModule.printInvoice) {
+                window.printInvoiceModule.printInvoice(bill);
+            } else {
+                // Fallback to load the module
+                const script = document.createElement('script');
+                script.src = '/javascripts/inventory/print-invoice.js';
+                script.onload = () => {
+                    if (window.printInvoiceModule && window.printInvoiceModule.printInvoice) {
+                        window.printInvoiceModule.printInvoice(bill);
+                    } else {
+                        alert('Print module failed to load. Please try again.');
+                    }
+                };
+                script.onerror = () => {
+                    alert('Failed to load print functionality. Please check your connection.');
+                };
+                document.head.appendChild(script);
+            }
+        };
         if (exportExcelBtn) exportExcelBtn.onclick = () => exportBillToExcel(bill);
         
         if (editBillBtn) {

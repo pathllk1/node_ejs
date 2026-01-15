@@ -284,7 +284,7 @@ exports.getBillPdf = async (req, res) => {
                         }
                     ]
                 },
-                { canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515, y2: 10, lineWidth: 1, lineColor: '#E5E7EB' }], margin: [0, 5, 0, 15] },
+                { canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515, y2: 10, lineWidth: 1, lineColor: '#E5E7EB' }], margin: [0, 5, 0, 10] },
                 
                 // Party Details
                 {
@@ -321,14 +321,14 @@ exports.getBillPdf = async (req, res) => {
                             ]
                         }
                     ],
-                    margin: [0, 0, 0, 20]
+                    margin: [0, 0, 0, 15]
                 },
                 
                 // Items Table
                 {
                     table: {
                         headerRows: 1,
-                        widths: [15, 135, 50, 30, 25, 40, 30, 35, 55],
+                        widths: [15, 122, 45, 30, 25, 40, 35, 35, 55],
                         body: [
                             [
                                 { text: '#', style: 'tableHeader', alignment: 'center' },
@@ -378,12 +378,20 @@ exports.getBillPdf = async (req, res) => {
                             ])
                         ]
                     },
-                    layout: 'lightHorizontalLines'
+                    layout: {
+                        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 1 : 0.5,
+                        vLineWidth: () => 0,
+                        hLineColor: (i, node) => (i === 0 || i === node.table.body.length) ? '#374151' : '#E5E7EB',
+                        paddingLeft: () => 8,
+                        paddingRight: () => 8,
+                        paddingTop: () => 6,
+                        paddingBottom: () => 6
+                    }
                 },
                 
                 // HSN Summary
                 ...(hsnSummary.length > 0 && gstEnabled ? [
-                    { text: 'HSN/SAC Summary', style: 'boxTitle', margin: [0, 20, 0, 5] },
+                    { text: 'HSN/SAC Summary', style: 'boxTitle', margin: [0, 15, 0, 5] },
                     {
                         table: {
                             headerRows: 1,
@@ -407,7 +415,15 @@ exports.getBillPdf = async (req, res) => {
                                 ])
                             ]
                         },
-                        layout: 'lightHorizontalLines'
+                        layout: {
+                            hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 1 : 0.5,
+                            vLineWidth: () => 0,
+                            hLineColor: (i, node) => (i === 0 || i === node.table.body.length) ? '#374151' : '#E5E7EB',
+                            paddingLeft: () => 8,
+                            paddingRight: () => 8,
+                            paddingTop: () => 6,
+                            paddingBottom: () => 6
+                        }
                     }
                 ] : []),
                 
@@ -417,10 +433,10 @@ exports.getBillPdf = async (req, res) => {
                         {
                             width: '*',
                             stack: [
-                                { text: 'Amount (in words)', style: 'label', margin: [0, 20, 0, 5] },
+                                { text: 'Amount (in words)', style: 'label', margin: [0, 15, 0, 5] },
                                 { text: numberToWords(roundedGrandTotal), bold: true, fontSize: 9 },
                                 ...(bill.narration ? [
-                                    { text: 'Narration', style: 'label', margin: [0, 10, 0, 5] },
+                                    { text: 'Narration', style: 'label', margin: [0, 8, 0, 5] },
                                     { text: bill.narration, fontSize: 9 }
                                 ] : [])
                             ]
@@ -446,11 +462,14 @@ exports.getBillPdf = async (req, res) => {
                                             [{ text: 'Grand Total:', style: 'grandLabel' }, { text: formatCurrency(roundedGrandTotal), alignment: 'right', style: 'grandValue' }]
                                         ]
                                     },
-                                    layout: 'noBorders',
-                                    margin: [0, 20, 0, 0]
+                                    layout: {
+                                        hLineWidth: () => 0,
+                                        vLineWidth: () => 0
+                                    },
+                                    margin: [0, 15, 0, 0]
                                 },
                                 ...(bill.reverseCharge && gstEnabled ? [
-                                    { text: 'Reverse charge applicable. Tax liability is on recipient.', fontSize: 8, color: 'red', margin: [0, 10, 0, 0], alignment: 'right' }
+                                    { text: 'Reverse charge applicable. Tax liability is on recipient.', fontSize: 8, color: 'red', margin: [0, 8, 0, 0], alignment: 'right' }
                                 ] : [])
                             ]
                         }
@@ -479,7 +498,7 @@ exports.getBillPdf = async (req, res) => {
                             alignment: 'center'
                         }
                     ],
-                    margin: [0, 40, 0, 0]
+                    margin: [0, 20, 0, 0]
                 }
             ],
             styles: {

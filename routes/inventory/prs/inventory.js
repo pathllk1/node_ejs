@@ -3,6 +3,7 @@ const router = express.Router();
 // Adjust path if your folder structure is different
 const controller = require('../../../controllers/inventory/prs/inventory');
 const invoicePdfController = require('../../../controllers/inventory/invoicePdfController');
+const pdfMakeController = require('../../../controllers/inventory/pdfMakeController');
 const { verifyFirmAccess } = require('../../../middleware/firmMiddleware');
 
 // View Route
@@ -36,6 +37,7 @@ router.get('/api/bills/next-number', verifyFirmAccess, controller.getNextBillNum
 router.get('/api/bills/:id', verifyFirmAccess, controller.getBillById);
 router.patch('/api/bills/:id/cancel', verifyFirmAccess, controller.cancelBill);
 router.get('/api/bills/:id/pdf', verifyFirmAccess, invoicePdfController.getBillPdfById);
+router.get('/api/bills/:id/pdfmake', verifyFirmAccess, pdfMakeController.getBillPdf);
 
 // --- API Routes: History ---
 router.get('/api/history/party-item', verifyFirmAccess, controller.getPartyItemHistory);

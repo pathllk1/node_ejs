@@ -909,7 +909,7 @@
                 return;
             }
 
-            const response = await window.api.get(`/inventory/api/bills/${bill.id}/pdf`);
+            const response = await window.api.get(`/inventory/api/bills/${bill.id}/pdfmake`);
             if (!response) {
                 throw new Error('Request failed (no response). You may have been logged out.');
             }
@@ -1119,25 +1119,7 @@
         if (closeModalTop) closeModalTop.onclick = closeBillModal;
         if (closeModalBottom) closeModalBottom.onclick = closeBillModal;
         if (exportPdfBtn) exportPdfBtn.onclick = () => {
-            // Load print module dynamically if not already loaded
-            if (typeof window.printInvoiceModule !== 'undefined' && window.printInvoiceModule.printInvoice) {
-                window.printInvoiceModule.printInvoice(bill);
-            } else {
-                // Fallback to load the module
-                const script = document.createElement('script');
-                script.src = '/javascripts/inventory/print-invoice.js';
-                script.onload = () => {
-                    if (window.printInvoiceModule && window.printInvoiceModule.printInvoice) {
-                        window.printInvoiceModule.printInvoice(bill);
-                    } else {
-                        alert('Print module failed to load. Please try again.');
-                    }
-                };
-                script.onerror = () => {
-                    alert('Failed to load print functionality. Please check your connection.');
-                };
-                document.head.appendChild(script);
-            }
+            exportBillToPdf(bill);
         };
         if (exportExcelBtn) exportExcelBtn.onclick = () => exportBillToExcel(bill);
         

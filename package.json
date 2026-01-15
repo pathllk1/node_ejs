@@ -7,7 +7,7 @@
     "build:css": "npx @tailwindcss/cli -i ./styles/input.css -o ./public/stylesheets/style.css",
     "watch:css": "npx @tailwindcss/cli -i ./styles/input.css -o ./public/stylesheets/style.css --watch",
     "watch:server": "nodemon ./bin/www --ignore venv --ignore node_modules",
-    "watch:python": "cd python_service && venv\\Scripts\\python -m uvicorn main:app --reload --port 5200",
+    "watch:python": "cd python_service && ./venv/bin/python -m uvicorn main:app --reload --port 5200",
     "dev": "concurrently \"npm run watch:css\" \"npm run watch:server\" \"npm run watch:python\""
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
+    "pdfmake": "^0.3.2",
     "puppeteer": "^24.35.0",
     "xss": "^1.0.15"
   },

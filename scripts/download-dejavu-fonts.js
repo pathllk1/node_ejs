@@ -14,19 +14,19 @@ if (!fs.existsSync(fontDir)) {
 // DejaVu fonts URLs (Open Font License - freely distributable)
 const fontDownloads = [
     {
-        url: 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf',
+        url: 'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/DejaVuSans.ttf',
         filename: 'DejaVuSans.ttf'
     },
     {
-        url: 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf',
+        url: 'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/DejaVuSans-Bold.ttf',
         filename: 'DejaVuSans-Bold.ttf'
     },
     {
-        url: 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Oblique.ttf',
+        url: 'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/DejaVuSans-Oblique.ttf',
         filename: 'DejaVuSans-Oblique.ttf'
     },
     {
-        url: 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-BoldOblique.ttf',
+        url: 'https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/DejaVuSans-BoldOblique.ttf',
         filename: 'DejaVuSans-BoldOblique.ttf'
     }
 ];

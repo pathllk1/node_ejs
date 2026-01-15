@@ -618,12 +618,12 @@ exports.createBill = (req, res) => {
         // NOTE: Bill number is generated server-side, no retry logic needed
         const insertBill = db.prepare(`
             INSERT INTO bills (
-                bno, bdate, supply, addr, gstin, state, 
+                bno, bdate, supply, addr, gstin, state, pin, state_code,
                 gtot, ntot, rof, btype, usern, firm, 
                 party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at, reverse_charge,
                 cgst, sgst, igst, firm_id
             ) VALUES (
-                @bno, @bdate, @supply, @addr, @gstin, @state,
+                @bno, @bdate, @supply, @addr, @gstin, @state, @pin, @state_code,
                 @gtot, @ntot, @rof, @btype, @usern, @firm,
                 @party_id, @oth_chg_json, @order_no, @vehicle_no, @dispatch_through, @narration, @created_at, @updated_at, @reverse_charge,
                 @cgst, @sgst, @igst, @firm_id
@@ -638,6 +638,8 @@ exports.createBill = (req, res) => {
             addr: party.addr || '',
             gstin: party.gstin || 'UNREGISTERED',
             state: party.state || '',
+            pin: party.pin || null,
+            state_code: party.state_code || null,
             gtot: gtot,
             ntot: ntot,
             rof: rof,
@@ -1356,8 +1358,8 @@ exports.updateBill = async (req, res) => {
         
         // B. Update Bill Header
         const updateBill = db.prepare(`
-            UPDATE bills SET 
-                bno = @bno, bdate = @bdate, supply = @supply, addr = @addr, gstin = @gstin, state = @state,
+            UPDATE bills SET
+                bno = @bno, bdate = @bdate, supply = @supply, addr = @addr, gstin = @gstin, state = @state, pin = @pin, state_code = @state_code,
                 gtot = @gtot, ntot = @ntot, btype = @btype, usern = @usern, firm = @firm,
                 party_id = @party_id, oth_chg_json = @oth_chg_json, order_no = @order_no, vehicle_no = @vehicle_no, 
                 dispatch_through = @dispatch_through, narration = @narration, updated_at = @updated_at, 
@@ -1373,6 +1375,8 @@ exports.updateBill = async (req, res) => {
             addr: party.addr || '',
             gstin: party.gstin || 'UNREGISTERED',
             state: party.state || '',
+            pin: party.pin || null,
+            state_code: party.state_code || null,
             gtot: gtot,
             ntot: ntot,
             btype: meta.billType ? meta.billType.toUpperCase() : 'PURCHASE',

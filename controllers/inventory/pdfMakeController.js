@@ -2,6 +2,7 @@ const PdfPrinter = require('pdfmake/js/Printer').default;
 const path = require('path');
 const db = require('../../config/db');
 
+
 // Font definitions
 const fonts = {
     DejaVuSans: {
@@ -232,6 +233,17 @@ exports.getBillPdf = async (req, res) => {
         const partyLabels = getPartyLabels(bill);
         const hsnSummary = buildHsnSummary(bill, items, otherCharges, gstEnabled);
         
+        // Use state codes and PINs directly from the database
+        // The bills table now contains pin and state_code copied from parties table
+        const buyerStateCode = bill.state_code;  // Direct numeric state code from database
+        const consigneeStateCode = bill.consignee_state_code || bill.state_code;  // Use consignee state code or fall back to main state code
+        
+        // Format addresses with PIN codes using direct database values
+        const formattedBuyerAddress = bill.addr && bill.pin ? `${bill.addr}, PIN: ${bill.pin}` : (bill.addr || `PIN: ${bill.pin}`);
+        const formattedConsigneeAddress = (bill.consignee_address || bill.addr) && (bill.consignee_pin || bill.pin) ? 
+            `${bill.consignee_address || bill.addr}, PIN: ${bill.consignee_pin || bill.pin}` : 
+            ((bill.consignee_address || bill.addr) || `PIN: ${bill.consignee_pin || bill.pin}`);
+        
         const taxableValue = bill.gtot || 0;
         const totalTax = gstEnabled ? ((bill.cgst || 0) + (bill.sgst || 0) + (bill.igst || 0)) : 0;
         const grandTotal = gstEnabled ? (bill.ntot || 0) : taxableValue;
@@ -296,9 +308,9 @@ exports.getBillPdf = async (req, res) => {
                                 {
                                     stack: [
                                         { text: bill.firm || '', bold: true },
-                                        { text: bill.addr || '' },
-                                        { text: bill.state ? `State: ${bill.state}` : '' },
-                                        { text: bill.gstin ? `GSTIN: ${bill.gstin}` : '' }
+                                        { text: formattedBuyerAddress },
+                                        { text: bill.state && buyerStateCode ? `State: ${bill.state} (${buyerStateCode})` : (bill.state ? `State: ${bill.state}` : '') },
+                                        { text: bill.gstin ? `GSTIN: ${bill.gstin}${bill.pin ? ` | PIN: ${bill.pin}` : ''}` : (bill.pin ? `PIN: ${bill.pin}` : '') }
                                     ],
                                     margin: [0, 5, 0, 0]
                                 }
@@ -311,10 +323,10 @@ exports.getBillPdf = async (req, res) => {
                                 { text: partyLabels.shipTo, style: 'boxTitle' },
                                 {
                                     stack: [
-                                        { text: bill.firm || '', bold: true },
-                                        { text: bill.addr || '' },
-                                        { text: bill.state ? `State: ${bill.state}` : '' },
-                                        { text: bill.gstin ? `GSTIN: ${bill.gstin}` : '' }
+                                        { text: bill.consignee_name || bill.firm || '', bold: true },
+                                        { text: formattedConsigneeAddress },
+                                        { text: (bill.consignee_state || bill.state) && consigneeStateCode ? `State: ${bill.consignee_state || bill.state} (${consigneeStateCode})` : ((bill.consignee_state || bill.state) ? `State: ${bill.consignee_state || bill.state}` : '') },
+                                        { text: (bill.consignee_gstin || bill.gstin) ? `GSTIN: ${bill.consignee_gstin || bill.gstin}${(bill.consignee_pin || bill.pin) ? ` | PIN: ${bill.consignee_pin || bill.pin}` : ''}` : ((bill.consignee_pin || bill.pin) ? `PIN: ${bill.consignee_pin || bill.pin}` : '') }
                                     ],
                                     margin: [0, 5, 0, 0]
                                 }

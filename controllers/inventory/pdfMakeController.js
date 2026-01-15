@@ -340,7 +340,7 @@ exports.getBillPdf = async (req, res) => {
                 {
                     table: {
                         headerRows: 1,
-                        widths: [15, 122, 45, 30, 25, 40, 35, 35, 55],
+                        widths: [12, 120, 45, 30, 25, 40, 35, 35, 60],
                         body: [
                             [
                                 { text: '#', style: 'tableHeader', alignment: 'center' },
@@ -407,7 +407,7 @@ exports.getBillPdf = async (req, res) => {
                     {
                         table: {
                             headerRows: 1,
-                            widths: [60, 85, 55, 55, 55, 90],
+                            widths: [60, 85, 60, 60, 60, 90],
                             body: [
                                 [
                                     { text: 'HSN/SAC', style: 'tableHeader', alignment: 'center' },

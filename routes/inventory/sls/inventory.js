@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 // Adjust path if your folder structure is different
 const controller = require('../../../controllers/inventory/sls/inventory');
-const invoicePdfController = require('../../../controllers/inventory/invoicePdfController');
+
 const pdfMakeController = require('../../../controllers/inventory/pdfMakeController');
 const { verifyFirmAccess } = require('../../../middleware/firmMiddleware');
 

@@ -24,20 +24,26 @@ exports.viewLogs = async (req, res) => {
             });
         }
         
-        // 1. Fetch from Python Microservice
-        const response = await fetch('http://127.0.0.1:5200/logs');
-        const data = await response.json();
+        // Fetch logs using Node.js controller
+        const query = "SELECT * FROM request_logs ORDER BY timestamp DESC";
+        const logs = db.prepare(query).all();
 
-        if (data.success) {
-            // 2. Render the page with the logs data
-            return res.render('admin/logs', {
-                layout: 'layouts/main',
-                title: 'System Logs',
-                logs: data.logs
-            });
-        } else {
-            throw new Error(data.error || 'Failed to fetch logs');
-        }
+        // Format the logs to match the expected format
+        const formattedLogs = logs.map(log => ({
+            id: log.id,
+            method: log.method,
+            url: log.url,
+            ip: log.ip,
+            username: log.username,
+            timestamp: log.timestamp
+        }));
+        
+        // 2. Render the page with the logs data
+        return res.render('admin/logs', {
+            layout: 'layouts/main',
+            title: 'System Logs',
+            logs: formattedLogs
+        });
 
     } catch (error) {
         console.error("Log View Error:", error.message);
@@ -126,22 +132,24 @@ exports.getLogsData = async (req, res) => {
         return res.status(403).json({ error: 'You are not permitted to perform this action' });
     }
     try {
-        // Fetch logs from the Python microservice
-        const response = await fetch('http://127.0.0.1:5200/logs');
-        const data = await response.json();
+        // Fetch logs from the database directly
+        const query = "SELECT * FROM request_logs ORDER BY timestamp DESC";
+        const logs = db.prepare(query).all();
 
-        if (data.success) {
-            return res.json({
-                success: true,
-                logs: data.logs
-            });
-        } else {
-            return res.json({
-                success: false,
-                error: data.error || 'Failed to fetch logs',
-                logs: []
-            });
-        }
+        // Format the logs to match the expected format
+        const formattedLogs = logs.map(log => ({
+            id: log.id,
+            method: log.method,
+            url: log.url,
+            ip: log.ip,
+            username: log.username,
+            timestamp: log.timestamp
+        }));
+        
+        return res.json({
+            success: true,
+            logs: formattedLogs
+        });
 
     } catch (error) {
         console.error("Log API Error:", error.message);

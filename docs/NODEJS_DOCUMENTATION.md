@@ -233,19 +233,25 @@ npm run dev
 ### Environment Variables
 
 ```bash
-# JWT Secrets
-JWT_SECRET=your-development-secret-key-here
-JWT_REFRESH_SECRET=your-development-refresh-secret-here
-
-# Database
-DB_PATH=./config/app.db
-
 # Server
 PORT=3000
 NODE_ENV=development
 
-# AI Service
+# JWT Secrets (required; minimum 32 characters)
+ACCESS_TOKEN_SECRET=your-development-access-token-secret-here
+REFRESH_TOKEN_SECRET=your-development-refresh-token-secret-here
+
+# Admin role (required for admin features)
+ADMIN_ROLE_VALUE=1
+
+# AI Service (Python microservice uses this)
 OPENROUTER_API_KEY=your-openrouter-api-key-here
+
+# MongoDB (only required if you use the masterrolls module)
+MONGODB_URI=mongodb://localhost:27017/your_database_name
+
+# RapidAPI (only required for GST lookup in inventory modules)
+RAPIDAPI_KEY=your-rapidapi-key-here
 ```
 
 ## 🧪 Testing

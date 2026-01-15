@@ -68,19 +68,25 @@ pip install fastapi uvicorn openai python-dotenv
 Create `.env` file in the root directory:
 
 ```bash
-# JWT Secrets
-JWT_SECRET=your_development_secret_key_here
-JWT_REFRESH_SECRET=your_development_refresh_secret_here
-
-# Database
-DB_PATH=./config/app.db
-
 # Server
 PORT=3000
 NODE_ENV=development
 
-# AI Service
+# JWT Secrets (required; minimum 32 characters)
+ACCESS_TOKEN_SECRET=your_development_access_token_secret_here
+REFRESH_TOKEN_SECRET=your_development_refresh_token_secret_here
+
+# Admin role (required for admin features)
+ADMIN_ROLE_VALUE=1
+
+# AI Service (Python microservice uses this)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# MongoDB (only required if you use the masterrolls module)
+MONGODB_URI=mongodb://localhost:27017/your_database_name
+
+# RapidAPI (only required for GST lookup in inventory modules)
+RAPIDAPI_KEY=your_rapidapi_key_here
 ```
 
 ### 4. Start Development Environment
@@ -102,6 +108,8 @@ cd python_service && venv\Scripts\python -m uvicorn main:app --reload --port 520
 
 The application will start on `http://localhost:3000`
 The Python AI service will start on `http://localhost:5200`
+
+Note: `npm run dev` starts multiple watchers (Tailwind watch + Nodemon + Uvicorn reload). For production servers use `npm start`.
 
 ## 📁 Project Structure
 

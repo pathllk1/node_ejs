@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const logController = require('../controllers/logController');
 const firmManagementController = require('../controllers/firmManagementController');
 const systemConfigController = require('../controllers/systemConfigController');
 
@@ -16,6 +17,8 @@ router.put('/settings/:key', systemConfigController.updateSetting);
 // Logs routes
 router.get('/logs', adminController.viewLogs);
 router.get('/api/logs', adminController.getLogsData);
+router.get('/api/logs-node', logController.fetchLogs);
+router.get('/logs-node', logController.viewLogs);
 
 // GST-specific routes
 router.get('/gst-status', systemConfigController.getGstStatus);

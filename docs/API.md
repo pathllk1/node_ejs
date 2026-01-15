@@ -43,9 +43,9 @@ The application automatically refreshes tokens when the access token expires:
 
 ## Endpoints
 
-### Authentication
+### Authentication (implemented under `/users`)
 
-#### POST /api/auth/login
+#### POST /users/login
 
 Authenticate a user and return JWT tokens.
 
@@ -60,27 +60,22 @@ Authenticate a user and return JWT tokens.
 **Response (200 OK):**
 ```json
 {
-  "success": true,
   "message": "Login successful",
+  "access_token": "<jwt>",
+  "refresh_token": "<jwt>",
   "user": {
-    "id": "number",
-    "fullname": "string",
     "username": "string",
-    "email": "string"
+    "fullname": "string"
   }
 }
 ```
-
-**Response Headers:**
-- `X-Access-Token`: Access token (15 minutes)
-- `X-Refresh-Token`: Refresh token (7 days)
 
 **Error Responses:**
 - 400 Bad Request: Missing or invalid credentials
 - 401 Unauthorized: Invalid credentials
 - 500 Internal Server Error: Server error
 
-#### POST /api/auth/signup
+#### POST /users/signup
 
 Register a new user account.
 
@@ -97,14 +92,7 @@ Register a new user account.
 **Response (201 Created):**
 ```json
 {
-  "success": true,
-  "message": "User registered successfully",
-  "user": {
-    "id": "number",
-    "fullname": "string",
-    "username": "string",
-    "email": "string"
-  }
+  "message": "Account created successfully! Please login."
 }
 ```
 
@@ -113,31 +101,14 @@ Register a new user account.
 - 409 Conflict: Username or email already exists
 - 500 Internal Server Error: Server error
 
-#### POST /api/auth/logout
+#### Logout
 
-Logout user and invalidate tokens.
+There is no dedicated server-side logout endpoint in the current implementation.
+Client-side logout is done by clearing stored tokens (localStorage/cookies) and redirecting to `/users/login`.
 
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-X-Refresh-Token: <refresh_token>
-```
+### User Management (implemented under `/users`)
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Logout successful"
-}
-```
-
-**Error Responses:**
-- 401 Unauthorized: Invalid or missing tokens
-- 500 Internal Server Error: Server error
-
-### User Management
-
-#### GET /api/users/profile
+#### GET /users/api/profile
 
 Get current user profile information.
 
@@ -166,7 +137,7 @@ X-Refresh-Token: <refresh_token>
 - 401 Unauthorized: Invalid or missing tokens
 - 500 Internal Server Error: Server error
 
-### AI Integration
+### AI Integration (mounted under `/ai` and protected)
 
 #### POST /ai/api/ai-check
 
@@ -238,7 +209,7 @@ X-Refresh-Token: <refresh_token>
 - 401 Unauthorized: Invalid or missing tokens
 - 500 Internal Server Error: AI service unavailable
 
-### Admin Endpoints
+### Admin Endpoints (mounted under `/admin` and protected)
 
 #### GET /admin/logs
 
@@ -271,93 +242,37 @@ X-Refresh-Token: <refresh_token>
 - 401 Unauthorized: Invalid or missing tokens
 - 500 Internal Server Error: Database or service error
 
-## Python Microservice API
+## Token Transport and Refresh (important)
 
-### Base URL
+### Request headers (primary)
 
-```
-http://localhost:5200
-```
+For authenticated API requests, the client should send:
 
-**Note**: This service is internal and should not be accessed directly by clients.
-
-### Endpoints
-
-#### GET /
-
-Health check endpoint.
-
-**Response (200 OK):**
-```json
-{
-  "status": "Python AI Service is Running"
-}
+```http
+Authorization: Bearer <access_token>
+X-Refresh-Token: <refresh_token>
 ```
 
-#### POST /analyze
+### Refresh behavior
 
-Analyze text sentiment (internal use).
+If the access token is expired and the refresh token is valid, the server returns new tokens via headers:
 
-**Request Body:**
-```json
-{
-  "text": "string"
-}
+```http
+X-New-Access-Token: <new_access_token>
+X-New-Refresh-Token: <new_refresh_token>
 ```
 
-**Response (200 OK):**
-```json
-{
-  "analysis_result": "Positive|Negative|Neutral",
-  "confidence_score": 0.0-1.0,
-  "original_text": "string"
-}
-```
+The server also sets cookies `access_token` and `refresh_token` (SameSite=Strict) as a fallback for browser refresh flows.
 
-#### POST /chat
+## Additional protected modules (high-level)
 
-Chat with AI assistant (internal use).
+The following route prefixes are mounted and protected by JWT:
 
-**Request Body:**
-```json
-{
-  "history": [
-    {
-      "role": "system|user|assistant",
-      "content": "string"
-    }
-  ],
-  "message": "string"
-}
-```
+- **`/inventory`**, **`/inventory/sls`**, **`/inventory/prs`**
+- **`/ledger`**
+- **`/masterrolls`**
 
-**Response (200 OK):**
-```json
-{
-  "reply": "string",
-  "success": true
-}
-```
-
-#### GET /logs
-
-Retrieve system logs (internal use).
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "logs": [
-    {
-      "id": "number",
-      "method": "string",
-      "url": "string",
-      "ip": "string",
-      "timestamp": "string (ISO date)"
-    }
-  ]
-}
-```
+Each module exposes multiple `*/api/*` endpoints under its prefix (see route files in `routes/`).
 
 ## Error Handling
 

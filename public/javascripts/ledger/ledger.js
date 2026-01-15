@@ -246,6 +246,143 @@ async function exportAccountLedgerPdf(accountHead, startDate = null, endDate = n
     }
 }
 
+async function exportGeneralLedgerPdf(startDate = null, endDate = null) {
+    try {
+        let url = '/ledger/api/export-general-ledger';
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        const response = await window.api.get(url);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Export failed with status ${response.status}`);
+        }
+        
+        // Create a blob from the PDF response
+        const blob = await response.blob();
+        const urlObject = window.URL.createObjectURL(blob);
+        
+        // Create a temporary link and trigger download
+        const a = document.createElement('a');
+        a.href = urlObject;
+        
+        // Create filename with date range if provided
+        let filename = 'General_Ledger';
+        if (startDate && endDate) {
+            filename += `_from_${startDate}_to_${endDate}`;
+        } else if (startDate) {
+            filename += `_from_${startDate}`;
+        } else if (endDate) {
+            filename += `_to_${endDate}`;
+        }
+        filename += '.pdf';
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(urlObject);
+        document.body.removeChild(a);
+    } catch (err) {
+        console.error('General ledger PDF export failed:', err);
+        alert('General ledger PDF export failed: ' + err.message);
+    }
+}
+
+async function exportTrialBalancePdf(startDate = null, endDate = null) {
+    try {
+        let url = '/ledger/api/export-trial-balance';
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        const response = await window.api.get(url);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Export failed with status ${response.status}`);
+        }
+        
+        // Create a blob from the PDF response
+        const blob = await response.blob();
+        const urlObject = window.URL.createObjectURL(blob);
+        
+        // Create a temporary link and trigger download
+        const a = document.createElement('a');
+        a.href = urlObject;
+        
+        // Create filename with date range if provided
+        let filename = 'Trial_Balance';
+        if (startDate && endDate) {
+            filename += `_from_${startDate}_to_${endDate}`;
+        } else if (startDate) {
+            filename += `_from_${startDate}`;
+        } else if (endDate) {
+            filename += `_to_${endDate}`;
+        }
+        filename += '.pdf';
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(urlObject);
+        document.body.removeChild(a);
+    } catch (err) {
+        console.error('Trial balance PDF export failed:', err);
+        alert('Trial balance PDF export failed: ' + err.message);
+    }
+}
+
+async function exportAccountTypePdf(accounts, accountType) {
+    try {
+        // Send the data to the backend via POST request
+        const response = await window.api.post('/ledger/api/export-account-type-pdf', {
+            accounts: accounts,
+            account_type: accountType
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Export failed with status ${response.status}`);
+        }
+        
+        // Create a blob from the PDF response
+        const blob = await response.blob();
+        const urlObject = window.URL.createObjectURL(blob);
+        
+        // Create a temporary link and trigger download
+        const a = document.createElement('a');
+        a.href = urlObject;
+        
+        // Create filename
+        let filename = `Account_Type_${accountType.replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf`;
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(urlObject);
+        document.body.removeChild(a);
+    } catch (err) {
+        console.error('Account type PDF export failed:', err);
+        alert('Account type PDF export failed: ' + err.message);
+    }
+}
+
 // --- RENDERING FUNCTIONS ---
 
 function renderAccountTable() {
@@ -511,12 +648,20 @@ function renderAccountTypeDetails(accounts, accountType) {
                 <div class="text-sm text-gray-600">
                     Showing ${accounts.length} account(s) of type ${accountType}
                 </div>
-                <button id="printAccountTypeDetails" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:ring-offset-1 transition-colors duration-150 flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                    </svg>
-                    Print
-                </button>
+                <div class="flex space-x-2">
+                    <button id="printAccountTypeDetails" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:ring-offset-1 transition-colors duration-150 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Print
+                    </button>
+                    <button id="exportAccountTypePdf" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-red-500 focus:ring-offset-1 transition-colors duration-150 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                        </svg>
+                        Export PDF
+                    </button>
+                </div>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -574,6 +719,14 @@ function renderAccountTypeDetails(accounts, accountType) {
     if (printBtn) {
         printBtn.addEventListener('click', () => {
             printAccountTypeDetails(accounts, accountType);
+        });
+    }
+    
+    // Add event listener for the export PDF button
+    const exportPdfBtn = document.getElementById('exportAccountTypePdf');
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', () => {
+            exportAccountTypePdf(accounts, accountType);
         });
     }
 }
@@ -1112,6 +1265,17 @@ function setupEventListeners() {
         elements.tab2.removeEventListener('click', handleTabSwitch);
         elements.tab2.addEventListener('click', handleTabSwitch);
     }
+    
+    // Export buttons
+    if (elements.exportGeneralLedgerBtn) {
+        elements.exportGeneralLedgerBtn.removeEventListener('click', handleExportGeneralLedger);
+        elements.exportGeneralLedgerBtn.addEventListener('click', handleExportGeneralLedger);
+    }
+    
+    if (elements.exportTrialBalanceBtn) {
+        elements.exportTrialBalanceBtn.removeEventListener('click', handleExportTrialBalance);
+        elements.exportTrialBalanceBtn.addEventListener('click', handleExportTrialBalance);
+    }
 }
 
 function handleTabSwitch(event) {
@@ -1178,6 +1342,16 @@ function handleTabSwitch(event) {
     }
 }
 
+// Handler for export general ledger
+function handleExportGeneralLedger() {
+    exportGeneralLedgerPdf();
+}
+
+// Handler for export trial balance
+function handleExportTrialBalance() {
+    exportTrialBalancePdf();
+}
+
 // Initialize the ledger system
 function initLedger() {
     console.log('Ledger: Initializing...');
@@ -1202,7 +1376,9 @@ function initLedger() {
         tab1: document.getElementById('tab1'),
         tab2: document.getElementById('tab2'),
         tabContent1: document.getElementById('tab-content-1'),
-        tabContent2: document.getElementById('tab-content-2')
+        tabContent2: document.getElementById('tab-content-2'),
+        exportGeneralLedgerBtn: document.getElementById('exportGeneralLedgerBtn'),
+        exportTrialBalanceBtn: document.getElementById('exportTrialBalanceBtn')
     };
     
     // Validate elements exist

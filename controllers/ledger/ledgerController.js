@@ -1,6 +1,9 @@
 const db = require('../../config/db');
-// Export the function from the pdfController
-exports.exportAccountLedgerPdf = require('./pdfController').exportAccountLedgerPdf;
+// Export the functions from the pdfMakeController
+exports.exportAccountLedgerPdf = require('./pdfMakeController').exportAccountLedgerPdf;
+exports.exportGeneralLedgerPdf = require('./pdfMakeController').exportGeneralLedgerPdf;
+exports.exportTrialBalancePdf = require('./pdfMakeController').exportTrialBalancePdf;
+exports.exportAccountTypePdf = require('./pdfMakeController').exportAccountTypePdf;
 
 // Helper to get current ISO time
 const now = () => new Date().toISOString();

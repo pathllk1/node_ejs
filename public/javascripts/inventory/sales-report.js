@@ -433,7 +433,15 @@
         const ws_data = [];
 
         // --- TITLE ROW ---
-        ws_data.push([createCell("TAX INVOICE", styles.title)]);
+        // Use dynamic invoice title based on transaction type
+        const excelInvoiceTitle = bill.transactionType ? 
+            (bill.transactionType === 'SALE' ? 'SALES INVOICE' : 
+             bill.transactionType === 'PURCHASE' ? 'PURCHASE INVOICE' : 
+             bill.transactionType === 'CREDIT NOTE' ? 'CREDIT NOTE' : 
+             bill.transactionType === 'DEBIT NOTE' ? 'DEBIT NOTE' : 
+             bill.transactionType === 'DELIVERY NOTE' ? 'DELIVERY NOTE' : 
+             'TAX INVOICE') : 'TAX INVOICE';
+        ws_data.push([createCell(excelInvoiceTitle, styles.title)]);
         ws_data.push([]); // Spacer
 
         // Check if reverse charge applies
@@ -1055,46 +1063,46 @@
             modalHtml += '</div>';
         }
         
-        modalHtml += '<div class="flex justify-between items-center pt-4 border-t">';
+        // Start footer section with improved layout
+        modalHtml += '<div class="pt-6 border-t border-gray-200 mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">';
         
+        // Left side: Action buttons for active bills or status info for inactive bills
+        modalHtml += '<div class="flex flex-wrap gap-2">';
         if (bill.status === 'ACTIVE') {
-            modalHtml += '<div class="flex space-x-2">';
-            modalHtml += '<button id="cancel-bill" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm font-medium">';
-            modalHtml += 'Cancel Bill';
+            modalHtml += '<button id="cancel-bill" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors duration-200 whitespace-nowrap">';
+            modalHtml += 'Cancel';
             modalHtml += '</button>';
-            modalHtml += '<button id="delete-bill" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-medium">';
-            modalHtml += 'Delete Bill';
+            modalHtml += '<button id="delete-bill" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors duration-200 whitespace-nowrap">';
+            modalHtml += 'Delete';
             modalHtml += '</button>';
-            modalHtml += '<button id="edit-bill" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">';
-            modalHtml += 'Edit Bill';
+            modalHtml += '<button id="edit-bill" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors duration-200 whitespace-nowrap">';
+            modalHtml += 'Edit';
             modalHtml += '</button>';
-            modalHtml += '</div>';
         } else {
-            modalHtml += '<div class="flex items-center space-x-2">';
-            modalHtml += `<span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${bill.status === 'CANCELLED' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}">${bill.status}</span>`;
+            modalHtml += `<span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${bill.status === 'CANCELLED' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'} whitespace-nowrap">${bill.status}</span>`;
             if (bill.cancellation_reason) {
-                modalHtml += `<span class="text-xs text-gray-500 italic">Reason: ${bill.cancellation_reason}</span>`;
+                modalHtml += `<span class="text-xs text-gray-500 italic ml-2">Reason: ${bill.cancellation_reason}</span>`;
             }
-            modalHtml += '</div>';
         }
+        modalHtml += '</div>';
 
-        modalHtml += '<div class="flex space-x-2">';
-        modalHtml += '<button id="export-bill-pdf" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">';
-        modalHtml += 'Print Invoice';
+        // Right side: Export and close buttons
+        modalHtml += '<div class="flex flex-wrap gap-2 ml-auto">';
+        modalHtml += '<button id="export-bill-pdf" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors duration-200 whitespace-nowrap">';
+        modalHtml += 'Print';
         modalHtml += '</button>';
-        modalHtml += '<button id="export-bill-excel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">';
-        modalHtml += 'Export as Excel';
+        modalHtml += '<button id="export-bill-excel" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors duration-200 whitespace-nowrap">';
+        modalHtml += 'Export';
         modalHtml += '</button>';
-        modalHtml += '</div>';
-        modalHtml += '</div>';
-        modalHtml += '<button id="close-bill-modal-bottom" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-medium">';
+        modalHtml += '<button id="close-bill-modal-bottom" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors duration-200 whitespace-nowrap">';
         modalHtml += 'Close';
         modalHtml += '</button>';
         modalHtml += '</div>';
         
-        modalHtml += '</div>';
-        modalHtml += '</div>';
-        modalHtml += '</div>';
+        modalHtml += '</div>'; // End footer section
+        modalHtml += '</div>'; // End p-6 div
+        modalHtml += '</div>'; // End bg-white div
+        modalHtml += '</div>'; // End outermost div
         
         // Add modal to document
         document.body.insertAdjacentHTML('beforeend', modalHtml);

@@ -2565,7 +2565,15 @@
     const ws_data = [];
 
     // --- TITLE ROW ---
-    ws_data.push([createCell("TAX INVOICE", styles.title)]);
+    // Use dynamic invoice title based on transaction type
+    const excelInvoiceTitle = bill.transactionType ? 
+        (bill.transactionType === 'SALE' ? 'SALES INVOICE' : 
+         bill.transactionType === 'PURCHASE' ? 'PURCHASE INVOICE' : 
+         bill.transactionType === 'CREDIT NOTE' ? 'CREDIT NOTE' : 
+         bill.transactionType === 'DEBIT NOTE' ? 'DEBIT NOTE' : 
+         bill.transactionType === 'DELIVERY NOTE' ? 'DELIVERY NOTE' : 
+         'TAX INVOICE') : 'TAX INVOICE';
+    ws_data.push([createCell(excelInvoiceTitle, styles.title)]);
     ws_data.push([]); // Spacer
 
     // --- DETAILS SECTION ---

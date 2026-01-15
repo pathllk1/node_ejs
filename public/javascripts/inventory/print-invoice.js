@@ -138,6 +138,83 @@
         return result.trim() + " Only";
     };
 
+    // Get invoice type label
+    const getInvoiceTypeLabel = (bill) => {
+        // Check transactionType first (from stock_reg)
+        if (bill.transactionType) {
+            const transactionType = bill.transactionType.toUpperCase();
+            switch(transactionType) {
+                case 'SALE':
+                    return { label: 'SALES', class: 'bg-green-100 text-green-800' };
+                case 'PURCHASE':
+                    return { label: 'PURCHASE', class: 'bg-blue-100 text-blue-800' };
+                case 'CREDIT NOTE':
+                    return { label: 'CREDIT NOTE', class: 'bg-yellow-100 text-yellow-800' };
+                case 'DEBIT NOTE':
+                    return { label: 'DEBIT NOTE', class: 'bg-red-100 text-red-800' };
+                default:
+                    return { label: transactionType, class: 'bg-gray-100 text-gray-800' };
+            }
+        }
+        
+        // Fallback to btype field if transactionType not available
+        if (bill.btype) {
+            const btype = bill.btype.toUpperCase();
+            if (btype.includes('SALE')) {
+                return { label: 'SALES', class: 'bg-green-100 text-green-800' };
+            } else if (btype.includes('PURCHASE')) {
+                return { label: 'PURCHASE', class: 'bg-blue-100 text-blue-800' };
+            } else if (btype.includes('CREDIT')) {
+                return { label: 'CREDIT NOTE', class: 'bg-yellow-100 text-yellow-800' };
+            } else if (btype.includes('DEBIT')) {
+                return { label: 'DEBIT NOTE', class: 'bg-red-100 text-red-800' };
+            } else if (btype.includes('DELIVERY')) {
+                return { label: 'DELIVERY NOTE', class: 'bg-purple-100 text-purple-800' };
+            }
+        }
+        
+        // Default fallback
+        return { label: 'SALES', class: 'bg-green-100 text-green-800' };
+    };
+    
+    // Get dynamic party labels based on transaction type
+    const getPartyLabels = (bill) => {
+        const transactionType = bill.transactionType?.toUpperCase() || bill.btype?.toUpperCase() || 'SALE';
+        
+        switch(transactionType) {
+            case 'SALE':
+                return {
+                    billToLabel: 'Bill To (Buyer)',
+                    shipToLabel: 'Ship To (Consignee)'
+                };
+            case 'PURCHASE':
+                return {
+                    billToLabel: 'Bill From (Supplier)',
+                    shipToLabel: 'Bill To (Receiver)'
+                };
+            case 'CREDIT NOTE':
+                return {
+                    billToLabel: 'Bill To (Recipient)',
+                    shipToLabel: 'Ship To (Consignee)'
+                };
+            case 'DEBIT NOTE':
+                return {
+                    billToLabel: 'Bill From (Supplier)',
+                    shipToLabel: 'Bill To (Recipient)'
+                };
+            case 'DELIVERY NOTE':
+                return {
+                    billToLabel: 'Deliver From (Supplier)',
+                    shipToLabel: 'Deliver To (Recipient)'
+                };
+            default:
+                return {
+                    billToLabel: 'Bill To (Buyer)',
+                    shipToLabel: 'Ship To (Consignee)'
+                };
+        }
+    };
+    
     // Determine bill type (intra-state or inter-state)
     const getBillType = (bill) => {
         const billTypeSource = (bill.btype || bill.billType || '').toString().toLowerCase();
@@ -328,7 +405,7 @@
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Invoice ${bill.bno}</title>
+                <title>${getInvoiceTypeLabel(bill).label} ${bill.bno}</title>
                 <link href="/stylesheets/style.css" rel="stylesheet">
                 <style>
                     @media print {
@@ -378,7 +455,12 @@
                     <div class="border-b border-gray-200 p-6 print:p-4">
                         <div class="flex justify-between items-start">
                             <div>
-                                <h1 class="text-2xl font-bold text-gray-800 print:text-xl">TAX INVOICE</h1>
+                                <div class="flex items-center space-x-3">
+                                    <h1 class="text-2xl font-bold text-gray-800 print:text-xl">${getInvoiceTypeLabel(bill).label}</h1>
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full ${getInvoiceTypeLabel(bill).class}">
+                                        ${getInvoiceTypeLabel(bill).label}
+                                    </span>
+                                </div>
                                 <p class="text-sm text-gray-600 mt-1 print:text-xs">${actualGstEnabled ? 'Invoice under GST' : 'Invoice (GST Disabled)'}</p>
                                 <div class="mt-3 print:mt-2">
                                     <p class="font-semibold text-gray-800 print:text-sm">${currentUserFirm.name}</p>
@@ -426,7 +508,7 @@
                     <div class="p-6 print:p-4">
                         <div class="grid grid-cols-2 gap-6 print:gap-4">
                             <div class="border border-gray-200 rounded-lg p-4 print:p-3">
-                                <h3 class="font-semibold text-gray-800 text-base print:text-sm mb-2">Bill To (Buyer)</h3>
+                                <h3 class="font-semibold text-gray-800 text-base print:text-sm mb-2">${getPartyLabels(bill).billToLabel}</h3>
                                 <div class="space-y-1 text-base print:text-sm">
                                     <p class="font-medium">${bill.firm || ''}</p>
                                     ${bill.addr ? `<p class="text-gray-600">${bill.addr}</p>` : ''}
@@ -436,7 +518,7 @@
                             </div>
                             
                             <div class="border border-gray-200 rounded-lg p-4 print:p-3">
-                                <h3 class="font-semibold text-gray-800 text-base print:text-sm mb-2">Ship To (Consignee)</h3>
+                                <h3 class="font-semibold text-gray-800 text-base print:text-sm mb-2">${getPartyLabels(bill).shipToLabel}</h3>
                                 <div class="space-y-1 text-base print:text-sm">
                                     <p class="font-medium">${bill.firm || ''}</p>
                                     ${bill.addr ? `<p class="text-gray-600">${bill.addr}</p>` : ''}

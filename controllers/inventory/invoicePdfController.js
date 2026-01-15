@@ -94,7 +94,19 @@ exports.getBillPdfById = async (req, res) => {
             return res.status(400).json({ error: 'Bill ID is required' });
         }
 
-        const billStmt = db.prepare('SELECT * FROM bills WHERE id = ?');
+        // Join with stock_reg to get the transaction type (SALE/PURCHASE)
+        const billStmt = db.prepare(`
+            SELECT 
+                b.*, 
+                sr.type as transactionType
+            FROM bills b
+            LEFT JOIN (
+                SELECT bill_id, type, MIN(id) as min_id 
+                FROM stock_reg 
+                GROUP BY bill_id
+            ) sr ON b.id = sr.bill_id
+            WHERE b.id = ?
+        `);
         const bill = billStmt.get(id);
 
         if (!bill) {
@@ -194,7 +206,15 @@ exports.getBillPdfById = async (req, res) => {
             gstin: bill.consignee_gstin || buyer.gstin
         };
 
-        const invoiceTitle = 'TAX INVOICE';
+        // Get invoice type based on transaction type
+        const invoiceTitle = bill.transactionType ? 
+            (bill.transactionType === 'SALE' ? 'SALES INVOICE' : 
+             bill.transactionType === 'PURCHASE' ? 'PURCHASE INVOICE' : 
+             bill.transactionType === 'CREDIT NOTE' ? 'CREDIT NOTE' : 
+             bill.transactionType === 'DEBIT NOTE' ? 'DEBIT NOTE' : 
+             bill.transactionType === 'DELIVERY NOTE' ? 'DELIVERY NOTE' : 
+             'TAX INVOICE') : 'TAX INVOICE';
+        
         const invoiceSubtitle = gstApplicable ? 'Invoice under GST' : 'Invoice (GST Disabled)';
 
         const totals = {

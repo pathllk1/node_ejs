@@ -103,7 +103,25 @@
 
         <div class="two-col">
             <div class="box">
-                <h3>Bill To (Buyer)</h3>
+                <h3>
+                    <% if (bill.transactionType) { %>
+                        <% if (bill.transactionType === 'SALE') { %>
+                            Bill To (Buyer)
+                        <% } else if (bill.transactionType === 'PURCHASE') { %>
+                            Bill From (Supplier)
+                        <% } else if (bill.transactionType === 'CREDIT NOTE') { %>
+                            Bill To (Recipient)
+                        <% } else if (bill.transactionType === 'DEBIT NOTE') { %>
+                            Bill From (Supplier)
+                        <% } else if (bill.transactionType === 'DELIVERY NOTE') { %>
+                            Deliver From (Supplier)
+                        <% } else { %>
+                            Bill To (Buyer)
+                        <% } %>
+                    <% } else { %>
+                        Bill To (Buyer)
+                    <% } %>
+                </h3>
                 <p><strong><%= buyer.name %></strong></p>
                 <% if (buyer.address) { %><p><%= buyer.address %></p><% } %>
                 <% if (buyer.state) { %><p>State: <strong><%= buyer.state %></strong></p><% } %>
@@ -112,7 +130,25 @@
             </div>
 
             <div class="box">
-                <h3>Ship To (Consignee)</h3>
+                <h3>
+                    <% if (bill.transactionType) { %>
+                        <% if (bill.transactionType === 'SALE') { %>
+                            Ship To (Consignee)
+                        <% } else if (bill.transactionType === 'PURCHASE') { %>
+                            Bill To (Receiver)
+                        <% } else if (bill.transactionType === 'CREDIT NOTE') { %>
+                            Ship To (Consignee)
+                        <% } else if (bill.transactionType === 'DEBIT NOTE') { %>
+                            Bill To (Recipient)
+                        <% } else if (bill.transactionType === 'DELIVERY NOTE') { %>
+                            Deliver To (Recipient)
+                        <% } else { %>
+                            Ship To (Consignee)
+                        <% } %>
+                    <% } else { %>
+                        Ship To (Consignee)
+                    <% } %>
+                </h3>
                 <p><strong><%= consignee.name %></strong></p>
                 <% if (consignee.address) { %><p><%= consignee.address %></p><% } %>
                 <% if (consignee.state) { %><p>State: <strong><%= consignee.state %></strong></p><% } %>

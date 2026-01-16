@@ -7,6 +7,7 @@ function initFirmsManagement() {
     const firmModal = document.getElementById('firm-modal');
     const firmForm = document.getElementById('firm-form');
     const cancelFirmBtn = document.getElementById('cancel-firm-btn');
+    const closeFirmModalBtn = document.getElementById('close-firm-modal');
     const modalTitle = document.getElementById('modal-title');
     
     // Add event listener for GST fetch button
@@ -24,6 +25,10 @@ function initFirmsManagement() {
     });
     
     cancelFirmBtn.addEventListener('click', () => {
+        firmModal.classList.add('hidden');
+    });
+    
+    closeFirmModalBtn?.addEventListener('click', () => {
         firmModal.classList.add('hidden');
     });
     

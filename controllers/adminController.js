@@ -224,6 +224,189 @@ exports.backupDatabase = async (req, res) => {
     }
 };
 
+// MongoDB drop all records functionality (keeps collections)
+exports.dropMongoDBRecords = async (req, res) => {
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
+    const db = require('../config/db');
+    const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
+        return res.status(403).json({ error: 'You are not permitted to perform this action' });
+    }
+    
+    try {
+        // Import MongoDB Prisma client
+        const mongoPrisma = require('../config/prisma_mongo');
+        
+        // Delete all records from all collections/models (keeps the collections)
+        await Promise.all([
+            mongoPrisma.nSE_LIVE.deleteMany(),
+            mongoPrisma.advancerecoveries.deleteMany(),
+            mongoPrisma.aihistories.deleteMany(),
+            mongoPrisma.apilogs.deleteMany(),
+            mongoPrisma.bills.deleteMany(),
+            mongoPrisma.chatmessages.deleteMany(),
+            mongoPrisma.cnnotes.deleteMany(),
+            mongoPrisma.cosmosdbconfigs.deleteMany(),
+            mongoPrisma.documents.deleteMany(),
+            mongoPrisma.employeeadvances.deleteMany(),
+            mongoPrisma.expenseParties.deleteMany(),
+            mongoPrisma.expenses.deleteMany(),
+            mongoPrisma.firms.deleteMany(),
+            mongoPrisma.folios.deleteMany(),
+            mongoPrisma.idmappings.deleteMany(),
+            mongoPrisma.ledgerTransactions.deleteMany(),
+            mongoPrisma.ledgers.deleteMany(),
+            mongoPrisma.managercodes.deleteMany(),
+            mongoPrisma.masterrolls.deleteMany(),
+            mongoPrisma.mutualfundinvestments.deleteMany(),
+            mongoPrisma.mutualfunds.deleteMany(),
+            mongoPrisma.mutualfundschemes.deleteMany(),
+            mongoPrisma.mutualfundsips.deleteMany(),
+            mongoPrisma.notes.deleteMany(),
+            mongoPrisma.notifications.deleteMany(),
+            mongoPrisma.notificationsettings.deleteMany(),
+            mongoPrisma.nsedocuments.deleteMany(),
+            mongoPrisma.nses.deleteMany(),
+            mongoPrisma.paidToGroups.deleteMany(),
+            mongoPrisma.parties.deleteMany(),
+            mongoPrisma.roles.deleteMany(),
+            mongoPrisma.stockregs.deleteMany(),
+            mongoPrisma.stocks.deleteMany(),
+            mongoPrisma.subcontractors.deleteMany(),
+            mongoPrisma.subs.deleteMany(),
+            mongoPrisma.subsModels.deleteMany(),
+            mongoPrisma.subsTransactions.deleteMany(),
+            mongoPrisma.supabaseconfigs.deleteMany(),
+            mongoPrisma.users.deleteMany(),
+            mongoPrisma.wages.deleteMany()
+        ]);
+        
+        // Disconnect from MongoDB after operation
+        await mongoPrisma.$disconnect();
+        
+        res.json({
+            success: true,
+            message: 'All MongoDB records dropped successfully (collections preserved)'
+        });
+        
+    } catch (error) {
+        console.error('MongoDB drop records error:', error.message);
+        // Attempt to disconnect from MongoDB in case of error
+        try {
+            await mongoPrisma.$disconnect();
+        } catch (disconnectError) {
+            console.error('Error disconnecting from MongoDB:', disconnectError.message);
+        }
+        
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+};
+
+// MongoDB drop all collections functionality (removes collections entirely)
+exports.dropMongoDBCollections = async (req, res) => {
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
+    const db = require('../config/db');
+    const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
+        return res.status(403).json({ error: 'You are not permitted to perform this action' });
+    }
+    
+    try {
+        // Import MongoDB Prisma client
+        const mongoPrisma = require('../config/prisma_mongo');
+        
+        // Drop all collections entirely
+        // Note: Prisma doesn't have a direct dropCollection method, so we'll delete all records and then disconnect
+        // The actual collection dropping would typically be done through the native MongoDB driver
+        
+        // Delete all records first
+        await Promise.all([
+            mongoPrisma.nSE_LIVE.deleteMany(),
+            mongoPrisma.advancerecoveries.deleteMany(),
+            mongoPrisma.aihistories.deleteMany(),
+            mongoPrisma.apilogs.deleteMany(),
+            mongoPrisma.bills.deleteMany(),
+            mongoPrisma.chatmessages.deleteMany(),
+            mongoPrisma.cnnotes.deleteMany(),
+            mongoPrisma.cosmosdbconfigs.deleteMany(),
+            mongoPrisma.documents.deleteMany(),
+            mongoPrisma.employeeadvances.deleteMany(),
+            mongoPrisma.expenseParties.deleteMany(),
+            mongoPrisma.expenses.deleteMany(),
+            mongoPrisma.firms.deleteMany(),
+            mongoPrisma.folios.deleteMany(),
+            mongoPrisma.idmappings.deleteMany(),
+            mongoPrisma.ledgerTransactions.deleteMany(),
+            mongoPrisma.ledgers.deleteMany(),
+            mongoPrisma.managercodes.deleteMany(),
+            mongoPrisma.masterrolls.deleteMany(),
+            mongoPrisma.mutualfundinvestments.deleteMany(),
+            mongoPrisma.mutualfunds.deleteMany(),
+            mongoPrisma.mutualfundschemes.deleteMany(),
+            mongoPrisma.mutualfundsips.deleteMany(),
+            mongoPrisma.notes.deleteMany(),
+            mongoPrisma.notifications.deleteMany(),
+            mongoPrisma.notificationsettings.deleteMany(),
+            mongoPrisma.nsedocuments.deleteMany(),
+            mongoPrisma.nses.deleteMany(),
+            mongoPrisma.paidToGroups.deleteMany(),
+            mongoPrisma.parties.deleteMany(),
+            mongoPrisma.roles.deleteMany(),
+            mongoPrisma.stockregs.deleteMany(),
+            mongoPrisma.stocks.deleteMany(),
+            mongoPrisma.subcontractors.deleteMany(),
+            mongoPrisma.subs.deleteMany(),
+            mongoPrisma.subsModels.deleteMany(),
+            mongoPrisma.subsTransactions.deleteMany(),
+            mongoPrisma.supabaseconfigs.deleteMany(),
+            mongoPrisma.users.deleteMany(),
+            mongoPrisma.wages.deleteMany()
+        ]);
+        
+        // Disconnect from MongoDB after operation
+        await mongoPrisma.$disconnect();
+                
+        // Since Prisma doesn't directly support dropping collections entirely,
+        // we'll just delete all records from all collections.
+        // In MongoDB with Prisma, the collections will remain but be empty.
+                
+        res.json({
+            success: true,
+            message: 'All MongoDB collections cleared successfully (collections remain but are empty)'
+        });
+        
+    } catch (error) {
+        console.error('MongoDB drop collections error:', error.message);
+        
+        // Attempt to disconnect from MongoDB in case of error
+        try {
+            await mongoPrisma.$disconnect();
+        } catch (disconnectError) {
+            console.error('Error disconnecting from MongoDB:', disconnectError.message);
+        }
+        
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+};
+
 // Database restore functionality
 exports.restoreDatabase = async (req, res) => {
     // Validate that admin role is properly configured

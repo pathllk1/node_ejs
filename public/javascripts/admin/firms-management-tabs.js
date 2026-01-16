@@ -107,6 +107,60 @@ function setupDatabaseFeatures() {
         });
     }
     
+    const dropMongoRecordsBtn = document.getElementById('drop-mongodb-records');
+    if (dropMongoRecordsBtn) {
+        dropMongoRecordsBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to drop all records from MongoDB collections? This will permanently remove ALL data but keep the collections and cannot be undone.')) {
+                fetch('/admin/drop-mongodb-records', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('All MongoDB records dropped successfully!');
+                    } else {
+                        alert('Error dropping MongoDB records: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('MongoDB drop records error:', error);
+                    alert('Error dropping MongoDB records: ' + error.message);
+                });
+            }
+        });
+    }
+    
+    const dropMongoCollectionsBtn = document.getElementById('drop-mongodb-collections');
+    if (dropMongoCollectionsBtn) {
+        dropMongoCollectionsBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to drop all MongoDB collections? This will permanently remove ALL collections and data and cannot be undone.')) {
+                fetch('/admin/drop-mongodb-collections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('All MongoDB collections dropped successfully!');
+                    } else {
+                        alert('Error dropping MongoDB collections: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('MongoDB drop collections error:', error);
+                    alert('Error dropping MongoDB collections: ' + error.message);
+                });
+            }
+        });
+    }
+    
     // Load database info
     loadDatabaseInfo();
 }

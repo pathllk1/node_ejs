@@ -1,13 +1,37 @@
 const PdfPrinter = require('pdfmake/js/Printer').default;
 const path = require('path');
+const fs = require('fs');
+
+// Function to resolve font paths properly on different platforms
+const getFontPath = (fileName) => {
+    // Use forward slashes for compatibility across platforms
+    const relativePath = `../../public/fonts/${fileName}`;
+    return path.resolve(__dirname, relativePath);
+};
+
+// Verify font files exist before initializing printer
+const fontFiles = [
+    'DejaVuSans.ttf',
+    'DejaVuSans-Bold.ttf', 
+    'DejaVuSans-Oblique.ttf',
+    'DejaVuSans-BoldOblique.ttf'
+];
+
+// Check if font files exist
+fontFiles.forEach(fontFile => {
+    const fontPath = getFontPath(fontFile);
+    if (!fs.existsSync(fontPath)) {
+        console.warn(`Warning: Font file does not exist: ${fontPath}`);
+    }
+});
 
 // Font definitions
 const fonts = {
     DejaVuSans: {
-        normal: path.join(__dirname, '../../public/fonts/DejaVuSans.ttf'),
-        bold: path.join(__dirname, '../../public/fonts/DejaVuSans-Bold.ttf'),
-        italics: path.join(__dirname, '../../public/fonts/DejaVuSans-Oblique.ttf'),
-        bolditalics: path.join(__dirname, '../../public/fonts/DejaVuSans-BoldOblique.ttf')
+        normal: getFontPath('DejaVuSans.ttf'),
+        bold: getFontPath('DejaVuSans-Bold.ttf'),
+        italics: getFontPath('DejaVuSans-Oblique.ttf'),
+        bolditalics: getFontPath('DejaVuSans-BoldOblique.ttf')
     }
 };
 
@@ -100,7 +124,7 @@ exports.exportAccountLedgerPdf = async (req, res) => {
         // Build document definition
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60],
+            pageMargins: [20, 60, 20, 60],
             defaultStyle: {
                 font: 'DejaVuSans'
             },
@@ -161,7 +185,7 @@ exports.exportAccountLedgerPdf = async (req, res) => {
                 {
                     table: {
                         headerRows: 1,
-                        widths: ['*', 'auto', 'auto', '*', 'auto', 'auto', 'auto'],
+                        widths: ['auto', 'auto', 'auto', 'auto', '*', '*', '*'],
                         body: [
                             // Header row
                             [
@@ -383,7 +407,7 @@ exports.exportGeneralLedgerPdf = async (req, res) => {
         // Build document definition
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60],
+            pageMargins: [20, 60, 20, 60],
             defaultStyle: {
                 font: 'DejaVuSans'
             },
@@ -612,7 +636,7 @@ exports.exportTrialBalancePdf = async (req, res) => {
         // Build document definition
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60],
+            pageMargins: [20, 60, 20, 60],
             defaultStyle: {
                 font: 'DejaVuSans'
             },
@@ -829,7 +853,7 @@ exports.exportAccountTypePdf = async (req, res) => {
         // Build document definition
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60],
+            pageMargins: [20, 60, 20, 60],
             defaultStyle: {
                 font: 'DejaVuSans'
             },

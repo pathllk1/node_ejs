@@ -39,12 +39,99 @@ try {
     CREATE TABLE IF NOT EXISTS firms (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        legal_name TEXT,           -- Legal registered name
         address TEXT,
-        contact_info TEXT,
+        city TEXT,
+        state TEXT,
+        country TEXT DEFAULT 'India',  -- Default to India for Indian business app
+        pincode TEXT,
+        phone_number TEXT,
+        secondary_phone TEXT,
+        email TEXT,
+        website TEXT,
+        business_type TEXT,        -- LLC, Corporation, Partnership, etc.
+        industry_type TEXT,        -- Manufacturing, Trading, Services
+        establishment_year INTEGER,
+        employee_count INTEGER,
+        
+        -- Registration Details
+        registration_number TEXT,
+        registration_date TEXT,    -- Format: YYYY-MM-DD
+        cin_number TEXT,           -- Corporate Identification Number (India)
+        pan_number TEXT,           -- Permanent Account Number (India)
+        gst_number TEXT,           -- Goods and Services Tax number
+        tax_id TEXT,               -- General tax ID
+        vat_number TEXT,
+        
+        -- Banking Details
+        bank_account_number TEXT,
+        bank_name TEXT,
+        bank_branch TEXT,
+        ifsc_code TEXT,            -- Indian Financial System Code
+        payment_terms TEXT DEFAULT 'Net 30',
+        
+        -- Compliance
+        status TEXT DEFAULT 'ACTIVE',  -- ACTIVE, INACTIVE, SUSPENDED
+        license_numbers TEXT,      -- JSON string for multiple licenses
+        insurance_details TEXT,    -- JSON string for insurance info
+        
+        -- Business Settings
+        currency TEXT DEFAULT 'INR',  -- Default currency
+        timezone TEXT DEFAULT 'Asia/Kolkata',
+        fiscal_year_start INTEGER DEFAULT 4,  -- April = 4 (Indian fiscal year)
+        invoice_prefix TEXT DEFAULT 'INV',
+        quote_prefix TEXT DEFAULT 'QT',
+        po_prefix TEXT DEFAULT 'PO',
+        
+        -- Document Settings
+        logo_url TEXT,
+        invoice_template TEXT DEFAULT 'standard',
+        enable_e_invoice INTEGER DEFAULT 0,  -- Boolean: 0=false, 1=true
+        
+        -- Timestamps
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     ) STRICT;
 `);
+    
+    // Firms table migrations for existing installations
+    try { db.exec(`ALTER TABLE firms ADD COLUMN legal_name TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN city TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN state TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN country TEXT DEFAULT 'India';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN pincode TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN phone_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN secondary_phone TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN email TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN website TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN business_type TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN industry_type TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN establishment_year INTEGER;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN employee_count INTEGER;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN registration_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN registration_date TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN cin_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN pan_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN gst_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN tax_id TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN vat_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN bank_account_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN bank_name TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN bank_branch TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN ifsc_code TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN payment_terms TEXT DEFAULT 'Net 30';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN status TEXT DEFAULT 'ACTIVE';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN license_numbers TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN insurance_details TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN currency TEXT DEFAULT 'INR';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN timezone TEXT DEFAULT 'Asia/Kolkata';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN fiscal_year_start INTEGER DEFAULT 4;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN invoice_prefix TEXT DEFAULT 'INV';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN quote_prefix TEXT DEFAULT 'QT';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN po_prefix TEXT DEFAULT 'PO';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN logo_url TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN invoice_template TEXT DEFAULT 'standard';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN enable_e_invoice INTEGER DEFAULT 0;`); } catch (err) {}
     
     // 3. Users Table
     db.exec(`

@@ -41,8 +41,10 @@
                         <tr>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">ID</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Name</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Address</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Contact Info</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Legal Name</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">City</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">State</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Phone</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Created</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-normal">Actions</th>
                         </tr>
@@ -194,25 +196,261 @@
 
 <!-- Firm Modal -->
 <div id="firm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 id="modal-title" class="text-lg font-semibold text-gray-800 mb-4">Add New Firm</h2>
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <h2 id="modal-title" class="text-lg font-semibold text-gray-800 mb-4">Add/Edit Firm</h2>
         <form id="firm-form" class="space-y-4">
             <input type="hidden" id="firm-id">
-            <div>
-                <label for="firm-name" class="block text-sm font-medium text-gray-700 mb-1">Firm Name *</label>
-                <input type="text" id="firm-name" required 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            
+            <!-- Basic Information Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="firm-name" class="block text-sm font-medium text-gray-700 mb-1">Firm Name *</label>
+                    <input type="text" id="firm-name" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-legal-name" class="block text-sm font-medium text-gray-700 mb-1">Legal Name</label>
+                    <input type="text" id="firm-legal-name" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <textarea id="firm-address" rows="2" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div>
+                    <label for="firm-city" class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" id="firm-city" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-state" class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <input type="text" id="firm-state" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-country" class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <input type="text" id="firm-country" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-pincode" class="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+                    <input type="text" id="firm-pincode" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-phone" class="block text-sm font-medium text-gray-700 mb-1">Primary Phone</label>
+                    <input type="text" id="firm-phone" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-secondary-phone" class="block text-sm font-medium text-gray-700 mb-1">Secondary Phone</label>
+                    <input type="text" id="firm-secondary-phone" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="firm-email" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-website" class="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                    <input type="url" id="firm-website" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-business-type" class="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
+                    <input type="text" id="firm-business-type" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="LLC, Corporation, Partnership, etc.">
+                </div>
+                <div>
+                    <label for="firm-industry-type" class="block text-sm font-medium text-gray-700 mb-1">Industry Type</label>
+                    <input type="text" id="firm-industry-type" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Manufacturing, Trading, Services">
+                </div>
+                <div>
+                    <label for="firm-establishment-year" class="block text-sm font-medium text-gray-700 mb-1">Establishment Year</label>
+                    <input type="number" id="firm-establishment-year" min="1900" max="2099" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="firm-employee-count" class="block text-sm font-medium text-gray-700 mb-1">Employee Count</label>
+                    <input type="number" id="firm-employee-count" min="0" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
             </div>
-            <div>
-                <label for="firm-address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <textarea id="firm-address" rows="3" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+            
+            <!-- Registration Details Section -->
+            <div class="mt-6">
+                <h3 class="text-md font-semibold text-gray-700 mb-3">Registration Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="firm-registration-number" class="block text-sm font-medium text-gray-700 mb-1">Registration Number</label>
+                        <input type="text" id="firm-registration-number" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-registration-date" class="block text-sm font-medium text-gray-700 mb-1">Registration Date</label>
+                        <input type="date" id="firm-registration-date" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-cin-number" class="block text-sm font-medium text-gray-700 mb-1">CIN Number</label>
+                        <input type="text" id="firm-cin-number" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-pan-number" class="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
+                        <input type="text" id="firm-pan-number" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-gst-number" class="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="firm-gst-number" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="27ABCDE1234F1Z5" maxlength="15">
+                            <button type="button" id="btn-fetch-firm-gst" class="bg-orange-500 hover:bg-orange-600 text-white px-3 rounded text-xs font-bold shadow transition-colors flex items-center justify-center min-w-[60px]">
+                                FETCH
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1">Click Fetch to auto-fill details</p>
+                    </div>
+                    <div>
+                        <label for="firm-tax-id" class="block text-sm font-medium text-gray-700 mb-1">Tax ID</label>
+                        <input type="text" id="firm-tax-id" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-vat-number" class="block text-sm font-medium text-gray-700 mb-1">VAT Number</label>
+                        <input type="text" id="firm-vat-number" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
             </div>
-            <div>
-                <label for="firm-contact-info" class="block text-sm font-medium text-gray-700 mb-1">Contact Info</label>
-                <input type="text" id="firm-contact-info" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            
+            <!-- Banking Details Section -->
+            <div class="mt-6">
+                <h3 class="text-md font-semibold text-gray-700 mb-3">Banking Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="firm-bank-account-number" class="block text-sm font-medium text-gray-700 mb-1">Bank Account Number</label>
+                        <input type="text" id="firm-bank-account-number" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-bank-name" class="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                        <input type="text" id="firm-bank-name" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-bank-branch" class="block text-sm font-medium text-gray-700 mb-1">Bank Branch</label>
+                        <input type="text" id="firm-bank-branch" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-ifsc-code" class="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+                        <input type="text" id="firm-ifsc-code" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-payment-terms" class="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
+                        <input type="text" id="firm-payment-terms" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="Net 30">
+                    </div>
+                </div>
             </div>
+            
+            <!-- Compliance Section -->
+            <div class="mt-6">
+                <h3 class="text-md font-semibold text-gray-700 mb-3">Compliance</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="firm-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="firm-status" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="INACTIVE">INACTIVE</option>
+                            <option value="SUSPENDED">SUSPENDED</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="firm-license-numbers" class="block text-sm font-medium text-gray-700 mb-1">License Numbers (JSON)</label>
+                        <input type="text" id="firm-license-numbers" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder='{"trade_license":"TL123","factory_license":"FL456"}'">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="firm-insurance-details" class="block text-sm font-medium text-gray-700 mb-1">Insurance Details (JSON)</label>
+                        <textarea id="firm-insurance-details" rows="2"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder='{"general_liability":"Policy ABC123","professional_indemnity":"Policy XYZ789"}'"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Business Settings Section -->
+            <div class="mt-6">
+                <h3 class="text-md font-semibold text-gray-700 mb-3">Business Settings</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="firm-currency" class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                        <input type="text" id="firm-currency" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="INR">
+                    </div>
+                    <div>
+                        <label for="firm-timezone" class="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+                        <input type="text" id="firm-timezone" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="Asia/Kolkata">
+                    </div>
+                    <div>
+                        <label for="firm-fiscal-year-start" class="block text-sm font-medium text-gray-700 mb-1">Fiscal Year Start Month</label>
+                        <input type="number" id="firm-fiscal-year-start" min="1" max="12" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="4">
+                    </div>
+                    <div>
+                        <label for="firm-invoice-prefix" class="block text-sm font-medium text-gray-700 mb-1">Invoice Prefix</label>
+                        <input type="text" id="firm-invoice-prefix" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="INV">
+                    </div>
+                    <div>
+                        <label for="firm-quote-prefix" class="block text-sm font-medium text-gray-700 mb-1">Quote Prefix</label>
+                        <input type="text" id="firm-quote-prefix" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="QT">
+                    </div>
+                    <div>
+                        <label for="firm-po-prefix" class="block text-sm font-medium text-gray-700 mb-1">Purchase Order Prefix</label>
+                        <input type="text" id="firm-po-prefix" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="PO">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Document Settings Section -->
+            <div class="mt-6">
+                <h3 class="text-md font-semibold text-gray-700 mb-3">Document Settings</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="firm-logo-url" class="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                        <input type="url" id="firm-logo-url" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="firm-invoice-template" class="block text-sm font-medium text-gray-700 mb-1">Invoice Template</label>
+                        <select id="firm-invoice-template" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="standard">Standard</option>
+                            <option value="modern">Modern</option>
+                            <option value="professional">Professional</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center pt-4">
+                        <input type="checkbox" id="firm-enable-e-invoice" 
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="firm-enable-e-invoice" class="ml-2 block text-sm text-gray-700">
+                            Enable E-Invoice
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
             <div class="flex justify-end space-x-3 pt-4">
                 <button type="button" id="cancel-firm-btn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
                     Cancel

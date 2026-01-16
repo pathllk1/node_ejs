@@ -29,12 +29,15 @@ async function getMongoFirmId(req) {
     if (!mongoFirm) {
         console.log(`Creating firm "${sqliteFirm.name}" in MongoDB for mapping...`);
         
+        // Generate a unique code based on the firm name
+        const firmCode = sqliteFirm.name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20).toUpperCase();
+        
         mongoFirm = await mongoPrisma.firms.create({
             data: {
                 name: sqliteFirm.name,
                 address: "", // Could be populated from SQLite if available
                 businessType: null,
-                code: null,
+                code: firmCode,
                 contactNo: null,
                 contactPerson: null,
                 createdAt: new Date(),

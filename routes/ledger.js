@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ledgerController = require('../controllers/ledger/ledgerController');
+const ledgerController = require('../controllers/turso/ledger/ledgerController');
 const verifyToken = require('../middleware/authMiddleware');
 const { verifyFirmAccess } = require('../middleware/firmMiddleware');
 

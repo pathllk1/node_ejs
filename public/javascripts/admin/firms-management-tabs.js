@@ -161,6 +161,55 @@ function setupDatabaseFeatures() {
         });
     }
     
+    const sqliteToMongoBackupBtn = document.getElementById('sqlite-to-mongo-backup');
+    if (sqliteToMongoBackupBtn) {
+        sqliteToMongoBackupBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to backup SQLite data to MongoDB? This will overwrite existing MongoDB data and may take a few minutes depending on the amount of data.')) {
+                // Show a temporary status message
+                const originalText = sqliteToMongoBackupBtn.textContent;
+                sqliteToMongoBackupBtn.textContent = 'Backing up...';
+                sqliteToMongoBackupBtn.disabled = true;
+                
+                fetch('/admin/sqlite-to-mongo-backup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('SQLite to MongoDB backup completed successfully!\n\nBacked up:' +
+                              '\n- Firms: ' + data.dataCounts.firms +
+                              '\n- Users: ' + data.dataCounts.users +
+                              '\n- Bills: ' + data.dataCounts.bills +
+                              '\n- Parties: ' + data.dataCounts.parties +
+                              '\n- Stocks: ' + data.dataCounts.stocks +
+                              '\n- Ledger: ' + data.dataCounts.ledger +
+                              '\n- Stock Register: ' + data.dataCounts.stockReg +
+                              '\n- Settings: ' + data.dataCounts.settings +
+                              '\n- Bill Sequences: ' + data.dataCounts.billSequences +
+                              '\n- Request Logs: ' + data.dataCounts.requestLogs +
+                              '\n- Party GSTs: ' + data.dataCounts.partyGsts +
+                              '\n- Firm Settings: ' + data.dataCounts.firmSettings);
+                    } else {
+                        alert('Error with SQLite to MongoDB backup: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('SQLite to MongoDB backup error:', error);
+                    alert('Error with SQLite to MongoDB backup: ' + error.message);
+                })
+                .finally(() => {
+                    // Restore button state
+                    sqliteToMongoBackupBtn.textContent = originalText;
+                    sqliteToMongoBackupBtn.disabled = false;
+                });
+            }
+        });
+    }
+    
     // Load database info
     loadDatabaseInfo();
 }

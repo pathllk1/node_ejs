@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma_mongo"
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma_mongo"
   binaryTargets = ["native", "debian-openssl-3.0.x", "windows"]
 }
 
@@ -176,13 +176,13 @@ model NSE_LIVE {
   updated_at  String
   /// Multiple data types found: Float: 0.2%, Int: 99.8% out of 1000 sampled entries
   volume      Json
+  v           Int      @default(0) @map("__v")
 
   @@unique([token, date], map: "token_1_date_1")
 }
 
 model advancerecoveries {
   id             String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v              Int      @map("__v")
   advanceId      String   @mongodb.ObjectId
   createdAt      DateTime @mongodb.Date
   employeeId     String   @mongodb.ObjectId
@@ -195,11 +195,11 @@ model advancerecoveries {
   updatedAt      DateTime @mongodb.Date
   userId         String   @mongodb.ObjectId
   wageId         String?  @mongodb.ObjectId
+  v              Int      @default(0) @map("__v")
 }
 
 model aihistories {
   id           String               @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v            Int                  @map("__v")
   answer       String
   /// Could not determine type: the field only had null or empty values in the sample set.
   conversation Json?
@@ -211,11 +211,11 @@ model aihistories {
   updatedAt    DateTime             @mongodb.Date
   /// Multiple data types found: String: 4%, String (ObjectId): 96% out of 25 sampled entries
   userId       Json
+  v            Int                  @default(0) @map("__v")
 }
 
 model apilogs {
   id           String        @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v            Int           @map("__v")
   createdAt    DateTime      @mongodb.Date
   headers      String
   ip           String
@@ -228,6 +228,7 @@ model apilogs {
   updatedAt    DateTime      @mongodb.Date
   userAgent    String
   userId       String?
+  v            Int           @default(0) @map("__v")
 
   @@index([timestamp], map: "timestamp_1")
   @@index([method], map: "method_1")
@@ -240,59 +241,70 @@ model apilogs {
 }
 
 model bills {
-  id               String             @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                Int                @map("__v")
-  addr             String
-  attachmentFileId String?
-  attachmentUrl    String?
-  bdate            DateTime           @mongodb.Date
-  bno              String
-  btype            String
+  id                 String             @id @default(auto()) @map("_id") @mongodb.ObjectId
+  addr               String
+  attachmentFileId   String?
+  attachmentUrl      String?
+  bdate              DateTime           @mongodb.Date
+  bno                String
+  btype              String
   /// Multiple data types found: Float: 50%, Int: 50% out of 8 sampled entries
-  cgst             Json
-  consigneeAddress String?
-  consigneeGstin   String?
-  consigneeName    String?
-  consigneePin     String?
-  consigneeState   String?
-  createdAt        DateTime           @mongodb.Date
-  disc             Int?
-  dispatchThrough  String
-  docketNo         String
-  firm             String
-  gstSelection     BillsGstSelection?
-  gstin            String
+  cgst               Json
+  consigneeAddress   String?
+  consigneeGstin     String?
+  consigneeName      String?
+  consigneePin       String?
+  consigneeState     String?
+  createdAt          DateTime           @mongodb.Date
+  disc               Int?
+  dispatchThrough    String
+  docketNo           String
+  firm               String
+  gstSelection       BillsGstSelection?
+  gstin              String
   /// Multiple data types found: Float: 25%, Int: 75% out of 8 sampled entries
-  gtot             Json
+  gtot               Json
   /// Multiple data types found: Float: 50%, Int: 50% out of 8 sampled entries
-  igst             Json
-  narration        String?
-  ntot             Int
-  orderDate        DateTime?          @mongodb.Date
-  orderNo          String
-  oth_chg          BillsOthChg[]
-  partyId          String?            @mongodb.ObjectId
-  pin              Int?
-  rof              Float
+  igst               Json
+  narration          String?
+  ntot               Int
+  orderDate          DateTime?          @mongodb.Date
+  orderNo            String
+  oth_chg            BillsOthChg[]
+  partyId            String?            @mongodb.ObjectId
+  pin                Int?
+  rof                Float
   /// Multiple data types found: Float: 50%, Int: 50% out of 8 sampled entries
-  sgst             Json
-  state            String
-  status           String
-  stockRegIds      String[]
-  supply           String
-  updatedAt        DateTime           @mongodb.Date
-  usern            String
-  vehicleNo        String
+  sgst               Json
+  state              String
+  status             String
+  stockRegIds        String[]
+  supply             String
+  updatedAt          DateTime           @mongodb.Date
+  usern              String
+  vehicleNo          String
+  reverseCharge      Int?               @default(0)
+  stateCode          Int?
+  consigneeStateCode Int?
+  cancellationReason String?
+  cancelledAt        DateTime?          @mongodb.Date
+  cancelledBy        String?            @mongodb.ObjectId
+  othChgJson         String?
+  gstSelectionJson   String?
+  firmId             String?            @mongodb.ObjectId
+  v                  Int                @default(0) @map("__v")
+  ledgers            ledger[]
+  stockRegs          stockReg[]
 }
 
 model chatmessages {
   id         String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v          Int      @map("__v")
   content    String
   read       Boolean
   receiverId String
   senderId   String
   timestamp  DateTime @mongodb.Date
+  v          Int      @default(0) @map("__v")
 
   @@index([senderId], map: "senderId_1")
   @@index([receiverId], map: "receiverId_1")
@@ -304,7 +316,6 @@ model chatmessages {
 model cnnotes {
   id        String   @id @default(auto()) @map("_id") @mongodb.ObjectId
   Folio_rec String[]
-  v         Int      @map("__v")
   broker    String
   cn_date   DateTime @mongodb.Date
   cn_no     String
@@ -319,6 +330,7 @@ model cnnotes {
   type      String
   updatedAt DateTime @mongodb.Date
   user      String
+  v         Int      @default(0) @map("__v")
 
   @@unique([cn_no, user], map: "cn_no_1_user_1")
   @@unique([firmId, cn_no], map: "firmId_1_cn_no_1")
@@ -333,6 +345,7 @@ model cosmosdbconfigs {
   firmId     Json?
   /// Field referred in an index, but found no data to define the type.
   isActive   Json?
+  v          Int    @default(0) @map("__v")
 
   @@unique([firmId, configName], map: "firmId_1_configName_1")
   @@index([firmId, isActive], map: "firmId_1_isActive_1")
@@ -340,7 +353,6 @@ model cosmosdbconfigs {
 
 model documents {
   id          String    @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v           Int       @map("__v")
   closedDate  DateTime? @mongodb.Date
   createdAt   DateTime  @mongodb.Date
   description String
@@ -357,11 +369,11 @@ model documents {
   userId      String
   /// Multiple data types found: Float: 96.4%, Int: 3.6% out of 28 sampled entries
   value       Json
+  v           Int       @default(0) @map("__v")
 }
 
 model employeeadvances {
   id               String                         @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                Int                            @map("__v")
   amount           Int
   createdAt        DateTime                       @mongodb.Date
   date             DateTime                       @mongodb.Date
@@ -374,11 +386,11 @@ model employeeadvances {
   status           String
   updatedAt        DateTime                       @mongodb.Date
   userId           String                         @mongodb.ObjectId
+  v                Int                            @default(0) @map("__v")
 }
 
 model expenseParties {
   id          String                    @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v           Int                       @map("__v")
   address     String
   bankDetails ExpensePartiesBankDetails
   contact     String
@@ -391,11 +403,11 @@ model expenseParties {
   state       String
   updatedAt   DateTime                  @mongodb.Date
   userId      String
+  v           Int                       @default(0) @map("__v")
 }
 
 model expenses {
   id              String              @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v               Int                 @map("__v")
   amount          Int
   category        String
   createdAt       DateTime            @mongodb.Date
@@ -416,32 +428,68 @@ model expenses {
   transferDetails Json?
   updatedAt       DateTime            @mongodb.Date
   userId          String
+  v               Int                 @default(0) @map("__v")
 }
 
 model firms {
-  id              String                @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v               Int                   @map("__v")
-  additionalGSTs  FirmsAdditionalGsTs[]
-  address         String
-  businessType    String?
-  code            String?               @unique(map: "code_1")
-  contactNo       String?
-  contactPerson   String?
-  createdAt       DateTime?             @mongodb.Date
-  description     String?
-  email           String
-  gstNo           String?
-  hasMultipleGSTs Boolean?
-  name            String                @unique(map: "name_1")
-  phone           String?
-  state           String?
-  status          String?
-  updatedAt       DateTime?             @mongodb.Date
+  id                 String                @id @default(auto()) @map("_id") @mongodb.ObjectId
+  additionalGSTs     FirmsAdditionalGsTs[]
+  address            String
+  businessType       String?
+  code               String?
+  contactNo          String?
+  contactPerson      String?
+  createdAt          DateTime?             @mongodb.Date
+  description        String?
+  email              String?
+  gstNo              String?
+  hasMultipleGSTs    Boolean?
+  name               String                @unique(map: "name_1")
+  phone              String?
+  state              String?
+  status             String?
+  updatedAt          DateTime?             @mongodb.Date
+  legalName          String?
+  city               String?
+  country            String?               @default("India")
+  pincode            String?
+  secondaryPhone     String?
+  website            String?
+  industryType       String?
+  establishmentYear  Int?
+  employeeCount      Int?
+  registrationNumber String?
+  registrationDate   DateTime?             @mongodb.Date
+  cinNumber          String?
+  panNumber          String?
+  taxId              String?
+  vatNumber          String?
+  bankAccountNumber  String?
+  bankName           String?
+  bankBranch         String?
+  ifscCode           String?
+  paymentTerms       String?               @default("Net 30")
+  licenseNumbers     String?
+  insuranceDetails   String?
+  currency           String?               @default("INR")
+  timezone           String?               @default("Asia/Kolkata")
+  fiscalYearStart    Int?                  @default(4)
+  invoicePrefix      String?               @default("INV")
+  quotePrefix        String?               @default("QT")
+  poPrefix           String?               @default("PO")
+  logoUrl            String?
+  invoiceTemplate    String?               @default("standard")
+  enableEInvoice     Int?                  @default(0)
+  v                  Int                   @default(0) @map("__v")
+  stocks             stocks[]
+  billSequences      billSequences[]
+  firmSettings       firmSettings[]
+  ledgers            ledger[]
+  stockRegs          stockReg[]
 }
 
 model folios {
   id              String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v               Int      @map("__v")
   age             Int
   amt             Float
   broker          String
@@ -470,11 +518,11 @@ model folios {
   type            String
   updatedAt       DateTime @mongodb.Date
   user            String
+  v               Int      @default(0) @map("__v")
 }
 
 model idmappings {
   id            String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v             Int      @map("__v")
   collection    String
   cosmosId      String   @mongodb.ObjectId
   createdAt     DateTime @mongodb.Date
@@ -484,6 +532,7 @@ model idmappings {
   mongoId       String   @mongodb.ObjectId
   syncDirection String
   updatedAt     DateTime @mongodb.Date
+
 
   @@unique([mongoId, collection, firmId], map: "mongoId_1_collection_1_firmId_1")
   @@unique([cosmosId, collection, firmId], map: "cosmosId_1_collection_1_firmId_1")
@@ -498,7 +547,6 @@ model idmappings {
 
 model ledgerTransactions {
   id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v           Int      @map("__v")
   amount      Int
   balance     Int
   billId      String?
@@ -512,11 +560,11 @@ model ledgerTransactions {
   type        String
   updatedAt   DateTime @mongodb.Date
   userId      String
+  v           Int      @default(0) @map("__v")
 }
 
 model ledgers {
   id             String              @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v              Int                 @map("__v")
   bankDetails    LedgersBankDetails?
   createdAt      DateTime            @mongodb.Date
   currentBalance Int
@@ -527,21 +575,21 @@ model ledgers {
   type           String
   updatedAt      DateTime            @mongodb.Date
   userId         String
+  v              Int                 @default(0) @map("__v")
 }
 
 model managercodes {
   id        String    @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v         Int       @map("__v")
   code      String    @unique(map: "code_1")
   createdAt DateTime  @mongodb.Date
   used      Boolean
   usedAt    DateTime? @mongodb.Date
   usedBy    String?   @mongodb.ObjectId
+  v         Int       @default(0) @map("__v")
 }
 
 model masterrolls {
   id                String    @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                 Int       @map("__v")
   aadhar            String    @unique(map: "aadhar_1")
   accountNo         String
   address           String
@@ -568,15 +616,16 @@ model masterrolls {
   uan               String?
   updatedAt         DateTime  @mongodb.Date
   userId            String    @mongodb.ObjectId
+  v                 Int       @default(0) @map("__v")
 }
 
 model mutualfundinvestments {
   id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v  Int    @default(0) @map("__v")
 }
 
 model mutualfunds {
   id                   String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                    Int      @map("__v")
   broker               String
   category             String
   createdAt            DateTime @mongodb.Date
@@ -607,20 +656,24 @@ model mutualfunds {
   units                Float
   updatedAt            DateTime @mongodb.Date
   user                 String
+  v                    Int      @default(0) @map("__v")
 }
 
 model mutualfundschemes {
   id         String @id @default(auto()) @map("_id") @mongodb.ObjectId
   /// Field referred in an index, but found no data to define the type.
   schemeCode Json?  @unique(map: "schemeCode_1")
+  v          Int    @default(0) @map("__v")
 }
 
 model mutualfundsips {
   id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v  Int    @default(0) @map("__v")
 }
 
 model notes {
   id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v  Int    @default(0) @map("__v")
 }
 
 model notifications {
@@ -633,6 +686,7 @@ model notifications {
   type      Json?
   /// Field referred in an index, but found no data to define the type.
   userId    Json?
+  v         Int    @default(0) @map("__v")
 
   @@index([userId], map: "userId_1")
   @@index([type], map: "type_1")
@@ -645,7 +699,6 @@ model notifications {
 
 model notificationsettings {
   id                         String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                          Int      @map("__v")
   createdAt                  DateTime @mongodb.Date
   enableBrowserNotifications Boolean
   enableEmailNotifications   Boolean
@@ -655,25 +708,28 @@ model notificationsettings {
   sipReminderDays            Int
   updatedAt                  DateTime @mongodb.Date
   userId                     String   @unique(map: "userId_1")
+  v                          Int      @default(0) @map("__v")
 }
 
 model nsedocuments {
   id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v  Int    @default(0) @map("__v")
 }
 
 model nses {
   id     String @id @default(auto()) @map("_id") @mongodb.ObjectId
   /// Field referred in an index, but found no data to define the type.
   SYMBOL Json?  @unique(map: "SYMBOL_1")
+  v      Int    @default(0) @map("__v")
 }
 
 model paidToGroups {
   id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v  Int    @default(0) @map("__v")
 }
 
 model parties {
   id              String                  @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v               Int                     @map("__v")
   additionalGSTs  PartiesAdditionalGsTs[]
   addr            String
   billIds         String[]
@@ -685,25 +741,32 @@ model parties {
   pan             String
   pin             Int
   state           String
-  state_code      Int
+  stateCode       Int
   supply          String
   updatedAt       DateTime                @mongodb.Date
   usern           String
+  hasMultipleGsts Int?                    @default(0)
+  firmId          String?                 @mongodb.ObjectId
+  v               Int                     @default(0) @map("__v")
+  ledgers         ledger[]
+  partyGsts       partyGsts[]
+
+  @@index([gstin], map: "parties_gstin_idx")
+  @@index([firmId], map: "parties_firmId_idx")
 }
 
 model roles {
   id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v           Int      @map("__v")
   createdAt   DateTime @mongodb.Date
   description String
   id_         String   @unique(map: "id_1") @map("id")
   name        String   @unique(map: "name_1")
   updatedAt   DateTime @mongodb.Date
+  v           Int      @default(0) @map("__v")
 }
 
 model stockregs {
   id             String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v              Int      @map("__v")
   bdate          DateTime @mongodb.Date
   billId         String   @mongodb.ObjectId
   bno            String
@@ -732,14 +795,14 @@ model stockregs {
   uom            String
   updatedAt      DateTime @mongodb.Date
   user           String
+  v              Int      @default(0) @map("__v")
 }
 
 model stocks {
-  id        String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v         Int      @map("__v")
+  id        String     @id @default(auto()) @map("_id") @mongodb.ObjectId
   /// Could not determine type: the field only had null or empty values in the sample set.
   batch     Json?
-  createdAt DateTime @mongodb.Date
+  createdAt DateTime   @mongodb.Date
   firm      String
   grate     Int
   hsn       String
@@ -751,13 +814,21 @@ model stocks {
   rate      Int
   total     Int
   uom       String
-  updatedAt DateTime @mongodb.Date
+  updatedAt DateTime   @mongodb.Date
   user      String
+  mrp       Float?
+  batches   String?
+  firmId    String?    @mongodb.ObjectId
+  v         Int        @default(0) @map("__v")
+  stockReg  stockReg[]
+  firms     firms?     @relation(fields: [firmId], references: [id])
+
+  @@unique([item, firmId], map: "stocks_item_firm_unique")
+  @@index([firmId], map: "stocks_firmId_idx")
 }
 
 model subcontractors {
   id             String                       @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v              Int                          @map("__v")
   /// Could not determine type: the field only had null or empty values in the sample set.
   activeProjects Json?
   contactInfo    SubcontractorsContactInfo
@@ -771,17 +842,18 @@ model subcontractors {
   taxInfo        SubcontractorsTaxInfo
   updatedAt      DateTime                     @mongodb.Date
   userId         String                       @mongodb.ObjectId
+  v              Int                          @default(0) @map("__v")
 
   @@unique([userId, firmId], map: "userId_1_firmId_1")
 }
 
 model subs {
   id String @id @default(auto()) @map("_id") @mongodb.ObjectId
+  v  Int    @default(0) @map("__v")
 }
 
 model subsModels {
   id           String                @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v            Int                   @map("__v")
   balance      Int
   contactInfo  SubsModelsContactInfo
   createdAt    DateTime              @mongodb.Date
@@ -792,11 +864,11 @@ model subsModels {
   transactions Json?
   updatedAt    DateTime              @mongodb.Date
   userId       String
+  v            Int                   @default(0) @map("__v")
 }
 
 model subsTransactions {
   id          String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v           Int      @map("__v")
   amount      Int
   category    String?
   createdAt   DateTime @mongodb.Date
@@ -809,11 +881,11 @@ model subsTransactions {
   type        String
   updatedAt   DateTime @mongodb.Date
   userId      String
+  v           Int      @default(0) @map("__v")
 }
 
 model supabaseconfigs {
   id                 String                        @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                  Int                           @map("__v")
   configName         String
   createdAt          DateTime                      @mongodb.Date
   firmId             String                        @mongodb.ObjectId
@@ -824,11 +896,11 @@ model supabaseconfigs {
   testConnection     SupabaseconfigsTestConnection
   updatedAt          DateTime                      @mongodb.Date
   userId             String                        @mongodb.ObjectId
+  v                  Int                           @default(0) @map("__v")
 }
 
 model users {
   id                   String    @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                    Int       @map("__v")
   activeSessions       String[]
   createdAt            DateTime? @mongodb.Date
   email                String    @unique(map: "email_1")
@@ -849,11 +921,11 @@ model users {
   status               Int?
   updatedAt            DateTime  @mongodb.Date
   username             String    @unique(map: "username_1")
+  v                    Int       @default(0) @map("__v")
 }
 
 model wages {
   id                  String   @id @default(auto()) @map("_id") @mongodb.ObjectId
-  v                   Int      @map("__v")
   accountNo           String
   advance_recovery    Int
   advance_recovery_id String?  @mongodb.ObjectId
@@ -880,4 +952,151 @@ model wages {
   updatedAt           DateTime @mongodb.Date
   userId              String   @mongodb.ObjectId
   wage_Days           Int
+  v                   Int      @default(0) @map("__v")
+}
+
+model billSequences {
+  id            String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  firmId        String   @mongodb.ObjectId
+  financialYear String
+  lastSequence  Int      @default(0)
+  createdAt     DateTime @default(now()) @mongodb.Date
+  updatedAt     DateTime @default(now()) @mongodb.Date
+  v             Int      @default(0) @map("__v")
+
+  firms         firms    @relation(fields: [firmId], references: [id])
+
+  @@unique([firmId, financialYear], map: "billSequences_firm_year_unique")
+  @@index([firmId], map: "billSequences_firmId_idx")
+}
+
+model firmSettings {
+  id           String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  firmId       String   @mongodb.ObjectId
+  settingKey   String
+  settingValue String
+  description  String?
+  createdAt    DateTime @mongodb.Date
+  updatedAt    DateTime @mongodb.Date
+  v            Int      @default(0) @map("__v")
+  firms        firms    @relation(fields: [firmId], references: [id])
+
+  @@unique([firmId, settingKey], map: "firmId_settingKey_unique")
+}
+
+model ledger {
+  id              String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  voucherId       Int
+  voucherType     String
+  voucherNo       String
+  accountHead     String
+  accountType     String
+  debitAmount     Float?   @default(0)
+  creditAmount    Float?   @default(0)
+  narration       String?
+  billId          String?  @mongodb.ObjectId
+  partyId         String?  @mongodb.ObjectId
+  taxType         String?
+  taxRate         Float?
+  transactionDate DateTime @mongodb.Date
+  createdBy       String
+  firmId          String   @mongodb.ObjectId
+  createdAt       DateTime @default(now()) @mongodb.Date
+  updatedAt       DateTime @default(now()) @mongodb.Date
+  v               Int      @default(0) @map("__v")
+  parties         parties? @relation(fields: [partyId], references: [id])
+  bills           bills?   @relation(fields: [billId], references: [id])
+  firms           firms    @relation(fields: [firmId], references: [id])
+
+  @@index([transactionDate], map: "ledger_transactionDate_idx")
+  @@index([voucherId, firmId], map: "ledger_voucherId_firm_idx")
+  @@index([accountHead, firmId], map: "ledger_accountHead_firm_idx")
+  @@index([firmId], map: "ledger_firmId_idx")
+}
+
+model partyGsts {
+  id               String    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  partyId          String    @mongodb.ObjectId
+  gstNumber        String
+  state            String
+  stateCode        Int
+  locationName     String
+  address          String
+  city             String
+  pincode          String
+  contactPerson    String?
+  contactNumber    String?
+  isActive         Int?      @default(1)
+  isDefault        Int?      @default(0)
+  registrationType String?   @default("regular")
+  validFrom        DateTime  @mongodb.Date
+  validTo          DateTime? @mongodb.Date
+  lastUsedDate     DateTime? @mongodb.Date
+  transactionCount Int?      @default(0)
+  v                Int       @default(0) @map("__v")
+  parties          parties   @relation(fields: [partyId], references: [id])
+}
+
+model requestLogs {
+  id        String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  method    String
+  url       String
+  ip        String?
+  username  String?
+  userAgent String?
+  timestamp DateTime @default(now()) @mongodb.Date
+  v         Int      @default(0) @map("__v")
+}
+
+model settings {
+  id           String   @id @default(auto()) @map("_id") @mongodb.ObjectId
+  settingKey   String   @unique(map: "settingKey_unique")
+  settingValue String
+  description  String?
+  createdAt    DateTime @mongodb.Date
+  updatedAt    DateTime @mongodb.Date
+  v            Int      @default(0) @map("__v")
+}
+
+model stockReg {
+  id            String    @id @default(auto()) @map("_id") @mongodb.ObjectId
+  type          String
+  bno           String
+  bdate         DateTime  @mongodb.Date
+  supply        String
+  item          String
+  itemNarration String?
+  pno           String?
+  batch         String?
+  oem           String?
+  hsn           String
+  qty           Float
+  qtyh          Float
+  uom           String
+  rate          Float
+  grate         Float?
+  cgst          Float?
+  sgst          Float?
+  igst          Float?
+  disc          Float?
+  discamt       Float?
+  total         Float
+  mrp           Float?
+  expiryDate    DateTime? @mongodb.Date
+  project       String?
+  user          String
+  firm          String
+  stockId       String?   @mongodb.ObjectId
+  billId        String?   @mongodb.ObjectId
+  createdAt     DateTime  @mongodb.Date
+  updatedAt     DateTime  @mongodb.Date
+  firmId        String?   @mongodb.ObjectId
+  v             Int       @default(0) @map("__v")
+  bills         bills?    @relation(fields: [billId], references: [id])
+  stocks        stocks?   @relation(fields: [stockId], references: [id])
+  firms         firms?    @relation(fields: [firmId], references: [id])
+
+  @@index([item], map: "stockReg_item_idx")
+  @@index([bno], map: "stockReg_bno_idx")
+  @@index([firmId], map: "stockReg_firmId_idx")
 }

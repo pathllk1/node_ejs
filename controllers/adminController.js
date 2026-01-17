@@ -244,6 +244,12 @@ exports.dropMongoDBRecords = async (req, res) => {
         const mongoPrisma = require('../config/prisma_mongo');
         
         // Delete all records from all collections/models (keeps the collections)
+        // Need to respect foreign key relationships - delete related records first
+        await mongoPrisma.billSequences.deleteMany(); // Delete bill sequences first due to relation with firms
+        await mongoPrisma.firmSettings.deleteMany(); // Delete firm settings first due to relation with firms
+        await mongoPrisma.ledger.deleteMany(); // Delete ledger first due to relation with firms
+        await mongoPrisma.stockReg.deleteMany(); // Delete stockReg first due to relation with firms
+        
         await Promise.all([
             mongoPrisma.nSE_LIVE.deleteMany(),
             mongoPrisma.advancerecoveries.deleteMany(),
@@ -275,6 +281,7 @@ exports.dropMongoDBRecords = async (req, res) => {
             mongoPrisma.nses.deleteMany(),
             mongoPrisma.paidToGroups.deleteMany(),
             mongoPrisma.parties.deleteMany(),
+            mongoPrisma.partyGsts.deleteMany(), // Also need to delete partyGsts that relates to parties
             mongoPrisma.roles.deleteMany(),
             mongoPrisma.stockregs.deleteMany(),
             mongoPrisma.stocks.deleteMany(),
@@ -299,6 +306,7 @@ exports.dropMongoDBRecords = async (req, res) => {
         console.error('MongoDB drop records error:', error.message);
         // Attempt to disconnect from MongoDB in case of error
         try {
+            const mongoPrisma = require('../config/prisma_mongo');
             await mongoPrisma.$disconnect();
         } catch (disconnectError) {
             console.error('Error disconnecting from MongoDB:', disconnectError.message);
@@ -334,7 +342,12 @@ exports.dropMongoDBCollections = async (req, res) => {
         // Note: Prisma doesn't have a direct dropCollection method, so we'll delete all records and then disconnect
         // The actual collection dropping would typically be done through the native MongoDB driver
         
-        // Delete all records first
+        // Delete all records first - need to respect foreign key relationships
+        await mongoPrisma.billSequences.deleteMany(); // Delete bill sequences first due to relation with firms
+        await mongoPrisma.firmSettings.deleteMany(); // Delete firm settings first due to relation with firms
+        await mongoPrisma.ledger.deleteMany(); // Delete ledger first due to relation with firms
+        await mongoPrisma.stockReg.deleteMany(); // Delete stockReg first due to relation with firms
+        
         await Promise.all([
             mongoPrisma.nSE_LIVE.deleteMany(),
             mongoPrisma.advancerecoveries.deleteMany(),
@@ -366,6 +379,7 @@ exports.dropMongoDBCollections = async (req, res) => {
             mongoPrisma.nses.deleteMany(),
             mongoPrisma.paidToGroups.deleteMany(),
             mongoPrisma.parties.deleteMany(),
+            mongoPrisma.partyGsts.deleteMany(), // Also need to delete partyGsts that relates to parties
             mongoPrisma.roles.deleteMany(),
             mongoPrisma.stockregs.deleteMany(),
             mongoPrisma.stocks.deleteMany(),
@@ -395,6 +409,7 @@ exports.dropMongoDBCollections = async (req, res) => {
         
         // Attempt to disconnect from MongoDB in case of error
         try {
+            const mongoPrisma = require('../config/prisma_mongo');
             await mongoPrisma.$disconnect();
         } catch (disconnectError) {
             console.error('Error disconnecting from MongoDB:', disconnectError.message);
@@ -486,6 +501,451 @@ exports.restoreDatabase = async (req, res) => {
 
     } catch (error) {
         console.error('Database restore error:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+};
+
+// SQLite to MongoDB backup functionality
+exports.sqliteToMongoBackup = async (req, res) => {
+    // Validate that admin role is properly configured
+    if (!process.env.ADMIN_ROLE_VALUE) {
+        console.error('CRITICAL ERROR: ADMIN_ROLE_VALUE environment variable is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    const adminRoleValue = parseInt(process.env.ADMIN_ROLE_VALUE);
+    const db = require('../config/db');
+    const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!currentUser || !currentUser.role || currentUser.role !== adminRoleValue) {
+        return res.status(403).json({ error: 'You are not permitted to perform this action' });
+    }
+    
+    try {
+        // Import MongoDB Prisma client
+        const mongoPrisma = require('../config/prisma_mongo');
+        
+        // First, get counts of data to be backed up
+        const countBillSequences = db.prepare('SELECT COUNT(*) as count FROM bill_sequences').get().count;
+        const countFirms = db.prepare('SELECT COUNT(*) as count FROM firms').get().count;
+        const countUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+        const countSettings = db.prepare('SELECT COUNT(*) as count FROM settings').get().count;
+        const countRequestLogs = db.prepare('SELECT COUNT(*) as count FROM request_logs').get().count;
+        const countParties = db.prepare('SELECT COUNT(*) as count FROM parties').get().count;
+        const countPartyGsts = db.prepare('SELECT COUNT(*) as count FROM party_gsts').get().count;
+        const countStocks = db.prepare('SELECT COUNT(*) as count FROM stocks').get().count;
+        const countBills = db.prepare('SELECT COUNT(*) as count FROM bills').get().count;
+        const countLedger = db.prepare('SELECT COUNT(*) as count FROM ledger').get().count;
+        const countStockReg = db.prepare('SELECT COUNT(*) as count FROM stock_reg').get().count;
+        const countFirmSettings = db.prepare('SELECT COUNT(*) as count FROM firm_settings').get().count;
+        
+        console.log(`Starting SQLite to MongoDB backup...`);
+        console.log(`Data to be backed up: ${countFirms} firms, ${countUsers} users, ${countBills} bills, etc.`);
+        
+        // Clear existing MongoDB collections first - need to respect foreign key relationships
+        await mongoPrisma.billSequences.deleteMany({});
+        await mongoPrisma.ledger.deleteMany({}); // Delete ledger first due to relation with firms
+        await mongoPrisma.stockReg.deleteMany({}); // Delete stockReg first due to relation with firms
+        await mongoPrisma.firmSettings.deleteMany({}); // Delete firmSettings first due to relation with firms
+        await mongoPrisma.firms.deleteMany({});
+        await mongoPrisma.users.deleteMany({});
+        await mongoPrisma.settings.deleteMany({});
+        await mongoPrisma.requestLogs.deleteMany({});
+        await mongoPrisma.parties.deleteMany({});
+        await mongoPrisma.partyGsts.deleteMany({});
+        await mongoPrisma.stocks.deleteMany({});
+        await mongoPrisma.bills.deleteMany({});
+        
+        console.log(`Cleared existing MongoDB collections`);
+        
+        // First, we need to map SQLite firm IDs to MongoDB firm IDs
+        const sqliteFirmsData = db.prepare('SELECT * FROM firms').all();
+        const firmIdMap = new Map();
+        
+        // Backup firms first and create a mapping
+        for (const firm of sqliteFirmsData) {
+            const createdFirm = await mongoPrisma.firms.create({
+                data: {
+                    name: firm.name,
+                    legalName: firm.legal_name,
+                    address: firm.address,
+                    city: firm.city,
+                    state: firm.state,
+                    country: firm.country || 'India',
+                    pincode: firm.pincode,
+                    phone: firm.phone_number,
+                    secondaryPhone: firm.secondary_phone,
+                    email: firm.email,
+                    website: firm.website,
+                    businessType: firm.business_type,
+                    industryType: firm.industry_type,
+                    establishmentYear: firm.establishment_year,
+                    employeeCount: firm.employee_count,
+                    registrationNumber: firm.registration_number,
+                    registrationDate: firm.registration_date ? new Date(firm.registration_date) : undefined,
+                    cinNumber: firm.cin_number,
+                    panNumber: firm.pan_number,
+                    gstNo: firm.gst_number,
+                    taxId: firm.tax_id,
+                    vatNumber: firm.vat_number,
+                    bankAccountNumber: firm.bank_account_number,
+                    bankName: firm.bank_name,
+                    bankBranch: firm.bank_branch,
+                    ifscCode: firm.ifsc_code,
+                    paymentTerms: firm.payment_terms || 'Net 30',
+                    licenseNumbers: firm.license_numbers,
+                    insuranceDetails: firm.insurance_details,
+                    currency: firm.currency || 'INR',
+                    timezone: firm.timezone || 'Asia/Kolkata',
+                    fiscalYearStart: firm.fiscal_year_start || 4,
+                    invoicePrefix: firm.invoice_prefix || 'INV',
+                    quotePrefix: firm.quote_prefix || 'QT',
+                    poPrefix: firm.po_prefix || 'PO',
+                    logoUrl: firm.logo_url,
+                    invoiceTemplate: firm.invoice_template || 'standard',
+                    enableEInvoice: firm.enable_e_invoice || 0,
+                    code: firm.id.toString(), // Provide unique code to avoid unique constraint issue
+                    createdAt: firm.created_at ? new Date(firm.created_at) : new Date(),
+                    updatedAt: firm.updated_at ? new Date(firm.updated_at) : new Date(),
+                    additionalGSTs: [],
+                    v: 0,
+
+                }
+            });
+            // Map the original SQLite ID to the new MongoDB ID
+            firmIdMap.set(firm.id, createdFirm.id);
+        }
+        
+        // Backup bill_sequences using mapped firm IDs
+        const sqliteBillSeqs = db.prepare('SELECT * FROM bill_sequences').all();
+        for (const seq of sqliteBillSeqs) {
+            await mongoPrisma.billSequences.create({
+                data: {
+                    firmId: firmIdMap.get(seq.firm_id),
+                    financialYear: seq.financial_year,
+                    lastSequence: seq.last_sequence,
+                    createdAt: new Date(seq.created_at),
+                    updatedAt: new Date(seq.updated_at),
+                    v: 0,
+
+                }
+            });
+        }
+        
+        // Firms have already been backed up with bill_sequences, skipping duplicate creation
+        
+        // Create a user ID mapping
+        const userIdMap = new Map();
+        
+        // Backup users
+        const sqliteUsersData = db.prepare('SELECT * FROM users').all();
+        for (const user of sqliteUsersData) {
+            const createdUser = await mongoPrisma.users.create({
+                data: {
+                    email: user.email,
+                    fullName: user.fullname || user.fullname,
+                    username: user.username,
+                    password: user.password,
+                    firmId: user.firm_id ? firmIdMap.get(user.firm_id) : null,
+                    role: user.role ? user.role.toString() : 'USER',
+                    createdAt: user.created_at ? new Date(user.created_at) : new Date(),
+                    updatedAt: user.updated_at ? new Date(user.updated_at) : new Date(),
+                    activeSessions: [],
+                    passwordHistory: [],
+                    v: 0,
+
+                }
+            });
+            // Map the original SQLite ID to the new MongoDB ID
+            userIdMap.set(user.id, createdUser.id);
+        }
+        
+        // Backup settings
+        const sqliteSettingsData = db.prepare('SELECT * FROM settings').all();
+        for (const setting of sqliteSettingsData) {
+            await mongoPrisma.settings.create({
+                data: {
+                    settingKey: setting.setting_key,
+                    settingValue: setting.setting_value,
+                    description: setting.description,
+                    createdAt: setting.created_at ? new Date(setting.created_at) : new Date(),
+                    updatedAt: setting.updated_at ? new Date(setting.updated_at) : new Date(),
+                    v: 0,
+
+                }
+            });
+        }
+        
+     
+        
+        // Create a party ID mapping
+        const partyIdMap = new Map();
+        
+        // Backup parties
+        const sqlitePartiesData = db.prepare('SELECT * FROM parties').all();
+        for (const party of sqlitePartiesData) {
+            const createdParty = await mongoPrisma.parties.create({
+                data: {
+                    addr: party.addr || '',
+                    contact: party.contact || '',
+                    createdAt: party.created_at ? new Date(party.created_at) : new Date(),
+                    firm: party.firm || 'Default Firm',
+                    gstin: party.gstin || 'UNREGISTERED',
+                    hasMultipleGSTs: party.has_multiple_gsts ? !!party.has_multiple_gsts : false,
+                    pan: party.pan || '',
+                    pin: party.pin || 0,
+                    state: party.state || '',
+                    stateCode: party.state_code || 0,
+                    supply: party.supply,
+                    updatedAt: party.updated_at ? new Date(party.updated_at) : new Date(),
+                    usern: party.usern,
+                    hasMultipleGsts: party.has_multiple_gsts || 0,
+                    firmId: party.firm_id ? firmIdMap.get(party.firm_id) : null,
+                    additionalGSTs: [],
+                    billIds: [],
+                    v: 0,
+
+                }
+            });
+            // Map the original SQLite ID to the new MongoDB ID
+            partyIdMap.set(party.id, createdParty.id);
+        }
+        
+        // Backup party_gsts
+        const sqlitePartyGstsData = db.prepare('SELECT * FROM party_gsts').all();
+        for (const gsts of sqlitePartyGstsData) {
+            await mongoPrisma.partyGsts.create({
+                data: {
+                    partyId: partyIdMap.get(gsts.party_id),
+                    gstNumber: gsts.gst_number,
+                    state: gsts.state,
+                    stateCode: gsts.state_code,
+                    locationName: gsts.location_name,
+                    address: gsts.address,
+                    city: gsts.city,
+                    pincode: gsts.pincode,
+                    contactPerson: gsts.contact_person,
+                    contactNumber: gsts.contact_number,
+                    isActive: gsts.is_active,
+                    isDefault: gsts.is_default,
+                    registrationType: gsts.registration_type,
+                    validFrom: new Date(gsts.valid_from),
+                    validTo: gsts.valid_to ? new Date(gsts.valid_to) : null,
+                    lastUsedDate: gsts.last_used_date ? new Date(gsts.last_used_date) : null,
+                    transactionCount: gsts.transaction_count,
+                    v: 0,
+
+                }
+            });
+        }
+        
+        // Create a stock ID mapping
+        const stockIdMap = new Map();
+        
+        // Backup stocks
+        const sqliteStocksData = db.prepare('SELECT * FROM stocks').all();
+        for (const stock of sqliteStocksData) {
+            const createdStock = await mongoPrisma.stocks.create({
+                data: {
+                    item: stock.item,
+                    pno: stock.pno ? [stock.pno] : [],
+                    oem: stock.oem || '',
+                    hsn: stock.hsn,
+                    qty: Math.round(stock.qty),
+                    uom: stock.uom,
+                    rate: Math.round(stock.rate),
+                    grate: Math.round(stock.grate),
+                    total: Math.round(stock.total),
+                    mrp: stock.mrp,
+                    batches: stock.batches || '',
+                    firm: stock.firm || 'Default Firm',
+                    user: stock.user,
+                    createdAt: stock.created_at ? new Date(stock.created_at) : new Date(),
+                    updatedAt: stock.updated_at ? new Date(stock.updated_at) : new Date(),
+                    firmId: stock.firm_id ? firmIdMap.get(stock.firm_id) : null,
+                    batch: stock.batches ? [stock.batches] : null,
+                    v: 0,
+
+                }
+            });
+            // Map the original SQLite ID to the new MongoDB ID
+            stockIdMap.set(stock.id, createdStock.id);
+        }
+        
+        // Create a bill ID mapping
+        const billIdMap = new Map();
+        
+        // Backup bills
+        const sqliteBillsData = db.prepare('SELECT * FROM bills').all();
+        for (const bill of sqliteBillsData) {
+            const createdBill = await mongoPrisma.bills.create({
+                data: {
+                    addr: bill.addr || '',
+                    attachmentFileId: bill.attachment_file_id,
+                    attachmentUrl: bill.attachment_url,
+                    bdate: new Date(bill.bdate),
+                    bno: bill.bno,
+                    btype: bill.btype,
+                    cgst: { value: bill.cgst || 0 },
+                    consigneeAddress: bill.consignee_address,
+                    consigneeGstin: bill.consignee_gstin,
+                    consigneeName: bill.consignee_name,
+                    consigneePin: bill.consignee_pin,
+                    consigneeState: bill.consignee_state,
+                    createdAt: bill.created_at ? new Date(bill.created_at) : new Date(),
+                    disc: Math.round(bill.disc || 0),
+                    dispatchThrough: bill.dispatch_through || '',
+                    docketNo: bill.docket_no || '',
+                    firm: bill.firm || 'Default Firm',
+                    gstin: bill.gstin || 'UNREGISTERED',
+                    gtot: { value: bill.gtot || 0 },
+                    igst: { value: bill.igst || 0 },
+                    narration: bill.narration,
+                    ntot: Math.round(bill.ntot),
+                    orderDate: bill.order_date ? new Date(bill.order_date) : null,
+                    orderNo: bill.order_no || '',
+                    oth_chg: [],
+                    partyId: bill.party_id ? partyIdMap.get(bill.party_id) : null,
+                    pin: bill.pin || 0,
+                    rof: bill.rof || 0,
+                    sgst: { value: bill.sgst || 0 },
+                    state: bill.state,
+                    status: bill.status || 'ACTIVE',
+                    stockRegIds: [],
+                    supply: bill.supply,
+                    updatedAt: bill.updated_at ? new Date(bill.updated_at) : new Date(),
+                    usern: bill.usern,
+                    vehicleNo: bill.vehicle_no || '',
+                    reverseCharge: bill.reverse_charge || 0,
+                    stateCode: bill.state_code || null,
+                    consigneeStateCode: bill.consignee_state_code || null,
+                    cancellationReason: bill.cancellation_reason,
+                    cancelledAt: bill.cancelled_at ? new Date(bill.cancelled_at) : null,
+                    cancelledBy: bill.cancelled_by ? userIdMap.get(bill.cancelled_by) : null,
+                    othChgJson: bill.oth_chg_json,
+                    gstSelectionJson: bill.gst_selection_json,
+                    firmId: bill.firm_id ? firmIdMap.get(bill.firm_id) : null,
+                    v: 0,
+
+                }
+            });
+            // Map the original SQLite ID to the new MongoDB ID
+            billIdMap.set(bill.id, createdBill.id);
+        }
+        
+        // Backup ledger
+        const sqliteLedgerData = db.prepare('SELECT * FROM ledger').all();
+        for (const ledgerEntry of sqliteLedgerData) {
+            await mongoPrisma.ledger.create({
+                data: {
+                    voucherId: ledgerEntry.voucher_id,
+                    voucherType: ledgerEntry.voucher_type,
+                    voucherNo: ledgerEntry.voucher_no,
+                    accountHead: ledgerEntry.account_head,
+                    accountType: ledgerEntry.account_type,
+                    debitAmount: ledgerEntry.debit_amount,
+                    creditAmount: ledgerEntry.credit_amount,
+                    narration: ledgerEntry.narration,
+                    billId: ledgerEntry.bill_id ? billIdMap.get(ledgerEntry.bill_id) : null,
+                    partyId: ledgerEntry.party_id ? partyIdMap.get(ledgerEntry.party_id) : null,
+                    taxType: ledgerEntry.tax_type,
+                    taxRate: ledgerEntry.tax_rate,
+                    transactionDate: new Date(ledgerEntry.transaction_date),
+                    createdBy: ledgerEntry.created_by,
+                    firmId: firmIdMap.get(ledgerEntry.firm_id),
+                    createdAt: ledgerEntry.created_at ? new Date(ledgerEntry.created_at) : new Date(),
+                    updatedAt: ledgerEntry.updated_at ? new Date(ledgerEntry.updated_at) : new Date(),
+                    v: 0,
+
+                }
+            });
+        }
+        
+        // Backup stock_reg
+        const sqliteStockRegData = db.prepare('SELECT * FROM stock_reg').all();
+        for (const stockReg of sqliteStockRegData) {
+            await mongoPrisma.stockReg.create({
+                data: {
+                    type: stockReg.type,
+                    bno: stockReg.bno,
+                    bdate: new Date(stockReg.bdate),
+                    supply: stockReg.supply,
+                    item: stockReg.item,
+                    itemNarration: stockReg.item_narration,
+                    pno: stockReg.pno,
+                    batch: stockReg.batch,
+                    oem: stockReg.oem,
+                    hsn: stockReg.hsn,
+                    qty: stockReg.qty,
+                    qtyh: stockReg.qtyh,
+                    uom: stockReg.uom,
+                    rate: stockReg.rate,
+                    grate: stockReg.grate,
+                    cgst: stockReg.cgst || 0,
+                    sgst: stockReg.sgst || 0,
+                    igst: stockReg.igst || 0,
+                    disc: stockReg.disc || 0,
+                    discamt: stockReg.discamt || 0,
+                    total: stockReg.total,
+                    mrp: stockReg.mrp,
+                    expiryDate: stockReg.expiry_date ? new Date(stockReg.expiry_date) : null,
+                    project: stockReg.project,
+                    user: stockReg.user,
+                    firm: stockReg.firm || 'Default Firm',
+                    stockId: stockReg.stock_id ? stockIdMap.get(stockReg.stock_id) : null,
+                    billId: stockReg.bill_id ? billIdMap.get(stockReg.bill_id) : null,
+                    createdAt: stockReg.created_at ? new Date(stockReg.created_at) : new Date(),
+                    updatedAt: stockReg.updated_at ? new Date(stockReg.updated_at) : new Date(),
+                    firmId: stockReg.firm_id ? firmIdMap.get(stockReg.firm_id) : null,
+                    v: 0,
+
+                }
+            });
+        }
+        
+        // Backup firm_settings
+        const sqliteFirmSettingsData = db.prepare('SELECT * FROM firm_settings').all();
+        for (const firmSetting of sqliteFirmSettingsData) {
+            await mongoPrisma.firmSettings.create({
+                data: {
+                    firmId: firmIdMap.get(firmSetting.firm_id),
+                    settingKey: firmSetting.setting_key,
+                    settingValue: firmSetting.setting_value,
+                    description: firmSetting.description,
+                    createdAt: firmSetting.created_at ? new Date(firmSetting.created_at) : new Date(),
+                    updatedAt: firmSetting.updated_at ? new Date(firmSetting.updated_at) : new Date(),
+                    v: 0,
+
+                }
+            });
+        }
+        
+        // Disconnect from MongoDB
+        await mongoPrisma.$disconnect();
+        
+        res.json({
+            success: true,
+            message: 'SQLite to MongoDB backup completed successfully',
+            dataCounts: {
+                firms: countFirms,
+                users: countUsers,
+                bills: countBills,
+                parties: countParties,
+                stocks: countStocks,
+                ledger: countLedger,
+                stockReg: countStockReg,
+                settings: countSettings,
+                billSequences: countBillSequences,
+                requestLogs: countRequestLogs,
+                partyGsts: countPartyGsts,
+                firmSettings: countFirmSettings
+            }
+        });
+        
+    } catch (error) {
+        console.error('SQLite to MongoDB backup error:', error.message);
         res.status(500).json({
             success: false,
             error: 'Internal server error'

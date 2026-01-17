@@ -37,6 +37,7 @@ router.get('/users-with-firms', firmManagementController.getAllUsersWithFirms);
 router.post('/backup-db', adminController.backupDatabase);
 router.post('/drop-mongodb-records', adminController.dropMongoDBRecords);
 router.post('/drop-mongodb-collections', adminController.dropMongoDBCollections);
+router.post('/sqlite-to-mongo-backup', adminController.sqliteToMongoBackup);
 
 // For file uploads, we need to set up multer middleware to handle database files
 const multer = require('multer');

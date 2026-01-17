@@ -611,7 +611,7 @@ exports.createBill = async (req, res) => {
     // STRICT: Generate bill number server-side only when bill is actually saved
     let billNo;
     try {
-        billNo = getNextBillNumber(req.user.firm_id);
+        billNo = await getNextBillNumber(req.user.firm_id);
         console.log(`[CREATE_BILL] Generated bill number: ${billNo}`);
     } catch (error) {
         console.error(`[CREATE_BILL] Failed to generate bill number:`, error.message);
@@ -1307,7 +1307,7 @@ exports.getOtherChargesTypes = async (req, res) => {
 
 // Get next available bill number information for the current firm (non-consuming)
 // Returns info about next number without incrementing sequence
-exports.getNextBillNumber = (req, res) => {
+exports.getNextBillNumber = async (req, res) => {
     try {
         // VALIDATION: Check firm access
         if (!req.user || !req.user.firm_id) {
@@ -1318,10 +1318,10 @@ exports.getNextBillNumber = (req, res) => {
         const financialYear = getCurrentFinancialYear();
         
         // Use preview function to get next number without incrementing
-        const nextBillNo = getNextBillNumberPreview(firmId, financialYear);
+        const nextBillNo = await getNextBillNumberPreview(firmId, financialYear);
         
         // Also get sequence info separately
-        const seqInfo = getCurrentSequence(firmId, financialYear);
+        const seqInfo = await getCurrentSequence(firmId, financialYear);
         
         console.log(`[GET_NEXT_BILL_INFO] Next available for Firm ${firmId}: ${nextBillNo}`);
         

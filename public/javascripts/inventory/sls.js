@@ -121,7 +121,14 @@
             try {
                 const billNoRes = await window.api.get('/inventory/api/bills/next-number');
                 const billNoData = await billNoRes.json();
-                state.meta.billNo = billNoData.nextBillNo || 'Will be generated on save';
+                
+                // Validate that billNoData.nextBillNo is a string, not an object
+                if (typeof billNoData.nextBillNo === 'string') {
+                    state.meta.billNo = billNoData.nextBillNo;
+                } else {
+                    console.warn('Invalid bill number data received, using placeholder', billNoData);
+                    state.meta.billNo = 'Will be generated on save';
+                }
             } catch (e) {
                 console.warn("Could not fetch next bill number info, using placeholder", e);
                 state.meta.billNo = 'Will be generated on save';
@@ -2074,7 +2081,10 @@
         const otherChargesBtn = document.getElementById('btn-other-charges');
         if (otherChargesBtn) otherChargesBtn.onclick = openOtherChargesModal;
 
-        document.onkeydown = (e) => {
+        document.addEventListener('keydown', (e) => {
+            const container = document.getElementById('sales');
+            if (!container || container.classList.contains('hidden')) return;
+            
             if (e.key === 'F2') {
                 e.preventDefault();
                 openStockModal();
@@ -2085,7 +2095,7 @@
                 e.preventDefault();
                 openOtherChargesModal();
             }
-        };
+        });
 
         const typeSelector = document.getElementById('billTypeSelector');
         if (typeSelector) {

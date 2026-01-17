@@ -1203,7 +1203,7 @@ exports.getOtherChargesTypes = async (req, res) => {
     }
 };
 
-exports.getNextBillNumber = (req, res) => {
+exports.getNextBillNumber = async (req, res) => {
     try {
         if (!req.user || !req.user.firm_id) {
             return res.status(403).json({ error: 'User is not associated with any firm' });
@@ -1212,8 +1212,8 @@ exports.getNextBillNumber = (req, res) => {
         const firmId = req.user.firm_id;
         const financialYear = getCurrentFinancialYear();
         
-        const nextBillNo = getNextBillNumberPreview(firmId, financialYear);
-        const seqInfo = getCurrentSequence(firmId, financialYear);
+        const nextBillNo = await getNextBillNumberPreview(firmId, financialYear);
+        const seqInfo = await getCurrentSequence(firmId, financialYear);
         
         console.log(`[GET_NEXT_BILL_INFO] Next available for Firm ${firmId}: ${nextBillNo}`);
         

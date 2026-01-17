@@ -405,7 +405,7 @@ exports.getBillPdf = async (req, res) => {
                 {
                     table: {
                         headerRows: 1,
-                        widths: [12, 120, 45, 30, 25, 40, 35, 35, 60],
+                        widths: [12, 118, 45, 30, 25, 40, 35, 39, 58],
                         body: [
                             [
                                 { text: '#', style: 'tableHeader', alignment: 'center' },

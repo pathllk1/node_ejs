@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { ACCESS_TOKEN_SECRET } = require('../controllers/authController');
+const { ACCESS_TOKEN_SECRET } = require('../controllers/turso/authController');
 
 /**
  * Optional Authentication Middleware

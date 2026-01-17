@@ -6,7 +6,7 @@ const turso = require('../../../config/turso');
 // Function to resolve font paths properly on different platforms
 const getFontPath = (fileName) => {
     // Use forward slashes for compatibility across platforms
-    const relativePath = `../../public/fonts/${fileName}`;
+    const relativePath = `../../../public/fonts/${fileName}`;
     return path.resolve(__dirname, relativePath);
 };
 

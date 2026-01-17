@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-const authController = require('../controllers/authController');
+const authController = require('../controllers/turso/authController');
 const verifyToken = require('../middleware/authMiddleware');
 
 /* GET users listing. */

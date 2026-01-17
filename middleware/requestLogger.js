@@ -1,10 +1,4 @@
-const db = require('../config/db');
-
-// Prepare the statement once for performance
-const insertLog = db.prepare(`
-    INSERT INTO request_logs (method, url, ip, username, user_agent, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?)
-`);
+const turso = require('../config/turso');
 
 // Function to extract true client IP (handles proxies)
 const getClientIp = (req) => {
@@ -50,8 +44,15 @@ const requestLogger = (req, res, next) => {
         // strict ISO string for the timestamp
         const timestamp = new Date().toISOString();
 
-        // Run the insert synchronously (better-sqlite3 is fast enough for this usually)
-        insertLog.run(method, url, ip, username, userAgent, timestamp);
+        // Run the insert asynchronously using Turso
+        turso.execute({
+            sql: `INSERT INTO request_logs (method, url, ip, username, user_agent, timestamp)
+                 VALUES (?, ?, ?, ?, ?, ?)` ,
+            args: [method, url, ip, username, userAgent, timestamp]
+        }).catch(err => {
+            // Log the error internally but don't interrupt the request
+            console.error('Request logging failed:', err.message);
+        });
     } catch (err) {
         // Only log error internally, don't expose to user
         console.error('Request logging failed:', err.message);

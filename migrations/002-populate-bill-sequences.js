@@ -4,20 +4,21 @@
  * Safety: Read-only operation, does not modify existing bills
  */
 
-const db = require('../config/db');
+const turso = require('../config/turso');
 
-const populateBillSequences = () => {
+const populateBillSequences = async () => {
     console.log('🔄 Starting bill sequence population from existing bills...');
     
     try {
         // Get all bills with their firm_id and created_at
-        const bills = db.prepare(`
+        const billsResult = await turso.execute(`
             SELECT firm_id, bdate, COUNT(*) as bill_count
             FROM bills
             WHERE firm_id IS NOT NULL AND bno IS NOT NULL
             GROUP BY firm_id, bdate
             ORDER BY firm_id, bdate
-        `).all();
+        `);
+        const bills = billsResult.rows || [];
         
         if (bills.length === 0) {
             console.log('ℹ️  No existing bills found. Starting with empty sequences.');
@@ -60,12 +61,15 @@ const populateBillSequences = () => {
         // Group bills by firm and financial year
         const billsByFirmYear = {};
         
-        db.prepare(`
+        const allBillsResult = await turso.execute(`
             SELECT DISTINCT firm_id, bdate, bno
             FROM bills
             WHERE firm_id IS NOT NULL AND bno IS NOT NULL
             ORDER BY firm_id, bdate
-        `).all().forEach(bill => {
+        `);
+        const allBills = allBillsResult.rows || [];
+        
+        allBills.forEach(bill => {
             const fy = extractFinancialYear(bill.bdate);
             if (!fy) return;
             
@@ -83,36 +87,37 @@ const populateBillSequences = () => {
         console.log(`📋 Grouped into ${Object.keys(billsByFirmYear).length} firm-year combinations`);
         
         // Process each firm-year combination
-        Object.values(billsByFirmYear).forEach(group => {
+        for (const group of Object.values(billsByFirmYear)) {
             try {
                 const { firm_id, financial_year, bills } = group;
                 
                 // Check if sequence already exists
-                const existing = db.prepare(`
+                const existingResult = await turso.execute(`
                     SELECT id, last_sequence FROM bill_sequences
                     WHERE firm_id = ? AND financial_year = ?
-                `).get(firm_id, financial_year);
+                `, [firm_id, financial_year]);
+                const existing = existingResult.rows[0];
                 
                 const billCount = bills.length;
                 
                 if (existing) {
                     // Update if existing sequence is lower than current bill count
                     if (existing.last_sequence < billCount) {
-                        db.prepare(`
+                        await turso.execute(`
                             UPDATE bill_sequences 
                             SET last_sequence = ?, updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
-                        `).run(billCount, existing.id);
+                        `, [billCount, existing.id]);
                         
                         console.log(`✏️  Updated: Firm ${firm_id}, FY ${financial_year} - Sequence: ${billCount}`);
                         processed++;
                     }
                 } else {
                     // Insert new sequence record
-                    db.prepare(`
+                    await turso.execute(`
                         INSERT INTO bill_sequences (firm_id, financial_year, last_sequence, created_at, updated_at)
                         VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                    `).run(firm_id, financial_year, billCount);
+                    `, [firm_id, financial_year, billCount]);
                     
                     console.log(`✅ Created: Firm ${firm_id}, FY ${financial_year} - Sequence: ${billCount}`);
                     processed++;
@@ -121,7 +126,7 @@ const populateBillSequences = () => {
                 console.error(`❌ Error processing group:`, error.message);
                 errors++;
             }
-        });
+        }
         
         console.log(`\n✅ Migration completed:`);
         console.log(`   - Processed: ${processed}`);

@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/turso/adminController');
 const logController = require('../controllers/turso/logController');
-const firmManagementController = require('../controllers/firmManagementController');
-const systemConfigController = require('../controllers/systemConfigController');
+const firmManagementController = require('../controllers/turso/firmManagementController');
+const systemConfigController = require('../controllers/turso/systemConfigController');
 
 // Define the route
 router.get('/logs', adminController.viewLogs);

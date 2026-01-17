@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
-const { ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, generateTokens } = require('../controllers/authController');
-const db = require('../config/db');
+const { ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, generateTokens } = require('../controllers/turso/authController');
+const turso = require('../config/turso');
 
 const verifyToken = (req, res, next) => {
     // 1. Try getting token from Headers (Standard AJAX/API approach)
@@ -81,9 +81,11 @@ const verifyToken = (req, res, next) => {
             }
 
             // 6. Refresh Valid -> Generate New Pair
-            try {
-                const findUser = db.prepare('SELECT *, firm_id FROM users WHERE id = ?');
-                const user = findUser.get(refreshData.id);
+            turso.execute({
+                sql: 'SELECT *, firm_id FROM users WHERE id = ?',
+                args: [refreshData.id]
+            }).then(findUserResult => {
+                const user = findUserResult.rows[0];
 
                 if (!user) return res.status(401).json({ error: 'User not found' });
 
@@ -100,10 +102,10 @@ const verifyToken = (req, res, next) => {
 
                 req.user = refreshData;
                 next();
-            } catch (error) {
+            }).catch(error => {
                 console.error('Token refresh error:', error);
                 return res.status(500).json({ error: 'Server error' });
-            }
+            });
         });
     });
 };

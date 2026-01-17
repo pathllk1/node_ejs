@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const turso = require('../config/turso');
 
 // Middleware to verify that a user can only access records belonging to their firm
 const verifyFirmAccess = (req, res, next) => {
@@ -9,16 +9,23 @@ const verifyFirmAccess = (req, res, next) => {
 
     // Get the user's firm_id from the database
     try {
-        const getUserStmt = db.prepare('SELECT firm_id FROM users WHERE id = ?');
-        const user = getUserStmt.get(req.user.id);
+        turso.execute({
+            sql: 'SELECT firm_id FROM users WHERE id = ?',
+            args: [req.user.id]
+        }).then(userResult => {
+            const user = userResult.rows[0];
 
-        if (!user || !user.firm_id) {
-            return res.status(403).json({ error: 'User is not associated with any firm' });
-        }
+            if (!user || !user.firm_id) {
+                return res.status(403).json({ error: 'User is not associated with any firm' });
+            }
 
-        // Store the firm_id in the request object for later use
-        req.user.firm_id = user.firm_id;
-        next();
+            // Store the firm_id in the request object for later use
+            req.user.firm_id = user.firm_id;
+            next();
+        }).catch(error => {
+            console.error('Firm access verification error:', error);
+            return res.status(500).json({ error: 'Server error during firm access verification' });
+        });
     } catch (error) {
         console.error('Firm access verification error:', error);
         return res.status(500).json({ error: 'Server error during firm access verification' });
@@ -39,12 +46,11 @@ const verifyFirmOwnership = (tableName, idParamName = 'id') => {
                 return res.status(400).json({ error: `Missing ${idParamName} parameter` });
             }
 
-            try {
-                // Check if the record belongs to the user's firm
-                const checkOwnershipStmt = db.prepare(
-                    `SELECT id FROM ${tableName} WHERE id = ? AND firm_id = ?`
-                );
-                const record = checkOwnershipStmt.get(recordId, firmId);
+            turso.execute({
+                sql: `SELECT id FROM ${tableName} WHERE id = ? AND firm_id = ?`,
+                args: [recordId, firmId]
+            }).then(recordResult => {
+                const record = recordResult.rows[0];
 
                 if (!record) {
                     return res.status(403).json({ 
@@ -53,10 +59,10 @@ const verifyFirmOwnership = (tableName, idParamName = 'id') => {
                 }
 
                 next();
-            } catch (error) {
+            }).catch(error => {
                 console.error('Firm ownership verification error:', error);
                 return res.status(500).json({ error: 'Server error during firm ownership verification' });
-            }
+            });
         });
     };
 };

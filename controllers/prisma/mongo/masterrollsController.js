@@ -2,7 +2,7 @@
 // Controller for managing masterrolls (employee) data
 
 const mongoPrisma = require('../../../config/prisma_mongo.js');
-const db = require('../../../config/db');
+
 
 /**
  * Helper to get the MongoDB firmId for the current user

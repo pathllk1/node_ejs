@@ -4,14 +4,14 @@
  * Consistency: Uses transactions to ensure atomic operations
  */
 
-const db = require('../config/db');
+const turso = require('../config/turso');
 
 const createBillSequencesTable = () => {
     console.log('🔨 Creating bill_sequences table...');
     
     try {
         // Create the table
-        db.exec(`
+        turso.execute(`
             CREATE TABLE IF NOT EXISTS bill_sequences (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 firm_id INTEGER NOT NULL,
@@ -25,12 +25,12 @@ const createBillSequencesTable = () => {
         `);
         
         // Create indexes for performance
-        db.exec(`
+        turso.execute(`
             CREATE INDEX IF NOT EXISTS idx_bill_sequences_firm_year 
             ON bill_sequences(firm_id, financial_year)
         `);
         
-        db.exec(`
+        turso.execute(`
             CREATE INDEX IF NOT EXISTS idx_bill_sequences_firm_id 
             ON bill_sequences(firm_id)
         `);

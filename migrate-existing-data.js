@@ -1,4 +1,4 @@
-const db = require('./config/db');
+const db = require('./config/db1');
 
 /**
  * Migration script to assign existing records to firms

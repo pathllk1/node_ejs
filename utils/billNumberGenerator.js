@@ -12,7 +12,7 @@
  * - Audit logging for all operations
  */
 
-const db = require('../config/db');
+const turso = require('../config/turso');
 
 /**
  * Get current financial year in format YY-YY
@@ -46,12 +46,16 @@ function getCurrentFinancialYear() {
  * @returns {boolean} True if firm exists
  * @throws {Error} If firm does not exist
  */
-function validateFirmExists(firmId) {
+async function validateFirmExists(firmId) {
     if (!firmId || typeof firmId !== 'number' || firmId <= 0) {
         throw new Error(`Invalid firm ID: ${firmId}`);
     }
     
-    const firm = db.prepare('SELECT id FROM firms WHERE id = ?').get(firmId);
+    const firmResult = await turso.execute({
+        sql: 'SELECT id FROM firms WHERE id = ?',
+        args: [firmId]
+    });
+    const firm = firmResult.rows[0];
     if (!firm) {
         throw new Error(`Firm with ID ${firmId} does not exist`);
     }
@@ -82,37 +86,42 @@ function validateFinancialYear(fy) {
  * @returns {string} The generated bill number
  * @throws {Error} If validation fails or transaction fails
  */
-function getNextBillNumber(firmId, financialYear = null) {
+async function getNextBillNumber(firmId, financialYear = null) {
     console.log(`[BILL_NUMBER] Generating for Firm: ${firmId}, FY: ${financialYear || 'current'}`);
     
     // VALIDATION: Firm exists
-    validateFirmExists(firmId);
+    await validateFirmExists(firmId);
     
     // VALIDATION: Financial year format
     const fy = financialYear || getCurrentFinancialYear();
     validateFinancialYear(fy);
     
-    // ATOMIC TRANSACTION
-    const generateTransaction = db.transaction(() => {
-        // Lock: Get or create sequence entry
-        let seqRecord = db.prepare(`
-            SELECT id, last_sequence 
-            FROM bill_sequences 
-            WHERE firm_id = ? AND financial_year = ?
-        `).get(firmId, fy);
+    // ATOMIC OPERATION - Using Turso batch for transaction-like behavior
+    try {
+        // First, get or create sequence entry
+        let seqRecordResult = await turso.execute({
+            sql: 'SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ?',
+            args: [firmId, fy]
+        });
+        let seqRecord = seqRecordResult.rows[0];
         
         if (!seqRecord) {
             console.log(`[BILL_NUMBER] Creating new sequence for Firm: ${firmId}, FY: ${fy}`);
             
-            const result = db.prepare(`
-                INSERT INTO bill_sequences (firm_id, financial_year, last_sequence, created_at, updated_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            `).run(firmId, fy, 0);
+            await turso.execute({
+                sql: `
+                    INSERT INTO bill_sequences (firm_id, financial_year, last_sequence, created_at, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                `,
+                args: [firmId, fy, 0]
+            });
             
-            seqRecord = {
-                id: result.lastInsertRowid,
-                last_sequence: 0
-            };
+            // Get the newly created record
+            seqRecordResult = await turso.execute({
+                sql: 'SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ?',
+                args: [firmId, fy]
+            });
+            seqRecord = seqRecordResult.rows[0];
         }
         
         // Calculate next sequence number
@@ -127,13 +136,16 @@ function getNextBillNumber(firmId, financialYear = null) {
         }
         
         // Update sequence (atomic)
-        const updateResult = db.prepare(`
-            UPDATE bill_sequences 
-            SET last_sequence = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `).run(nextSeq, seqRecord.id);
+        const updateResult = await turso.execute({
+            sql: `
+                UPDATE bill_sequences 
+                SET last_sequence = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `,
+            args: [nextSeq, seqRecord.id]
+        });
         
-        if (updateResult.changes === 0) {
+        if (updateResult.rowsAffected === 0) {
             throw new Error(`Failed to update sequence for Firm ${firmId}`);
         }
         
@@ -153,11 +165,6 @@ function getNextBillNumber(firmId, financialYear = null) {
             );
         }
         
-        return billNo;
-    });
-    
-    try {
-        const billNo = generateTransaction();
         console.log(`[BILL_NUMBER] ✅ Generated: ${billNo}`);
         return billNo;
     } catch (error) {
@@ -172,16 +179,16 @@ function getNextBillNumber(firmId, financialYear = null) {
  * @param {string} financialYear - Optional financial year
  * @returns {object} Object with current_sequence and next_sequence
  */
-function getCurrentSequence(firmId, financialYear = null) {
-    validateFirmExists(firmId);
+async function getCurrentSequence(firmId, financialYear = null) {
+    await validateFirmExists(firmId);
     const fy = financialYear || getCurrentFinancialYear();
     validateFinancialYear(fy);
     
-    const seqRecord = db.prepare(`
-        SELECT last_sequence 
-        FROM bill_sequences 
-        WHERE firm_id = ? AND financial_year = ?
-    `).get(firmId, fy);
+    const seqRecordResult = await turso.execute({
+        sql: 'SELECT last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ?',
+        args: [firmId, fy]
+    });
+    const seqRecord = seqRecordResult.rows[0];
     
     if (!seqRecord) {
         return {
@@ -207,14 +214,14 @@ function getCurrentSequence(firmId, financialYear = null) {
  * @param {string} financialYear - Optional financial year
  * @returns {string|null} The next bill number that would be generated, or null if error
  */
-function getNextBillNumberPreview(firmId, financialYear = null) {
+async function getNextBillNumberPreview(firmId, financialYear = null) {
     try {
-        validateFirmExists(firmId);
+        await validateFirmExists(firmId);
         const fy = financialYear || getCurrentFinancialYear();
         validateFinancialYear(fy);
         
         // Just calculate what the next number would be without incrementing
-        const seqInfo = getCurrentSequence(firmId, fy);
+        const seqInfo = await getCurrentSequence(firmId, fy);
         const nextSequence = seqInfo.next_sequence;
         const nextBillNo = `F${firmId}-${String(nextSequence).padStart(4, '0')}/${fy}`;
         

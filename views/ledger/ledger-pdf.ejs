@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= accountHead %> - Ledger Report</title>
+    <style>
+        * { 
+            box-sizing: border-box; 
+            margin: 0;
+            padding: 0;
+        }
+        
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
+            color: #111827; 
+            line-height: 1.4;
+        }
+        
+        .page { 
+            padding: 20px; 
+        }
+        
+        .header { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid #333; 
+            padding-bottom: 10px; 
+        }
+        
+        .firm-name { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin-bottom: 5px; 
+            color: #111827;
+        }
+        
+        .report-title { 
+            font-size: 16px; 
+            font-weight: bold; 
+            margin-bottom: 5px; 
+            color: #374151;
+        }
+        
+        .account-info { 
+            font-size: 14px; 
+            margin-bottom: 10px; 
+            color: #374151;
+        }
+        
+        .date-info { 
+            font-size: 12px; 
+            color: #6B7280; 
+        }
+        
+        .date-range-info { 
+            font-size: 14px; 
+            color: #374151;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            font-size: 12px;
+        }
+        
+        th { 
+            background-color: #F9FAFB; 
+            border: 1px solid #E5E7EB; 
+            padding: 8px 6px; 
+            text-align: left; 
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-size: 10px;
+        }
+        
+        td { 
+            border: 1px solid #E5E7EB; 
+            padding: 8px 6px; 
+            vertical-align: top;
+        }
+        
+        .debit-amount {
+            text-align: right;
+            color: #059669; /* green-600 */
+        }
+        
+        .credit-amount {
+            text-align: right;
+            color: #DC2626; /* red-600 */
+        }
+        
+        .balance {
+            text-align: right;
+            font-weight: 600;
+        }
+        
+        .balance.dr {
+            color: #059669; /* green-600 */
+        }
+        
+        .balance.cr {
+            color: #DC2626; /* red-600 */
+        }
+        
+        .voucher-type {
+            text-transform: uppercase;
+        }
+        
+        .footer { 
+            margin-top: 30px; 
+            text-align: center; 
+            font-size: 11px; 
+            color: #6B7280; 
+            border-top: 1px solid #E5E7EB;
+            padding-top: 10px;
+        }
+        
+        .page-break-after {
+            page-break-after: always;
+        }
+        
+        @page { 
+            size: A4; 
+            margin: 8mm; 
+        }
+        
+        @media print {
+            @page { 
+                size: A4; 
+                margin: 8mm; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div class="firm-name"><%= firmName %></div>
+            <div class="report-title">LEDGER REPORT</div>
+            <div class="account-info">Account: <%= accountHead %></div>
+            <% if (dateRange && (dateRange.start || dateRange.end)) { %>
+            <div class="date-range-info">Date Range: 
+                <% if (dateRange.start && dateRange.end) { %>
+                    <%= dateRange.start %> to <%= dateRange.end %>
+                <% } else if (dateRange.start) { %>
+                    From <%= dateRange.start %>
+                <% } else if (dateRange.end) { %>
+                    To <%= dateRange.end %>
+                <% } %>
+            </div>
+            <% } %>
+            <div class="date-info">Generated on: <%= generatedOn %></div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%;">Date</th>
+                    <th style="width: 12%;">Voucher No</th>
+                    <th style="width: 12%;">Voucher Type</th>
+                    <th style="width: 30%;">Narration</th>
+                    <th style="width: 12%;" class="debit-amount">Debit</th>
+                    <th style="width: 12%;" class="credit-amount">Credit</th>
+                    <th style="width: 12%;" class="balance">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% records.forEach(record => { %>
+                <tr>
+                    <td><%= record.transaction_date %></td>
+                    <td><%= record.voucher_no %></td>
+                    <td class="voucher-type"><%= record.voucher_type %></td>
+                    <td><%= record.narration || '' %></td>
+                    <td class="debit-amount"><%= record.debit_amount > 0 ? formatINR(record.debit_amount) : '' %></td>
+                    <td class="credit-amount"><%= record.credit_amount > 0 ? formatINR(record.credit_amount) : '' %></td>
+                    <td class="balance <%= record.balance_after > 0 ? 'dr' : record.balance_after < 0 ? 'cr' : '' %>">
+                        <%= formatINR(Math.abs(record.balance_after)) %> 
+                        <% if (record.balance_after > 0) { %>
+                            DR
+                        <% } else if (record.balance_after < 0) { %>
+                            CR
+                        <% } %>
+                    </td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+        
+        <div class="footer">
+            <p>Generated by Accounting System</p>
+        </div>
+    </div>
+</body>
+</html>

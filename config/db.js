@@ -1,0 +1,540 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+
+// Initialize database
+const db = new Database(path.join(__dirname, './app.db'));
+db.pragma('journal_mode = WAL');
+
+console.log('Connected to SQLite database');
+
+// 1. Request Logs Table
+db.exec(`
+    CREATE TABLE IF NOT EXISTS request_logs (
+        id INTEGER PRIMARY KEY,
+        method TEXT NOT NULL,
+        url TEXT NOT NULL,
+        ip TEXT,
+        username TEXT,
+        user_agent TEXT,
+        timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+    ) STRICT;
+`);
+
+// Request Logs Migration
+try {
+    db.exec(`ALTER TABLE request_logs ADD COLUMN username TEXT;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error:', err.message);
+}
+
+// Users Migration for role field
+try { 
+    db.exec(`ALTER TABLE users ADD COLUMN role INTEGER;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for role:', err.message);
+}
+
+// 2. Firms Table
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS firms (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        legal_name TEXT,           -- Legal registered name
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        country TEXT DEFAULT 'India',  -- Default to India for Indian business app
+        pincode TEXT,
+        phone_number TEXT,
+        secondary_phone TEXT,
+        email TEXT,
+        website TEXT,
+        business_type TEXT,        -- LLC, Corporation, Partnership, etc.
+        industry_type TEXT,        -- Manufacturing, Trading, Services
+        establishment_year INTEGER,
+        employee_count INTEGER,
+        
+        -- Registration Details
+        registration_number TEXT,
+        registration_date TEXT,    -- Format: YYYY-MM-DD
+        cin_number TEXT,           -- Corporate Identification Number (India)
+        pan_number TEXT,           -- Permanent Account Number (India)
+        gst_number TEXT,           -- Goods and Services Tax number
+        tax_id TEXT,               -- General tax ID
+        vat_number TEXT,
+        
+        -- Banking Details
+        bank_account_number TEXT,
+        bank_name TEXT,
+        bank_branch TEXT,
+        ifsc_code TEXT,            -- Indian Financial System Code
+        payment_terms TEXT DEFAULT 'Net 30',
+        
+        -- Compliance
+        status TEXT DEFAULT 'ACTIVE',  -- ACTIVE, INACTIVE, SUSPENDED
+        license_numbers TEXT,      -- JSON string for multiple licenses
+        insurance_details TEXT,    -- JSON string for insurance info
+        
+        -- Business Settings
+        currency TEXT DEFAULT 'INR',  -- Default currency
+        timezone TEXT DEFAULT 'Asia/Kolkata',
+        fiscal_year_start INTEGER DEFAULT 4,  -- April = 4 (Indian fiscal year)
+        invoice_prefix TEXT DEFAULT 'INV',
+        quote_prefix TEXT DEFAULT 'QT',
+        po_prefix TEXT DEFAULT 'PO',
+        
+        -- Document Settings
+        logo_url TEXT,
+        invoice_template TEXT DEFAULT 'standard',
+        enable_e_invoice INTEGER DEFAULT 0,  -- Boolean: 0=false, 1=true
+        
+        -- Timestamps
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    ) STRICT;
+`);
+    
+    // Firms table migrations for existing installations
+    try { db.exec(`ALTER TABLE firms ADD COLUMN legal_name TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN city TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN state TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN country TEXT DEFAULT 'India';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN pincode TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN phone_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN secondary_phone TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN email TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN website TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN business_type TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN industry_type TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN establishment_year INTEGER;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN employee_count INTEGER;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN registration_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN registration_date TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN cin_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN pan_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN gst_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN tax_id TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN vat_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN bank_account_number TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN bank_name TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN bank_branch TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN ifsc_code TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN payment_terms TEXT DEFAULT 'Net 30';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN status TEXT DEFAULT 'ACTIVE';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN license_numbers TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN insurance_details TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN currency TEXT DEFAULT 'INR';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN timezone TEXT DEFAULT 'Asia/Kolkata';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN fiscal_year_start INTEGER DEFAULT 4;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN invoice_prefix TEXT DEFAULT 'INV';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN quote_prefix TEXT DEFAULT 'QT';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN po_prefix TEXT DEFAULT 'PO';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN logo_url TEXT;`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN invoice_template TEXT DEFAULT 'standard';`); } catch (err) {}
+    try { db.exec(`ALTER TABLE firms ADD COLUMN enable_e_invoice INTEGER DEFAULT 0;`); } catch (err) {}
+    
+    // 3. Users Table
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        fullname TEXT NOT NULL,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        firm_id INTEGER,
+        role INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(firm_id) REFERENCES firms(id)
+    ) STRICT;
+`);
+
+// 3. Stocks Table
+const createStocksTable = `
+    CREATE TABLE IF NOT EXISTS stocks (
+        id INTEGER PRIMARY KEY,
+        item TEXT NOT NULL,
+        pno TEXT, 
+        oem TEXT,
+        hsn TEXT NOT NULL,
+        qty REAL NOT NULL,
+        uom TEXT NOT NULL,
+        rate REAL NOT NULL,
+        grate REAL NOT NULL,
+        total REAL NOT NULL,
+        mrp REAL,
+        batches TEXT,  /* JSON array storing batch information */
+        user TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id)
+    ) STRICT;
+`;
+db.exec(createStocksTable);
+
+// Stocks Indexes
+try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_pno ON stocks(pno) WHERE pno IS NOT NULL;`); } catch (e) {}
+// Note: Removed batch index since batch column was replaced with batches JSON column
+// try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_batch ON stocks(batch) WHERE batch IS NOT NULL;`); } catch (e) {}
+
+// Stocks Migration Helper
+const stockColumns = ['mrp', 'oem', 'pno', 'batches']; // Added 'batches' column for JSON array storage
+stockColumns.forEach(col => {
+    try { db.exec(`ALTER TABLE stocks ADD COLUMN ${col} TEXT;`); } catch (err) {}
+});
+
+// Stocks Migration for firm_id
+try { db.exec(`ALTER TABLE stocks ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stocks_firm_id ON stocks(firm_id);`);
+} catch (err) {
+    console.error('Error creating stocks firm_id index:', err.message);
+}
+
+// Stocks Migration for UNIQUE constraint on item - per firm
+// Since SQLite doesn't support ALTER TABLE ADD CONSTRAINT directly, we need to handle this differently
+try {
+    // First, drop the old global unique index if it exists
+    db.exec(`DROP INDEX IF EXISTS idx_stocks_item;`);
+    
+    // Create the new firm-specific unique index
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_stocks_item_firm ON stocks(item, firm_id);`);
+    
+    console.log('Stocks item-firm unique index created successfully');
+} catch (err) {
+    console.error('Error during item-firm uniqueness migration:', err.message);
+}
+
+// ---------------------------------------------------------
+// NEW TABLES (Migrated from Mongoose)
+// ---------------------------------------------------------
+
+// 4. Party Table
+// Boolean fields (isActive, etc.) are stored as INTEGER (0 or 1)
+db.exec(`
+    CREATE TABLE IF NOT EXISTS parties (
+        id INTEGER PRIMARY KEY,
+        supply TEXT NOT NULL,
+        addr TEXT,
+        gstin TEXT DEFAULT 'UNREGISTERED',
+        state TEXT,
+        state_code INTEGER,
+        pin INTEGER,
+        pan TEXT,
+        contact TEXT,
+        usern TEXT NOT NULL,
+        firm TEXT NOT NULL,
+        has_multiple_gsts INTEGER DEFAULT 0, /* Boolean: 0=false, 1=true */
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id)
+    ) STRICT;
+`);
+
+// 5. Party Additional GSTs Table (Child of Parties)
+// Handles the 'additionalGSTs' array from the Mongoose schema
+db.exec(`
+    CREATE TABLE IF NOT EXISTS party_gsts (
+        id INTEGER PRIMARY KEY,
+        party_id INTEGER NOT NULL,
+        gst_number TEXT NOT NULL,
+        state TEXT NOT NULL,
+        state_code INTEGER NOT NULL,
+        location_name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        city TEXT NOT NULL,
+        pincode TEXT NOT NULL,
+        contact_person TEXT,
+        contact_number TEXT,
+        is_active INTEGER DEFAULT 1,     /* Boolean */
+        is_default INTEGER DEFAULT 0,    /* Boolean */
+        registration_type TEXT DEFAULT 'regular',
+        valid_from TEXT NOT NULL,        /* Date (ISO String) */
+        valid_to TEXT,                   /* Date (ISO String) */
+        last_used_date TEXT,             /* Date (ISO String) */
+        transaction_count INTEGER DEFAULT 0,
+        FOREIGN KEY(party_id) REFERENCES parties(id) ON DELETE CASCADE
+    ) STRICT;
+`);
+
+// Parties Migration for firm_id
+try { db.exec(`ALTER TABLE parties ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_parties_firm_id ON parties(firm_id);`);
+} catch (err) {
+    console.error('Error creating parties firm_id index:', err.message);
+}
+
+// 6. Bills Table
+// 'oth_chg' and 'gstSelection' are stored as JSON strings in TEXT columns
+db.exec(`
+    CREATE TABLE IF NOT EXISTS bills (
+        id INTEGER PRIMARY KEY,
+        bno TEXT NOT NULL,
+        bdate TEXT NOT NULL,             /* Date (ISO String) */
+        supply TEXT NOT NULL,
+        addr TEXT,
+        gstin TEXT DEFAULT 'UNREGISTERED',
+        state TEXT,
+        pin INTEGER,
+        gtot REAL NOT NULL,
+        disc REAL,
+        cgst REAL,
+        usern TEXT NOT NULL,
+        sgst REAL,
+        firm TEXT NOT NULL,
+        igst REAL,
+        rof REAL,
+        ntot REAL NOT NULL,
+        btype TEXT NOT NULL DEFAULT 'SALES',
+        order_no TEXT,
+        order_date TEXT,                 /* Date */
+        dispatch_through TEXT,
+        docket_no TEXT,
+        vehicle_no TEXT,
+        consignee_name TEXT,
+        consignee_gstin TEXT,
+        consignee_address TEXT,
+        consignee_state TEXT,
+        consignee_pin TEXT,
+        reason_for_note TEXT,
+        original_bill_no TEXT,
+        original_bill_date TEXT,         /* Date */
+        narration TEXT,
+        status TEXT DEFAULT 'ACTIVE',    -- Enum: ACTIVE, CANCELLED
+        cancellation_reason TEXT,
+        cancelled_at TEXT,               /* Date */
+        cancelled_by INTEGER,            -- FK to users.id
+        attachment_url TEXT,
+        attachment_file_id TEXT,
+        party_id INTEGER,                -- FK to parties.id,
+        
+        -- JSON Fields for complex objects
+        oth_chg_json TEXT,               -- Stores Array<IOtherCharge> as JSON
+        gst_selection_json TEXT,         -- Stores IGSTSelection object as JSON
+        reverse_charge INTEGER DEFAULT 0, /* Boolean: 0=false, 1=true */
+        
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id),
+        FOREIGN KEY(party_id) REFERENCES parties(id),
+        FOREIGN KEY(cancelled_by) REFERENCES users(id)
+    ) STRICT;
+`);
+
+// 8. Settings Table
+// Stores global application settings including GST enable/disable status
+db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY,
+        setting_key TEXT NOT NULL UNIQUE,
+        setting_value TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    ) STRICT;
+`);
+
+// Insert default GST setting if not exists
+try {
+    db.prepare(`INSERT OR IGNORE INTO settings (setting_key, setting_value, description, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, ?)`).run(
+        'gst_enabled', 
+        'true', 
+        'Global GST calculation toggle', 
+        new Date().toISOString(), 
+        new Date().toISOString()
+    );
+} catch (e) {
+    console.error('Error inserting default GST setting:', e.message);
+}
+
+// 9. Firm Settings Table
+// Stores firm-specific settings including GST enable/disable status
+db.exec(`
+    CREATE TABLE IF NOT EXISTS firm_settings (
+        id INTEGER PRIMARY KEY,
+        firm_id INTEGER NOT NULL,
+        setting_key TEXT NOT NULL,
+        setting_value TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(firm_id) REFERENCES firms(id),
+        UNIQUE(firm_id, setting_key)
+    ) STRICT;
+`);
+
+// Bills Table Migration for reverse_charge
+try {
+    db.exec(`ALTER TABLE bills ADD COLUMN reverse_charge INTEGER DEFAULT 0;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for reverse_charge:', err.message);
+}
+
+// Bills Migration for firm_id
+try { db.exec(`ALTER TABLE bills ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_firm_id ON bills(firm_id);`);
+} catch (err) {
+    console.error('Error creating bills firm_id index:', err.message);
+}
+
+// Indexes for performance
+try {
+    // Lookup bills by number
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_bno ON bills(bno);`);
+    
+    // Create unique constraint for bill numbers (add if not exists)
+    try {
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bills_bno_unique ON bills(bno);`);
+    } catch (e) {
+        console.warn('Warning: Could not create unique bill number index - possible duplicates exist:', e.message);
+    }
+    // Lookup stock registers by bill number or item
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_bno ON stock_reg(bno);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_item ON stock_reg(item);`);
+    // Lookup parties by GSTIN
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_parties_gstin ON parties(gstin);`);
+    // Lookup bills by Party ID (Reverse relation)
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_party_id ON bills(party_id);`);
+} catch (e) {
+    console.error("Index creation error:", e.message);
+}
+
+// 7. StockReg Table (Transaction Register)
+db.exec(`
+    CREATE TABLE IF NOT EXISTS stock_reg (
+        id INTEGER PRIMARY KEY,
+        type TEXT NOT NULL,
+        bno TEXT NOT NULL,
+        bdate TEXT NOT NULL,             /* Date */
+        supply TEXT NOT NULL,
+        item TEXT NOT NULL,
+        item_narration TEXT,
+        pno TEXT,
+        batch TEXT, /* Batch information for transaction */
+        oem TEXT,
+        hsn TEXT NOT NULL,
+        qty REAL NOT NULL,
+        qtyh REAL NOT NULL,
+        uom TEXT NOT NULL,
+        rate REAL NOT NULL,
+        grate REAL,
+        cgst REAL,
+        sgst REAL,
+        igst REAL,
+        disc REAL,
+        discamt REAL,
+        total REAL NOT NULL,
+        mrp REAL,
+        expiry_date TEXT,                /* Date */
+        project TEXT,
+        user TEXT NOT NULL,
+        firm TEXT NOT NULL,
+        
+        stock_id INTEGER,                -- FK to stocks.id
+        bill_id INTEGER,                 -- FK to bills.id
+        
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+
+        firm_id INTEGER,
+        FOREIGN KEY(firm_id) REFERENCES firms(id),
+        FOREIGN KEY(stock_id) REFERENCES stocks(id),
+        FOREIGN KEY(bill_id) REFERENCES bills(id)
+    ) STRICT;
+`);
+
+// StockReg Table Migration for item_narration
+try {
+    db.exec(`ALTER TABLE stock_reg ADD COLUMN item_narration TEXT;`);
+} catch (err) {
+    if (!err.message.includes('duplicate column name')) console.error('Migration error for item_narration:', err.message);
+}
+
+// StockReg Migration for firm_id
+try { db.exec(`ALTER TABLE stock_reg ADD COLUMN firm_id INTEGER;`); } catch (err) {}
+
+// Add foreign key constraint for firm_id (if not already enforced by table creation)
+try { 
+    // Create index for performance
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_firm_id ON stock_reg(firm_id);`);
+} catch (err) {
+    console.error('Error creating stock_reg firm_id index:', err.message);
+}
+
+// Indexes for performance
+try {
+    // Lookup bills by number
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_bno ON bills(bno);`);
+    
+    // Create unique constraint for bill numbers (add if not exists)
+    try {
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bills_bno_unique ON bills(bno);`);
+    } catch (e) {
+        console.warn('Warning: Could not create unique bill number index - possible duplicates exist:', e.message);
+    }
+    // Lookup stock registers by bill number or item
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_bno ON stock_reg(bno);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_stockreg_item ON stock_reg(item);`);
+    // Lookup parties by GSTIN
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_parties_gstin ON parties(gstin);`);
+    // Lookup bills by Party ID (Reverse relation)
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_bills_party_id ON bills(party_id);`);
+} catch (e) {
+    console.error("Index creation error:", e.message);
+}
+
+// 10. Ledger Table
+db.exec(`
+    CREATE TABLE IF NOT EXISTS ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        voucher_id INTEGER NOT NULL,              -- Reference to source transaction (bills.id)
+        voucher_type TEXT NOT NULL,               -- Type of voucher (SALES, PURCHASE, JOURNAL, etc.)
+        voucher_no TEXT NOT NULL,                 -- Voucher number (bill number)
+        account_head TEXT NOT NULL,               -- Account name (e.g., Party Name, CGST, SGST, etc.)
+        account_type TEXT NOT NULL,               -- Account classification (DEBTOR, CREDITOR, TAX, EXPENSE, INCOME, ASSET, LIABILITY)
+        debit_amount REAL DEFAULT 0,              -- Debit amount
+        credit_amount REAL DEFAULT 0,             -- Credit amount
+        narration TEXT,                           -- Description of the transaction
+        bill_id INTEGER,                          -- Foreign key to bills table
+        party_id INTEGER,                         -- Foreign key to parties table
+        tax_type TEXT,                            -- Tax type (CGST, SGST, IGST)
+        tax_rate REAL,                            -- Tax rate
+        transaction_date TEXT NOT NULL,           -- Date of transaction
+        created_by TEXT NOT NULL,                 -- User who created the entry
+        firm_id INTEGER NOT NULL,                 -- Multi-tenancy support
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY(firm_id) REFERENCES firms(id) ON DELETE CASCADE,
+        FOREIGN KEY(bill_id) REFERENCES bills(id) ON DELETE SET NULL,
+        FOREIGN KEY(party_id) REFERENCES parties(id) ON DELETE SET NULL
+    ) STRICT;
+`);
+
+// Ledger Indexes for performance
+try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_firm_id ON ledger(firm_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_account_head_firm ON ledger(account_head, firm_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_voucher_id_firm ON ledger(voucher_id, firm_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ledger_transaction_date ON ledger(transaction_date);`);
+} catch (e) {
+    console.error("Ledger index creation error:", e.message);
+}
+
+// Export the database instance
+module.exports = db;

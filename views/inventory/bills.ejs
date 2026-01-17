@@ -1,0 +1,41 @@
+<% layout('layouts/main') -%>
+
+<div class="container mx-auto px-4 py-6">
+  <div class="mb-4 border-b border-gray-200">
+    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="inventory-tabs">
+      <li class="me-2">
+        <button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 cursor-pointer text-blue-600 border-blue-600" data-target="sales" type="button">Sales</button>
+      </li>
+      <li class="me-2">
+        <button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 cursor-pointer text-gray-500" data-target="purchase" type="button">Purchase</button>
+      </li>
+      <li class="me-2">
+        <button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 cursor-pointer text-gray-500" data-target="debit-note" type="button">Debit Note</button>
+      </li>
+      <li class="me-2">
+        <button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 cursor-pointer text-gray-500" data-target="credit-note" type="button">Credit Note</button>
+      </li>
+      <li class="me-2">
+        <button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 cursor-pointer text-gray-500" data-target="delivery-note" type="button">Delivery Note</button>
+      </li>
+    </ul>
+  </div>
+
+  <div id="tab-contents">
+    <div id="sales" class="tab-pane block"></div>
+    <div id="purchase" class="tab-pane hidden"></div>
+    <div id="debit-note" class="tab-pane hidden"></div>
+    <div id="credit-note" class="tab-pane hidden"></div>
+    <div id="delivery-note" class="tab-pane hidden"></div>
+  </div>
+</div>
+
+<script src="/javascripts/xlsx.bundle.js"></script>
+
+<script src="/javascripts/inventory/tabs.js"></script>
+
+<script src="/javascripts/inventory/sls.js"></script>
+<script src="/javascripts/inventory/prs.js"></script>
+<script src="/javascripts/inventory/cnt.js"></script>
+<script src="/javascripts/inventory/dnt.js"></script>
+<script src="/javascripts/inventory/dln.js"></script>

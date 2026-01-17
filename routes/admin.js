@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/adminController');
-const logController = require('../controllers/logController');
+const adminController = require('../controllers/turso/adminController');
+const logController = require('../controllers/turso/logController');
 const firmManagementController = require('../controllers/firmManagementController');
 const systemConfigController = require('../controllers/systemConfigController');
 

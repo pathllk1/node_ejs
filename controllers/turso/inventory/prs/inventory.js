@@ -553,16 +553,32 @@ exports.createBill = async (req, res) => {
         return res.status(400).json({ error: "Cart cannot be empty" });
     }
     
-    let billNo;
-    try {
-        billNo = getNextBillNumber(req.user.firm_id);
-        console.log(`[CREATE_BILL] Generated bill number: ${billNo}`);
-    } catch (error) {
-        console.error(`[CREATE_BILL] Failed to generate bill number:`, error.message);
-        return res.status(500).json({ error: `Failed to generate bill number: ${error.message}` });
+    const requestedBillNo = typeof meta.billNo === 'string' ? meta.billNo.trim() : '';
+    if (requestedBillNo) {
+        try {
+            const existingBillNoQuery = await turso.execute({
+                sql: 'SELECT id FROM bills WHERE bno = ? AND firm_id = ? LIMIT 1',
+                args: [requestedBillNo, req.user.firm_id]
+            });
+            if (existingBillNoQuery.rows && existingBillNoQuery.rows[0]) {
+                return res.status(400).json({ error: 'Bill number already exists. Please use a unique bill number.' });
+            }
+            meta.billNo = requestedBillNo;
+        } catch (error) {
+            console.error(`[CREATE_BILL] Failed to validate manual bill number:`, error.message);
+            return res.status(500).json({ error: `Failed to validate bill number: ${error.message}` });
+        }
+    } else {
+        let billNo;
+        try {
+            billNo = await getNextBillNumber(Number(req.user.firm_id));
+            console.log(`[CREATE_BILL] Generated bill number: ${billNo}`);
+        } catch (error) {
+            console.error(`[CREATE_BILL] Failed to generate bill number:`, error.message);
+            return res.status(500).json({ error: `Failed to generate bill number: ${error.message}` });
+        }
+        meta.billNo = billNo;
     }
-    
-    meta.billNo = billNo;
 
     let gstEnabled = true;
     try {

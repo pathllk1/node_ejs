@@ -236,3 +236,6 @@ python_service/__pycache__/
 *.pyc
 
 generated/
+generated/
+.vercel
+.env*.local

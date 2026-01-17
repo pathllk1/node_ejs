@@ -285,12 +285,12 @@ exports.getBillPdf = async (req, res) => {
         let seller = { name: 'Company Name', address: 'Address', gstin: '' };
         if (req.user && req.user.firm_id) {
             const firmResult = await turso.execute({
-                sql: 'SELECT name, address, contact_info FROM firms WHERE id = ?',
+                sql: 'SELECT name, address, gst_number FROM firms WHERE id = ?',
                 args: [req.user.firm_id]
             });
             const firm = firmResult.rows[0];
             if (firm) {
-                seller = { name: firm.name, address: firm.address, gstin: firm.contact_info };
+                seller = { name: firm.name, address: firm.address, gstin: firm.gst_number || '' };
             }
         }
 

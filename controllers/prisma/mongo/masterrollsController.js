@@ -2,6 +2,7 @@
 // Controller for managing masterrolls (employee) data
 
 const mongoPrisma = require('../../../config/prisma_mongo.js');
+const turso = require('../../../config/turso.js');
 
 
 /**
@@ -14,10 +15,14 @@ async function getMongoFirmId(req) {
         throw new Error('User is not associated with any firm');
     }
 
-    // 1. Get firm name from SQLite
-    const sqliteFirm = db.prepare('SELECT name FROM firms WHERE id = ?').get(req.user.firm_id);
+    // 1. Get firm name from Turso
+    const sqliteFirmResult = await turso.execute({
+        sql: 'SELECT name FROM firms WHERE id = ?',
+        args: [req.user.firm_id]
+    });
+    const sqliteFirm = sqliteFirmResult.rows[0];
     if (!sqliteFirm) {
-        throw new Error('Firm not found in SQLite database');
+        throw new Error('Firm not found in database');
     }
 
     // 2. Try to get firm ID from MongoDB by matching name
@@ -343,8 +348,11 @@ exports.renderMasterRollsPage = async (req, res) => {
         // Fetch firm name for the logged-in user (similar to inventory controller)
         let firmName = '';
         if (req.user && req.user.firm_id) {
-            const firmStmt = db.prepare('SELECT name FROM firms WHERE id = ?');
-            const firm = firmStmt.get(req.user.firm_id);
+            const firmResult = await turso.execute({
+                sql: 'SELECT name FROM firms WHERE id = ?',
+                args: [req.user.firm_id]
+            });
+            const firm = firmResult.rows[0];
             firmName = firm ? firm.name : '';
         }
 

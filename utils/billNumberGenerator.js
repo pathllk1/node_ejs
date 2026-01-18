@@ -179,6 +179,112 @@ async function getNextBillNumber(firmId, financialYear = null) {
  * @param {string} financialYear - Optional financial year
  * @returns {object} Object with current_sequence and next_sequence
  */
+
+/**
+ * Generate next voucher number atomically
+ * Supports PAYMENT and RECEIPT vouchers
+ * @param {number} firmId - The firm ID
+ * @param {string} voucherType - 'PAYMENT' or 'RECEIPT'
+ * @param {string} financialYear - Optional financial year (defaults to current)
+ * @returns {string} The generated voucher number
+ */
+async function getNextVoucherNumber(firmId, voucherType, financialYear = null) {
+    console.log(`[VOUCHER_NUMBER] Generating for Firm: ${firmId}, Type: ${voucherType}, FY: ${financialYear || 'current'}`);
+    
+    // Validate voucher type
+    if (!['PAYMENT', 'RECEIPT'].includes(voucherType.toUpperCase())) {
+        throw new Error(`Invalid voucher type: ${voucherType}. Must be PAYMENT or RECEIPT.`);
+    }
+    
+    const prefix = voucherType.toUpperCase() === 'PAYMENT' ? 'PV' : 'RV';
+    
+    await validateFirmExists(firmId);
+    const fy = financialYear || getCurrentFinancialYear();
+    validateFinancialYear(fy);
+    
+    // First, get or create sequence entry for this voucher type
+    // We'll use a separate sequence for vouchers by adding a type column to bill_sequences
+    // Or we could create a separate voucher_sequences table
+    // For consistency with current design, we'll add a voucher_type column to bill_sequences
+    
+    // Since the schema doesn't have voucher_type column yet, we'll create a separate approach
+    // For now, we'll create a temporary sequence tracking mechanism in a new table if needed
+    // Or we'll use a separate sequence in bill_sequences with a flag
+    
+    // For now, let's create a temporary solution by adding a type to bill_sequences
+    // Actually, we'll add a specific entry for vouchers in the existing table
+    
+    let seqRecordResult = await turso.execute({
+        sql: `SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ? AND (
+            (voucher_type = 'PAYMENT' AND ? = 'PAYMENT') OR 
+            (voucher_type = 'RECEIPT' AND ? = 'RECEIPT') OR
+            (voucher_type IS NULL AND ? IN ('PAYMENT', 'RECEIPT'))
+        )`,
+        args: [firmId, fy, voucherType, voucherType, voucherType]
+    });
+    
+    let seqRecord = seqRecordResult.rows[0];
+    
+    if (!seqRecord) {
+        console.log(`[VOUCHER_NUMBER] Creating new sequence for Firm: ${firmId}, FY: ${fy}, Type: ${voucherType}`);
+        
+        // Create new sequence entry for this voucher type
+        await turso.execute({
+            sql: `INSERT INTO bill_sequences (firm_id, financial_year, last_sequence, created_at, updated_at, voucher_type)
+                 VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)`,
+            args: [firmId, fy, 0, voucherType]
+        });
+        
+        // Fetch the newly created record
+        seqRecordResult = await turso.execute({
+            sql: `SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ? AND 
+                ((voucher_type = ?) OR (voucher_type IS NULL AND ? IN ('PAYMENT', 'RECEIPT')))` ,
+            args: [firmId, fy, voucherType, voucherType]
+        });
+        seqRecord = seqRecordResult.rows[0];
+    }
+    
+    // Calculate next sequence number
+    const nextSequence = seqRecord.last_sequence + 1;
+    
+    // VALIDATION: Sequence number should not exceed 9999 (4-digit limit)
+    if (nextSequence > 9999) {
+        throw new Error(`Voucher sequence limit exceeded for Firm ${firmId} in FY ${fy}. ` +
+                       `Max 9999 vouchers per type per year allowed.`);
+    }
+    
+    // Build voucher number
+    const finalVoucherNo = `${prefix}F${firmId}-${String(nextSequence).padStart(4, '0')}/${fy}`;
+    
+    // Update sequence (atomic)
+    const updateResult = await turso.execute({
+        sql: `UPDATE bill_sequences 
+             SET last_sequence = ?, updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+        args: [nextSequence, seqRecord.id]
+    });
+    
+    if (updateResult.rowsAffected === 0) {
+        throw new Error(`Failed to update sequence for Firm ${firmId}, Type: ${voucherType}`);
+    }
+
+    // VALIDATION: Final format
+    const voucherNoRegex = /^[PR]VF\d+-\d{4}\/\d{2}-\d{2}$/;
+    if (!voucherNoRegex.test(finalVoucherNo)) {
+        throw new Error(`Generated voucher number format invalid: ${finalVoucherNo}`);
+    }
+
+    // VALIDATION: Length
+    if (finalVoucherNo.length > 20) {
+        throw new Error(
+            `Voucher number exceeds limit: ${finalVoucherNo} (${finalVoucherNo.length} chars)`
+        );
+    }
+
+    console.log(`[VOUCHER_NUMBER] Generated: ${finalVoucherNo}`);
+    return finalVoucherNo;
+}
+
 async function getCurrentSequence(firmId, financialYear = null) {
     await validateFirmExists(firmId);
     const fy = financialYear || getCurrentFinancialYear();
@@ -250,6 +356,7 @@ module.exports = {
     getNextBillNumber,
     getCurrentSequence,
     getNextBillNumberPreview,
+    getNextVoucherNumber,
     validateFirmExists,
     validateFinancialYear
 };

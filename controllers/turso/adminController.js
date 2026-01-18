@@ -989,6 +989,23 @@ exports.sqliteToMongoBackup = async (req, res) => {
             });
         }
         
+        // Backup request_logs
+        const sqliteRequestLogsResult = await turso.execute({ sql: 'SELECT * FROM request_logs' });
+        const sqliteRequestLogsData = sqliteRequestLogsResult.rows;
+        for (const log of sqliteRequestLogsData) {
+            await mongoPrisma.requestLogs.create({
+                data: {
+                    method: log.method,
+                    url: log.url,
+                    ip: log.ip,
+                    username: log.username,
+                    userAgent: log.user_agent,
+                    timestamp: log.timestamp ? new Date(log.timestamp) : new Date(),
+                    v: 0,
+                }
+            });
+        }
+        
         // Backup firm_settings
         const sqliteFirmSettingsResult = await turso.execute({ sql: 'SELECT * FROM firm_settings' });
         const sqliteFirmSettingsData = sqliteFirmSettingsResult.rows;

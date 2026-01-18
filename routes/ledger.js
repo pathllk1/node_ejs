@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ledgerController = require('../controllers/turso/ledger/ledgerController');
+const voucherController = require('../controllers/turso/ledger/voucherController');
 const verifyToken = require('../middleware/authMiddleware');
 const { verifyFirmAccess } = require('../middleware/firmMiddleware');
 
@@ -12,5 +13,22 @@ router.get('/api/export-general-ledger', verifyFirmAccess, ledgerController.expo
 router.get('/api/export-trial-balance', verifyFirmAccess, ledgerController.exportTrialBalancePdf);
 router.post('/api/export-account-type-pdf', verifyFirmAccess, ledgerController.exportAccountTypePdf);
 router.get('/api/type-summaries', verifyFirmAccess, ledgerController.getAccountTypeSummaries);
+
+// Voucher routes
+router.post('/api/vouchers', verifyFirmAccess, voucherController.createVoucher);
+router.get('/api/vouchers', verifyFirmAccess, voucherController.getVouchers);
+router.get('/api/vouchers/party/:partyId', verifyFirmAccess, voucherController.getVouchersByParty);
+router.get('/api/vouchers/summary', verifyFirmAccess, voucherController.getVoucherSummary);
+router.get('/api/vouchers/:id', verifyFirmAccess, voucherController.getVoucherById);
+
+// Voucher page route
+router.get('/vouchers', verifyFirmAccess, (req, res) => {
+    res.render('ledger/vouchers', { user: req.user });
+});
+
+// Parties API routes (for vouchers page)
+router.get('/api/parties', verifyFirmAccess, require('../controllers/turso/inventory/sls/inventory').getAllParties);
+router.post('/api/parties', verifyFirmAccess, require('../controllers/turso/inventory/sls/inventory').createParty);
+router.get('/api/parties/:partyId/balance', verifyFirmAccess, require('../controllers/turso/inventory/sls/inventory').getPartyBalance);
 
 module.exports = router;

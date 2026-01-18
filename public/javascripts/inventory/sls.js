@@ -98,6 +98,25 @@
     }
 
     // --- DATA FETCHING ---
+    // Helper function to fetch next bill number
+    async function fetchNextBillNumber() {
+        try {
+            const billNoRes = await window.api.get('/inventory/api/bills/next-number');
+            const billNoData = await billNoRes.json();
+            
+            // Validate that billNoData.nextBillNo is a string, not an object
+            if (typeof billNoData.nextBillNo === 'string') {
+                state.meta.billNo = billNoData.nextBillNo;
+            } else {
+                console.warn('Invalid bill number data received, using placeholder', billNoData);
+                state.meta.billNo = 'Will be generated on save';
+            }
+        } catch (e) {
+            console.warn("Could not fetch next bill number info, using placeholder", e);
+            state.meta.billNo = 'Will be generated on save';
+        }
+    }
+
     async function fetchData() {
         try {
             // 1. Fetch Stocks
@@ -118,21 +137,7 @@
             }
 
             // 3. Fetch next bill number info (non-consuming)
-            try {
-                const billNoRes = await window.api.get('/inventory/api/bills/next-number');
-                const billNoData = await billNoRes.json();
-                
-                // Validate that billNoData.nextBillNo is a string, not an object
-                if (typeof billNoData.nextBillNo === 'string') {
-                    state.meta.billNo = billNoData.nextBillNo;
-                } else {
-                    console.warn('Invalid bill number data received, using placeholder', billNoData);
-                    state.meta.billNo = 'Will be generated on save';
-                }
-            } catch (e) {
-                console.warn("Could not fetch next bill number info, using placeholder", e);
-                state.meta.billNo = 'Will be generated on save';
-            }
+            await fetchNextBillNumber();
             
             // 4. Fetch GST status
             try {
@@ -2208,6 +2213,10 @@
                     state.cart = [];
                     state.selectedParty = null;
                     state.otherCharges = [];
+                    
+                    // Fetch the next bill number before re-rendering
+                    await fetchNextBillNumber();
+                    
                     renderLayout();
 
                     alert('Invoice saved successfully! Bill ID: ' + result.billId + '\nInvoice has been exported to PDF.');

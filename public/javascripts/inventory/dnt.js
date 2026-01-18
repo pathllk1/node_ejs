@@ -106,6 +106,25 @@
     }
 
     // --- DATA FETCHING ---
+    // Helper function to fetch next bill number
+    async function dntFetchNextBillNumber() {
+        try {
+            const billNoRes = await window.api.get('/inventory/dnt/api/bills/next-number');
+            const billNoData = await billNoRes.json();
+            
+            // Validate that billNoData.nextBillNo is a string, not an object
+            if (typeof billNoData.nextBillNo === 'string') {
+                state.meta.dntBillNo = billNoData.nextBillNo;
+            } else {
+                console.warn('Invalid bill number data received, using placeholder', billNoData);
+                state.meta.dntBillNo = 'Will be generated on save';
+            }
+        } catch (e) {
+            console.warn("Could not fetch next bill number info, using placeholder", e);
+            state.meta.dntBillNo = 'Will be generated on save';
+        }
+    }
+
     async function dntFetchData() {
         try {
             // 1. Fetch Stocks
@@ -126,21 +145,7 @@
             }
 
             // 3. Fetch next bill number info (non-consuming)
-            try {
-                const billNoRes = await window.api.get('/inventory/dnt/api/bills/next-number');
-                const billNoData = await billNoRes.json();
-                
-                // Validate that billNoData.nextBillNo is a string, not an object
-                if (typeof billNoData.nextBillNo === 'string') {
-                    state.meta.dntBillNo = billNoData.nextBillNo;
-                } else {
-                    console.warn('Invalid bill number data received, using placeholder', billNoData);
-                    state.meta.dntBillNo = 'Will be generated on save';
-                }
-            } catch (e) {
-                console.warn("Could not fetch next bill number info, using placeholder", e);
-                state.meta.dntBillNo = 'Will be generated on save';
-            }
+            await dntFetchNextBillNumber();
 
             // 4. Fetch GST status
             try {
@@ -1861,7 +1866,7 @@
             // Re-attach click events for selection
             container.querySelectorAll('.party-item').forEach(div => {
                 div.addEventListener('click', () => {
-                    const id = parseInt(div.getAttribute('data-id'));
+                    const id = parseInt(div.getAttribute('data-id').replace('dnt-', ''));
                     state.selectedParty = state.parties.find(p => p.id === id);
                     state.historyCache = {};
                     document.getElementById('dnt-modal-backdrop').classList.add('hidden');
@@ -2216,6 +2221,10 @@
                     state.cart = [];
                     state.selectedParty = null;
                     state.otherCharges = [];
+                    
+                    // Fetch the next bill number before re-rendering
+                    await dntFetchNextBillNumber();
+                    
                     dntRenderLayout();
 
                     alert('Invoice saved successfully! Bill ID: ' + result.billId + '\nInvoice has been exported to PDF.');

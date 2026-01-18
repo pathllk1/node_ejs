@@ -1307,15 +1307,6 @@
   .border-yellow-500 {
     border-color: var(--color-yellow-500);
   }
-  .border-l-blue-500 {
-    border-left-color: var(--color-blue-500);
-  }
-  .border-l-green-500 {
-    border-left-color: var(--color-green-500);
-  }
-  .border-l-yellow-500 {
-    border-left-color: var(--color-yellow-500);
-  }
   .bg-amber-100 {
     background-color: var(--color-amber-100);
   }
@@ -1646,9 +1637,6 @@
   }
   .p-4 {
     padding: calc(var(--spacing) * 4);
-  }
-  .p-5 {
-    padding: calc(var(--spacing) * 5);
   }
   .p-6 {
     padding: calc(var(--spacing) * 6);

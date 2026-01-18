@@ -54,7 +54,9 @@ const main = () => {
 
     // 2) API base swap (e.g., '/inventory/api/...' => '/inventory/dnt/api/...')
     if (apiBase) {
-        code = code.replace(/(['"])\/inventory\/api\//g, `$1${apiBase.replace(/\/$/, '')}/api/`);
+        const base = apiBase.replace(/\/$/, '');
+        code = code.replace(/(['"])\/inventory\/api\//g, `$1${base}/api/`);
+        code = code.replace(/(['"])\/inventory\/(?:prs|sls|dnt|cnt|dln)\/api\//g, `$1${base}/api/`);
     }
 
     // 3) Prefix DOM ids used in rendered HTML + selectors

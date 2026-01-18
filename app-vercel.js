@@ -18,6 +18,8 @@ var adminRouter = require('./routes/admin');
 var inventorySlsRouter = require('./routes/inventory/sls/inventory');
 var inventoryPrsRouter = require('./routes/inventory/prs/inventory');
 var inventoryDntRouter = require('./routes/inventory/dnt/inventory');
+var inventoryCntRouter = require('./routes/inventory/cnt/inventory');
+var inventoryDlnRouter = require('./routes/inventory/dln/inventory');
 var inventoryRouter = require('./routes/inventory/sls/inventory');
 var ledgerRouter = require('./routes/ledger');
 var masterrollsRouter = require('./routes/masterrolls');
@@ -57,6 +59,8 @@ app.use('/inventory', verifyToken, inventoryRouter);
 app.use('/inventory/sls', verifyToken, inventorySlsRouter);
 app.use('/inventory/prs', verifyToken, inventoryPrsRouter);
 app.use('/inventory/dnt', verifyToken, inventoryDntRouter);
+app.use('/inventory/cnt', verifyToken, inventoryCntRouter);
+app.use('/inventory/dln', verifyToken, inventoryDlnRouter);
 app.use('/ledger', verifyToken, ledgerRouter);
 app.use('/masterrolls', verifyToken, masterrollsRouter);
 

@@ -136,8 +136,14 @@
             container.innerHTML = `<div class="p-8 text-center text-red-600 border border-red-200 bg-red-50 rounded">
                 <h3 class="font-bold text-lg">System Error</h3>
                 <p>${err.message}</p>
-                <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-red-600 text-white rounded shadow">Reload System</button>
+                <button class="reload-system-btn mt-4 px-4 py-2 bg-red-600 text-white rounded shadow">Reload System</button>
             </div>`;
+            
+            // Attach event listener to reload button
+            const reloadBtn = container.querySelector('.reload-system-btn');
+            if (reloadBtn) {
+                reloadBtn.addEventListener('click', () => location.reload());
+            }
         }
     }
 

@@ -257,6 +257,9 @@ document.addEventListener('click', async (e) => {
     else if (path === '/ledger') {
         shouldIntercept = true;
     }
+    else if (path === '/ledger/vouchers') {
+        shouldIntercept = true;
+    }
     else if (path === '/masterrolls') {
         shouldIntercept = true;
     }
@@ -295,17 +298,17 @@ document.addEventListener('click', async (e) => {
             const html = await response.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-
+            
             const newMain = doc.querySelector('main') || doc.querySelector('#main-content');
             const currentMain = document.querySelector('main') || document.querySelector('#main-content');
-
+            
             // D. Swap Content
             if (newMain && currentMain) {
                 currentMain.innerHTML = newMain.innerHTML;
-                
+                            
                 // Update URL
                 window.history.pushState(null, '', link.href);
-
+            
                 // Re-execute Scripts
                 const scripts = newMain.querySelectorAll('script');
                 scripts.forEach(oldScript => {
@@ -316,6 +319,24 @@ document.addEventListener('click', async (e) => {
                     newScript.textContent = oldScript.textContent;
                     document.body.appendChild(newScript);
                 });
+            
+                // Call page-specific initialization functions after content swap
+                setTimeout(() => {
+                    if (path === '/ledger/vouchers' && typeof initVouchersPage === 'function') {
+                        initVouchersPage();
+                    } else if (path.includes('/inventory/') && typeof initInventoryPage === 'function') {
+                        initInventoryPage();
+                    } else if (path.includes('/ledger') && typeof initLedgerPage === 'function') {
+                        initLedgerPage();
+                    } else if (path.includes('/admin') && typeof initAdminPage === 'function') {
+                        initAdminPage();
+                    } else if (path.includes('/ai') && typeof initAiPage === 'function') {
+                        initAiPage();
+                    } else if (path === '/masterrolls' && typeof initMasterrollsPage === 'function') {
+                        initMasterrollsPage();
+                    }
+                    // Add more page-specific initialization calls as needed
+                }, 100);
 
                 // Close all menus
                 const mobileMenu = document.getElementById('mobile-menu');

@@ -32,25 +32,78 @@ function initVouchersPage() {
     let currentPage = 1;
     const itemsPerPage = 10;
     
+    // Check if all required DOM elements exist before initializing
+    const requiredElements = [
+        voucherForm, voucherTypeSelect, partyIdSelect, paymentModeSelect,
+        amountInput, transactionDateInput, narrationInput, submitVoucherBtn,
+        resetFormBtn, vouchersTableBody, searchVouchersInput, filterTypeSelect,
+        prevPageBtn, nextPageBtn, currentPageSpan, paginationInfo,
+        totalReceiptsEl, totalPaymentsEl, netPositionEl, recentTransactionsEl
+    ];
+    
+    const hasMissingElements = requiredElements.some(el => !el);
+    if (hasMissingElements) {
+        console.warn('Some required DOM elements not found, deferring initialization');
+        // Retry initialization after a short delay to handle potential timing issues
+        setTimeout(() => {
+            if (document.getElementById('vouchersTableBody')) {
+                initVouchersPage(); // Re-attempt initialization
+            }
+        }, 100);
+        return;
+    }
+    
     // Initialize the page
     initPage();
 
     async function apiGetJson(url) {
-        const hasWindowApi = window.api && typeof window.api.get === 'function';
-        const response = hasWindowApi
-            ? await window.api.get(url)
-            : await fetch(url, {
-                method: 'GET',
-                headers: (() => {
-                    const headers = {};
-                    const accessToken = localStorage.getItem('access_token');
-                    const refreshToken = localStorage.getItem('refresh_token');
-                    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-                    if (refreshToken) headers['X-Refresh-Token'] = refreshToken;
-                    return headers;
-                })()
-            });
-
+        // Ensure window.api is available
+        if (!window.api || typeof window.api.get !== 'function') {
+            console.warn('window.api.get not available, waiting for availability');
+            // Wait for window.api to become available
+            let attempts = 0;
+            const maxAttempts = 10; // Maximum 1 second wait (10 * 100ms)
+            
+            while (attempts < maxAttempts && (!window.api || typeof window.api.get !== 'function')) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (!window.api || typeof window.api.get !== 'function') {
+                console.error('window.api.get still not available after waiting');
+                // Fall back to direct fetch
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: (() => {
+                        const headers = {};
+                        const accessToken = localStorage.getItem('access_token');
+                        const refreshToken = localStorage.getItem('refresh_token');
+                        if (accessToken) {
+                            headers['Authorization'] = `Bearer ${accessToken}`;
+                        }
+                        if (refreshToken) {
+                            headers['X-Refresh-Token'] = refreshToken;
+                        }
+                        return headers;
+                    })()
+                });
+                
+                if (!response) {
+                    throw new Error('No response received');
+                }
+                
+                const data = await response.json().catch(() => ({}));
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                return data;
+            }
+        }
+        
+        const response = await window.api.get(url);
+        
         if (!response) {
             throw new Error('No response received');
         }
@@ -65,22 +118,57 @@ function initVouchersPage() {
     }
 
     async function apiPostJson(url, body) {
-        const hasWindowApi = window.api && typeof window.api.post === 'function';
-        const response = hasWindowApi
-            ? await window.api.post(url, body)
-            : await fetch(url, {
-                method: 'POST',
-                headers: (() => {
-                    const headers = { 'Content-Type': 'application/json' };
-                    const accessToken = localStorage.getItem('access_token');
-                    const refreshToken = localStorage.getItem('refresh_token');
-                    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-                    if (refreshToken) headers['X-Refresh-Token'] = refreshToken;
-                    return headers;
-                })(),
-                body: JSON.stringify(body)
-            });
-
+        // Ensure window.api is available
+        if (!window.api || typeof window.api.post !== 'function') {
+            console.warn('window.api.post not available, waiting for availability');
+            // Wait for window.api to become available
+            let attempts = 0;
+            const maxAttempts = 10; // Maximum 1 second wait (10 * 100ms)
+            
+            while (attempts < maxAttempts && (!window.api || typeof window.api.post !== 'function')) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (!window.api || typeof window.api.post !== 'function') {
+                console.error('window.api.post still not available after waiting');
+                // Fall back to direct fetch
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(() => {
+                            const headers = {};
+                            const accessToken = localStorage.getItem('access_token');
+                            const refreshToken = localStorage.getItem('refresh_token');
+                            if (accessToken) {
+                                headers['Authorization'] = `Bearer ${accessToken}`;
+                            }
+                            if (refreshToken) {
+                                headers['X-Refresh-Token'] = refreshToken;
+                            }
+                            return headers;
+                        })()
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!response) {
+                    throw new Error('No response received');
+                }
+                
+                const result = await response.json().catch(() => ({}));
+                
+                if (!response.ok) {
+                    throw new Error(result.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                return result;
+            }
+        }
+        
+        const response = await window.api.post(url, body);
+        
         if (!response) {
             throw new Error('No response received');
         }
@@ -96,6 +184,18 @@ function initVouchersPage() {
     
     async function initPage() {
         try {
+            // Check if window.api is available before making API calls
+            if (!window.api || typeof window.api.get !== 'function') {
+                console.warn('API not ready, waiting...');
+                // Wait a bit and try again
+                setTimeout(async () => {
+                    if (window.api && typeof window.api.get === 'function') {
+                        await initPage();
+                    }
+                }, 200);
+                return;
+            }
+            
             // Load parties for the dropdown
             await loadParties();
             
@@ -227,12 +327,43 @@ function initVouchersPage() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${voucherDate}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${voucher.payment_mode || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button onclick="viewVoucher(${voucher.id})" class="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                        <button onclick="printVoucher(${voucher.id})" class="text-green-600 hover:text-green-900">Print</button>
+                        <button data-voucher-id="${voucher.id}" class="view-voucher-btn text-blue-600 hover:text-blue-900 mr-3">View</button>
+                        <button data-voucher-id="${voucher.id}" class="print-voucher-btn text-green-600 hover:text-green-900">Print</button>
                     </td>
                 </tr>
             `;
         }).join('');
+        
+        // Attach event listeners using event delegation
+        attachVoucherActionListeners();
+    }
+    
+    function attachVoucherActionListeners() {
+        // Remove old listeners if any
+        const oldViewButtons = vouchersTableBody.querySelectorAll('.view-voucher-btn');
+        const oldPrintButtons = vouchersTableBody.querySelectorAll('.print-voucher-btn');
+        
+        oldViewButtons.forEach(btn => {
+            btn.replaceWith(btn.cloneNode(true));
+        });
+        oldPrintButtons.forEach(btn => {
+            btn.replaceWith(btn.cloneNode(true));
+        });
+        
+        // Attach new listeners
+        vouchersTableBody.querySelectorAll('.view-voucher-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const voucherId = this.getAttribute('data-voucher-id');
+                viewVoucher(voucherId);
+            });
+        });
+        
+        vouchersTableBody.querySelectorAll('.print-voucher-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const voucherId = this.getAttribute('data-voucher-id');
+                printVoucher(voucherId);
+            });
+        });
     }
     
     async function loadSummaryStats() {
@@ -329,16 +460,16 @@ function initVouchersPage() {
         loadVouchers(currentPage + 1);
     });
     
-    // Global functions for use in HTML
-    window.viewVoucher = function(id) {
+    // Functions for voucher actions (no longer need to be global)
+    function viewVoucher(id) {
         alert(`View voucher details for ID: ${id}`);
         // In a real implementation, this would open a modal or navigate to a detail page
-    };
+    }
     
-    window.printVoucher = function(id) {
+    function printVoucher(id) {
         alert(`Print voucher with ID: ${id}`);
         // In a real implementation, this would open a print dialog
-    };
+    }
 
 }
 

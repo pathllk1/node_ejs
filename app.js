@@ -22,6 +22,8 @@ var inventoryDlnRouter = require('./routes/inventory/dln/inventory');
 var inventoryRouter = require('./routes/inventory/sls/inventory'); // Default to SLS for backward compatibility
 var ledgerRouter = require('./routes/ledger');
 var masterrollsRouter = require('./routes/masterrolls');
+var dashboardRouter = require('./routes/dashboard');
+var dashboardApiRouter = require('./routes/dashboard-api');
 
 var app = express();
 
@@ -64,6 +66,8 @@ app.use('/inventory/cnt', verifyToken, inventoryCntRouter);
 app.use('/inventory/dln', verifyToken, inventoryDlnRouter);
 app.use('/ledger', verifyToken, ledgerRouter);
 app.use('/masterrolls', verifyToken, masterrollsRouter);
+app.use('/dashboard', verifyToken, dashboardRouter);
+app.use('/api/dashboard', verifyToken, dashboardApiRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

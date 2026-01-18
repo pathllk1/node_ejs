@@ -1,0 +1,155 @@
+<% layout('layouts/main') -%>
+
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2"><%= title %></h1>
+        <p class="text-gray-600">Comprehensive overview of your accounting and financial management system</p>
+    </div>
+
+        <!-- Stats Cards Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Revenue Card -->
+            <div class="card stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Revenue</p>
+                        <p class="text-3xl font-bold text-green-600 mt-1" id="totalRevenue">₹0</p>
+                    </div>
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-xs text-green-600 font-medium">↑ 15% from last month</span>
+                </div>
+            </div>
+
+            <!-- Total Expenses Card -->
+            <div class="card stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Expenses</p>
+                        <p class="text-3xl font-bold text-red-600 mt-1" id="totalExpenses">₹0</p>
+                    </div>
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13l-3 3m0 0l-3-3m3 3V8m0-5.5v5.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-xs text-red-600 font-medium">↑ 8% from last month</span>
+                </div>
+            </div>
+
+            <!-- Net Profit Card -->
+            <div class="card stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Net Profit</p>
+                        <p class="text-3xl font-bold text-purple-600 mt-1" id="netProfit">₹0</p>
+                    </div>
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-xs text-green-600 font-medium">↑ 22% from last month</span>
+                </div>
+            </div>
+
+            <!-- Outstanding Receivables Card -->
+            <div class="card stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Receivables</p>
+                        <p class="text-3xl font-bold text-blue-600 mt-1" id="outstandingReceivables">₹0</p>
+                    </div>
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-xs text-orange-600 font-medium">⚠ Follow up required</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Tables Row (replacing charts due to CSP restrictions) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Revenue vs Expenses Table -->
+            <div class="card">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Revenue vs Expenses Trend</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
+                            </tr>
+                        </thead>
+                        <tbody id="revenueExpensesTable" class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be populated dynamically from API -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Chart container to replace table for visual representation -->
+                <div class="mt-4">
+                    <canvas id="revenueExpensesChart" class="w-full h-80"></canvas>
+                </div>
+            </div>
+
+            <!-- Cash Flow Table -->
+            <div class="card">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Cash Flow Overview</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Flow</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cashFlowTable" class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be populated dynamically from API -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Chart container to replace table for visual representation -->
+                <div class="mt-4">
+                    <canvas id="cashFlowChart" class="w-full h-80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions and Accounts Summary -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Recent Transactions -->
+            <div class="card">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Transactions</h3>
+                <div class="space-y-4" id="recentTransactions">
+                    <!-- Data will be populated dynamically from API -->
+                </div>
+            </div>
+
+            <!-- Account Summary -->
+            <div class="card">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Account Summary</h3>
+                <div class="space-y-4" id="accountSummary">
+                    <!-- Data will be populated dynamically from API -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+</div>
+<script src="/javascripts/chart.js.js"></script>
+<script src="/javascripts/accounting/accounting-dashboard.js"></script>

@@ -504,7 +504,7 @@ exports.exportGeneralLedgerPdf = async (req, res) => {
                 {
                     table: {
                         headerRows: 1,
-                        widths: ['*', 'auto', 'auto', 'auto'],
+                        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
                         body: [
                             // Header row
                             [

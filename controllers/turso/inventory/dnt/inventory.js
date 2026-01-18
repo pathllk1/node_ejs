@@ -487,6 +487,33 @@ exports.createBill = async (req, res) => {
             });
         }
 
+        // Round Off Entry (to balance ledger)
+        if (Math.abs(parseFloat(rof)) > 0) {
+            const rofVal = parseFloat(rof);
+            await turso.execute({
+                sql: `
+                    INSERT INTO ledger (
+                        voucher_id, voucher_type, voucher_no, account_head, account_type,
+                        debit_amount, credit_amount, narration, bill_id, party_id,
+                        tax_type, tax_rate, transaction_date, created_by, firm_id,
+                        created_at, updated_at
+                    ) VALUES (
+                        ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?,
+                        ?, ?
+                    )
+                `,
+                args: [
+                    ledgerBase.voucher_id, ledgerBase.voucher_type, ledgerBase.voucher_no, 'Round Off', 'INDIRECT EXPENSE',
+                    rofVal > 0 ? 0 : Math.abs(rofVal), rofVal < 0 ? 0 : rofVal, `Round off on Debit Note: ${meta.billNo}`, 
+                    ledgerBase.bill_id, null,
+                    null, null, ledgerBase.transaction_date, ledgerBase.created_by, ledgerBase.firm_id,
+                    ledgerBase.created_at, ledgerBase.updated_at
+                ]
+            });
+        }
+
         const taxableItemsTotal = cart.reduce((sum, item) => sum + (item.qty * item.rate * (1 - (item.disc || 0) / 100)), 0);
         await turso.execute({
             sql: `
@@ -868,7 +895,7 @@ exports.updateBill = async (req, res) => {
                 `,
                 args: [
                     ledgerBase.voucher_id, ledgerBase.voucher_type, ledgerBase.voucher_no, 'Round Off', 'INDIRECT EXPENSE',
-                    rofVal < 0 ? Math.abs(rofVal) : 0, rofVal > 0 ? rofVal : 0, `Round off on Debit Note: ${meta.billNo} (Updated)`,
+                    rofVal > 0 ? 0 : Math.abs(rofVal), rofVal < 0 ? 0 : rofVal, `Round off on Debit Note: ${meta.billNo} (Updated)`, 
                     ledgerBase.bill_id, null,
                     null, null, ledgerBase.transaction_date, ledgerBase.created_by, ledgerBase.firm_id,
                     ledgerBase.created_at, ledgerBase.updated_at

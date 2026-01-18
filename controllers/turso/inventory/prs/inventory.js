@@ -869,7 +869,7 @@ exports.createBill = async (req, res) => {
                 `,
                 args: [
                     ledgerBase.voucher_id, ledgerBase.voucher_type, ledgerBase.voucher_no, 'Round Off', 'INDIRECT EXPENSE',
-                    rofVal < 0 ? Math.abs(rofVal) : 0, rofVal > 0 ? rofVal : 0, `Round off on Bill No: ${meta.billNo}`,
+                    rofVal > 0 ? rofVal : 0, rofVal < 0 ? Math.abs(rofVal) : 0, `Round off on Bill No: ${meta.billNo}`, 
                     ledgerBase.bill_id, null,
                     null, null, ledgerBase.transaction_date, ledgerBase.created_by, ledgerBase.firm_id,
                     ledgerBase.created_at, ledgerBase.updated_at
@@ -1595,7 +1595,7 @@ exports.updateBill = async (req, res) => {
                 `,
                 args: [
                     ledgerBase.voucher_id, ledgerBase.voucher_type, ledgerBase.voucher_no, 'Round Off', 'INDIRECT EXPENSE',
-                    rofVal < 0 ? Math.abs(rofVal) : 0, rofVal > 0 ? rofVal : 0, `Round off on Bill No: ${meta.billNo} (Updated)`,
+                    rofVal > 0 ? rofVal : 0, rofVal < 0 ? Math.abs(rofVal) : 0, `Round off on Bill No: ${meta.billNo} (Updated)`, 
                     ledgerBase.bill_id, null,
                     null, null, ledgerBase.transaction_date, ledgerBase.created_by, ledgerBase.firm_id,
                     ledgerBase.created_at, ledgerBase.updated_at

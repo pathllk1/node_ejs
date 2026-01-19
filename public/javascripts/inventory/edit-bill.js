@@ -30,6 +30,8 @@
         parties: [],    // Mock Data
         cart: [],       // Current Bill Items
         selectedParty: null,
+        selectedConsignee: null, // Consignee details
+        consigneeSameAsBillTo: true, // Toggle for same as bill to (default to true)
         historyCache: {},
         meta: {
             billNo: '',
@@ -177,6 +179,15 @@
                     state: bill.state
                 };
             }
+            
+            // Set consignee details if available
+            if (bill.consignee) {
+                state.selectedConsignee = bill.consignee;
+                state.consigneeSameAsBillTo = false; // Uncheck if there's specific consignee data
+            } else {
+                // Default to same as bill to
+                state.consigneeSameAsBillTo = true;
+            }
 
             // Populate cart with bill items
             state.cart = (bill.items || []).map(item => ({
@@ -256,6 +267,19 @@
                         </div>
                         <div id="party-display">
                             ${renderPartyCard()}
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 border-b border-gray-200 bg-white">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Consignee Details</label>
+                        </div>
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="edit-bill-consignee-same-as-bill-to" ${state.consigneeSameAsBillTo ? 'checked' : ''} class="form-checkbox h-3 w-3 text-blue-600 rounded mr-1">
+                            <label for="edit-bill-consignee-same-as-bill-to" class="text-[10px] text-gray-600">Same as Bill To</label>
+                        </div>
+                        <div id="consignee-display">
+                            ${renderConsigneeCard()}
                         </div>
                     </div>
 
@@ -439,7 +463,44 @@
             </button>
         `;
     }
-
+        
+    function renderConsigneeCard() {
+        if (state.selectedConsignee && !state.consigneeSameAsBillTo) {
+            return `
+                <div class="relative group bg-green-50 p-3 rounded border border-green-200 shadow-sm">
+                    <h3 class="font-bold text-sm text-green-900 truncate" title="${state.selectedConsignee.name || ''}">${state.selectedConsignee.name || 'N/A'}</h3>
+                    <p class="text-[11px] text-gray-600 truncate mt-1">${state.selectedConsignee.address || 'N/A'}</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="bg-green-100 text-green-800 text-[10px] font-mono px-2 py-0.5 rounded border border-green-200">GST: ${state.selectedConsignee.gstin || 'N/A'}</span>
+                        <span class="bg-green-100 text-green-800 text-[10px] font-mono px-2 py-0.5 rounded border border-green-200">State: ${state.selectedConsignee.state || 'N/A'}</span>
+                    </div>
+                    <button id="btn-change-consignee" class="absolute top-2 right-2 text-[10px] text-green-600 hover:text-green-800 font-bold bg-white px-2 py-1 rounded shadow-sm border border-gray-200 hover:border-green-300">Change</button>
+                </div>
+            `;
+        } else {
+            // Show bill-to party as consignee when same as bill-to is checked
+            if (state.selectedParty) {
+                return `
+                    <div class="relative group bg-blue-50 p-3 rounded border border-blue-200 shadow-sm">
+                        <h3 class="font-bold text-sm text-blue-900 truncate" title="${state.selectedParty.firm}">${state.selectedParty.firm}</h3>
+                        <p class="text-[11px] text-gray-600 truncate mt-1">${state.selectedParty.addr}</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200">GST: ${state.selectedParty.gstin}</span>
+                            <span class="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200">State: ${state.selectedParty.state || 'N/A'}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <button id="btn-select-consignee" class="w-full py-6 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition-all flex flex-col items-center justify-center gap-2 group">
+                        <span class="text-2xl group-hover:scale-110 transition-transform font-light">+</span>
+                        <span class="text-xs font-semibold uppercase tracking-wide">Select Consignee</span>
+                    </button>
+                `;
+            }
+        }
+    }
+        
     function renderItemsList() {
         if (state.cart.length === 0) {
             return `
@@ -719,6 +780,40 @@
         if (addItemBtn) {
             addItemBtn.addEventListener('click', openStockModal);
         }
+        
+        // Consignee same as bill-to toggle
+        const consigneeSameAsBillToCheckbox = document.getElementById('edit-bill-consignee-same-as-bill-to');
+        if (consigneeSameAsBillToCheckbox) {
+            consigneeSameAsBillToCheckbox.addEventListener('change', (e) => {
+                state.consigneeSameAsBillTo = e.target.checked;
+                if (e.target.checked && state.selectedParty) {
+                    // When checked, use bill-to party as consignee
+                    state.selectedConsignee = {
+                        name: state.selectedParty.firm,
+                        address: state.selectedParty.addr,
+                        gstin: state.selectedParty.gstin,
+                        state: state.selectedParty.state,
+                        pin: state.selectedParty.pin || null,
+                        stateCode: state.selectedParty.state_code || null
+                    };
+                } else if (!e.target.checked) {
+                    // If unchecked, keep existing consignee data or set to null
+                    // Don't modify state.selectedConsignee if unchecking
+                } else {
+                    // If no party is selected and checkbox is checked, clear consignee
+                    state.selectedConsignee = null;
+                }
+                // Update the UI to reflect the change
+                if (container.querySelector('#consignee-display')) {
+                    container.querySelector('#consignee-display').innerHTML = renderConsigneeCard();
+                    // Reattach event listeners for the new elements
+                    attachConsigneeEventListeners();
+                }
+            });
+        }
+        
+        // Attach consignee-specific event listeners
+        attachConsigneeEventListeners();
     }
 
     function attachTableListeners() {
@@ -753,7 +848,29 @@
             }
         });
     }
-
+    
+    function attachConsigneeEventListeners() {
+        // Change consignee button
+        const changeConsigneeBtn = document.getElementById('btn-change-consignee');
+        if (changeConsigneeBtn) {
+            changeConsigneeBtn.addEventListener('click', () => {
+                // In edit mode, we can't really change the consignee from a list
+                // So we'll just show an alert explaining that it would be implemented differently
+                alert('Consignee modification functionality would be implemented here in a full implementation.');
+            });
+        }
+        
+        // Select consignee button (for when no consignee is set)
+        const selectConsigneeBtn = document.getElementById('btn-select-consignee');
+        if (selectConsigneeBtn) {
+            selectConsigneeBtn.addEventListener('click', () => {
+                // In edit mode, we can't really select a consignee from a list
+                // So we'll just show an alert explaining that it would be implemented differently
+                alert('Consignee selection functionality would be implemented here in a full implementation.');
+            });
+        }
+    }
+    
     // Update bill function
     async function updateBill() {
         try {
@@ -773,7 +890,8 @@
                 meta: state.meta,
                 party: state.selectedParty,
                 cart: state.cart,
-                otherCharges: state.otherCharges
+                otherCharges: state.otherCharges,
+                consignee: state.selectedConsignee
             };
 
             // Show loading state
@@ -784,6 +902,11 @@
 
             // Call the update API
             const response = await window.api.put(`/inventory/api/bills/${billId}`, billData);
+            
+            // Also update the consignee data if it exists
+            if (state.selectedConsignee) {
+                // The consignee data is already included in the main billData object
+            }
 
             if (!response.ok) {
                 const errorData = await response.json();

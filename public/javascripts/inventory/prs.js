@@ -2241,7 +2241,7 @@
                 const row = e.target.closest('div.flex');
                 const rowTotal = state.cart[idx].qty * state.cart[idx].rate * (1 - (state.cart[idx].disc / 100));
 
-                const totalDiv = row.querySelector('.prs-row-total');
+                const totalDiv = row.querySelector('.row-total');
                 if (totalDiv) totalDiv.innerText = prsFormatCurrency(rowTotal);
 
                 // Recalculate Footer

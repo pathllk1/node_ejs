@@ -14,6 +14,8 @@
         parties: [],    // Mock Data
         cart: [],       // Current Bill Items
         selectedParty: null,
+        selectedConsignee: null, // Consignee details
+        consigneeSameAsBillTo: true, // Toggle for same as bill to (default to true)
         historyCache: {},
         meta: {
             cntBillNo: '',
@@ -54,6 +56,49 @@
     // --- UTILS ---
     const cntPrsFormatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
     const cntPrsGetHistoryCacheKey = (partyId, stockId) => `${partyId}:${stockId}`;
+    
+    // Function to populate consignee details from bill-to party
+    function cntPrsPopulateConsigneeFromBillTo() {
+        if (state.selectedParty) {
+            state.selectedConsignee = {
+                name: state.selectedParty.firm,
+                address: state.selectedParty.addr,
+                gstin: state.selectedParty.gstin,
+                state: state.selectedParty.state,
+                contact: state.selectedParty.contact || '',
+                deliveryInstructions: ''
+            };
+            
+            // Update the consignee display
+            cntPrsUpdateConsigneeDisplay();
+        }
+    }
+    
+    // Function to update consignee display
+    function cntPrsUpdateConsigneeDisplay() {
+        const nameEl = document.getElementById('cnt-prs-consignee-name');
+        const addressEl = document.getElementById('cnt-prs-consignee-address');
+        const gstinEl = document.getElementById('cnt-prs-consignee-gstin');
+        const stateEl = document.getElementById('cnt-prs-consignee-state');
+        const contactEl = document.getElementById('cnt-prs-consignee-contact');
+        const instructionsEl = document.getElementById('cnt-prs-consignee-delivery-instructions');
+        
+        if (state.selectedConsignee) {
+            if (nameEl) nameEl.textContent = state.selectedConsignee.name || '-';
+            if (addressEl) addressEl.textContent = state.selectedConsignee.address || '-';
+            if (gstinEl) gstinEl.textContent = `GST: ${state.selectedConsignee.gstin || '-'}`;
+            if (stateEl) stateEl.textContent = `State: ${state.selectedConsignee.state || '-'}`;
+            if (contactEl) contactEl.textContent = `Contact: ${state.selectedConsignee.contact || '-'}`;
+            if (instructionsEl) instructionsEl.textContent = state.selectedConsignee.deliveryInstructions || '-';
+        } else {
+            if (nameEl) nameEl.textContent = '-';
+            if (addressEl) addressEl.textContent = '-';
+            if (gstinEl) gstinEl.textContent = 'GST: -';
+            if (stateEl) stateEl.textContent = 'State: -';
+            if (contactEl) contactEl.textContent = 'Contact: -';
+            if (instructionsEl) instructionsEl.textContent = '-';
+        }
+    }
 
     // --- OTHER CHARGES MANAGEMENT ---
     function cntPrsAddOtherCharge(charge) {
@@ -221,6 +266,46 @@
                         </div>
                     </div>
 
+                    <div class="p-3 border-b border-gray-200 bg-white mt-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Consignee Details</label>
+                            <label class="flex items-center cursor-pointer text-[10px] text-blue-600 font-medium">
+                                <input type="checkbox" id="cnt-prs-consignee-same-as-bill-to" ${state.consigneeSameAsBillTo ? 'checked' : ''} class="form-checkbox h-3 w-3 text-blue-600 rounded mr-1">
+                                Same as Bill To
+                            </label>
+                        </div>
+                        <div id="cnt-prs-consignee-display">
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Consignee Name *</label>
+                                    <input type="text" id="cnt-prs-consignee-name" value="${state.selectedConsignee?.name || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter consignee name">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Address *</label>
+                                    <textarea id="cnt-prs-consignee-address" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none h-16 resize-none" placeholder="Enter delivery address">${state.selectedConsignee?.address || ''}</textarea>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[10px] text-gray-500 font-bold mb-1 block">GSTIN</label>
+                                        <input type="text" id="cnt-prs-consignee-gstin" value="${state.selectedConsignee?.gstin || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none uppercase" placeholder="27ABCDE1234F1Z5" maxlength="15">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-gray-500 font-bold mb-1 block">State *</label>
+                                        <input type="text" id="cnt-prs-consignee-state" value="${state.selectedConsignee?.state || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter state">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Contact</label>
+                                    <input type="text" id="cnt-prs-consignee-contact" value="${state.selectedConsignee?.contact || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Phone/Email">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Delivery Instructions</label>
+                                    <textarea id="cnt-prs-consignee-delivery-instructions" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none h-12 resize-none" placeholder="Special delivery instructions">${state.selectedConsignee?.deliveryInstructions || ''}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="p-3 space-y-3">
                          <div>
                             <label class="text-[10px] text-gray-500 font-bold">Reference / PO No</label>
@@ -359,6 +444,9 @@
             });
         }
         
+        // Update consignee display after layout rendering
+        cntPrsUpdateConsigneeDisplay();
+        
         cntPrsAttachGlobalListeners();
         cntPrsAttachTableListeners();
     }
@@ -405,6 +493,11 @@
             } catch (error) {
                 console.error('Error fetching party balance:', error);
                 balanceInfo = { balance: 0, balanceType: 'Credit', balanceFormatted: '₹0.00' };
+            }
+            
+            // If consignee same as bill to is enabled, update consignee details
+            if (state.consigneeSameAsBillTo) {
+                cntPrsPopulateConsigneeFromBillTo();
             }
             
             return `
@@ -2072,6 +2165,69 @@
         // Other charges button
         const otherChargesBtn = document.getElementById('cnt-prs-btn-other-charges');
         if (otherChargesBtn) otherChargesBtn.onclick = cntPrsOpenOtherChargesModal;
+        
+        // Consignee 'Same as Bill To' toggle
+        const consigneeSameAsBillToToggle = document.getElementById('cnt-prs-consignee-same-as-bill-to');
+        if (consigneeSameAsBillToToggle) {
+            // Set initial state of the toggle based on consigneeSameAsBillTo
+            consigneeSameAsBillToToggle.checked = state.consigneeSameAsBillTo;
+            
+            consigneeSameAsBillToToggle.onchange = (e) => {
+                state.consigneeSameAsBillTo = e.target.checked;
+                if (e.target.checked) {
+                    cntPrsPopulateConsigneeFromBillTo();
+                }
+            };
+        }
+        
+        // Consignee details input listeners
+        const consigneeNameInput = document.getElementById('cnt-prs-consignee-name');
+        if (consigneeNameInput) {
+            consigneeNameInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.name = e.target.value;
+            };
+        }
+        
+        const consigneeAddressInput = document.getElementById('cnt-prs-consignee-address');
+        if (consigneeAddressInput) {
+            consigneeAddressInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.address = e.target.value;
+            };
+        }
+        
+        const consigneeGstinInput = document.getElementById('cnt-prs-consignee-gstin');
+        if (consigneeGstinInput) {
+            consigneeGstinInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.gstin = e.target.value;
+            };
+        }
+        
+        const consigneeStateInput = document.getElementById('cnt-prs-consignee-state');
+        if (consigneeStateInput) {
+            consigneeStateInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.state = e.target.value;
+            };
+        }
+        
+        const consigneeContactInput = document.getElementById('cnt-prs-consignee-contact');
+        if (consigneeContactInput) {
+            consigneeContactInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.contact = e.target.value;
+            };
+        }
+        
+        const consigneeInstructionsInput = document.getElementById('cnt-prs-consignee-delivery-instructions');
+        if (consigneeInstructionsInput) {
+            consigneeInstructionsInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.deliveryInstructions = e.target.value;
+            };
+        }
 
         document.addEventListener('keydown', (e) => {
             const purchaseContainer = document.getElementById('credit-note');
@@ -2171,7 +2327,8 @@
                     meta: state.meta,
                     party: state.selectedParty,
                     cart: state.cart,
-                    otherCharges: state.otherCharges
+                    otherCharges: state.otherCharges,
+                    consignee: state.selectedConsignee
                 };
 
                 try {
@@ -2241,7 +2398,7 @@
                 const row = e.target.closest('div.flex');
                 const rowTotal = state.cart[idx].qty * state.cart[idx].rate * (1 - (state.cart[idx].disc / 100));
 
-                const totalDiv = row.querySelector('.prs-row-total');
+                const totalDiv = row.querySelector('.row-total');
                 if (totalDiv) totalDiv.innerText = cntPrsFormatCurrency(rowTotal);
 
                 // Recalculate Footer
@@ -2512,6 +2669,7 @@
             party,
             cart: processedCart,  // Use the processed cart with narration
             otherCharges: processedOtherCharges,
+            consignee: billData.consignee, // Include consignee details
             billId,
             totalTaxable,
             totalTaxAmount,
@@ -2622,6 +2780,24 @@
     ws_data.push([cntCreateCell(invoiceData.party.firm, { font: { bold: true } })]);
     ws_data.push([cntCreateCell(invoiceData.party.addr || "")]);
     ws_data.push([cntCreateCell("GSTIN: " + (invoiceData.party.gstin || "Unregistered"))]);
+    
+    // Add consignee details if available
+    if (invoiceData.consignee && (invoiceData.consignee.name || invoiceData.consignee.address || invoiceData.consignee.gstin)) {
+        ws_data.push([]); // Spacer
+        ws_data.push([cntCreateCell("CONSIGNEE (SHIP TO):", { font: { bold: true } })]);
+        ws_data.push([cntCreateCell(invoiceData.consignee.name || "", { font: { bold: true } })]);
+        ws_data.push([cntCreateCell(invoiceData.consignee.address || "")]);
+        ws_data.push([cntCreateCell("GSTIN: " + (invoiceData.consignee.gstin || "Unregistered"))]);
+        if (invoiceData.consignee.state) {
+            ws_data.push([cntCreateCell("State: " + invoiceData.consignee.state)]);
+        }
+        if (invoiceData.consignee.contact) {
+            ws_data.push([cntCreateCell("Contact: " + invoiceData.consignee.contact)]);
+        }
+        if (invoiceData.consignee.deliveryInstructions) {
+            ws_data.push([cntCreateCell("Delivery Instructions: " + invoiceData.consignee.deliveryInstructions)]);
+        }
+    }
     
     ws_data.push([]); // Spacer
 
@@ -3043,7 +3219,7 @@
                 return;
             }
 
-            const response = await window.api.get(`/inventory/prs/api/bills/${bill.id}/pdf`);
+            const response = await window.api.get(`/inventory/cnt/api/bills/${bill.id}/pdf`);
             if (!response) {
                 throw new Error('Request failed (no response). You may have been logged out.');
             }

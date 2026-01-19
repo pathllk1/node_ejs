@@ -157,6 +157,18 @@ exports.getBillById = async (req, res) => {
         if (!bill) {
             return res.status(404).json({ error: 'Bill not found or does not belong to your firm' });
         }
+        
+        // Add consignee information to the bill object
+        if (bill) {
+            bill.consignee = {
+                name: bill.consignee_name,
+                gstin: bill.consignee_gstin,
+                address: bill.consignee_address,
+                state: bill.consignee_state,
+                pin: bill.consignee_pin,
+                stateCode: bill.consignee_state_code
+            };
+        }
 
         if (bill.oth_chg_json) {
             try {
@@ -186,7 +198,7 @@ exports.getBillById = async (req, res) => {
 };
 
 exports.createBill = async (req, res) => {
-    const { meta, party, cart, otherCharges } = req.body;
+    const { meta, party, cart, otherCharges, consignee } = req.body;
 
     const actorUsername = getActorUsername(req);
     if (!actorUsername) {
@@ -286,12 +298,14 @@ exports.createBill = async (req, res) => {
                     bno, bdate, supply, addr, gstin, state, pin, state_code,
                     gtot, ntot, rof, btype, usern, firm,
                     party_id, oth_chg_json, order_no, vehicle_no, dispatch_through, narration, created_at, updated_at, reverse_charge,
-                    cgst, sgst, igst, firm_id
+                    cgst, sgst, igst, firm_id,
+                    consignee_name, consignee_gstin, consignee_address, consignee_state, consignee_pin, consignee_state_code
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?
                 )
             `,
             args: [
@@ -301,7 +315,10 @@ exports.createBill = async (req, res) => {
                 party.id || null, otherCharges && otherCharges.length > 0 ? JSON.stringify(otherCharges) : null,
                 meta.referenceNo || null, meta.vehicleNo || null, meta.dispatchThrough || null, meta.narration || null,
                 now(), now(), meta.reverseCharge ? 1 : 0,
-                cgst, sgst, igst, req.user.firm_id
+                cgst, sgst, igst, req.user.firm_id,
+                // Consignee details
+                consignee?.name || null, consignee?.gstin || null, consignee?.address || null, 
+                consignee?.state || null, consignee?.pin || null, consignee?.stateCode || null
             ]
         });
 
@@ -569,7 +586,7 @@ exports.createBill = async (req, res) => {
 };
 
 exports.updateBill = async (req, res) => {
-    const { meta, party, cart, otherCharges } = req.body;
+    const { meta, party, cart, otherCharges, consignee } = req.body;
     const { id } = req.params;
 
     const actorUsername = getActorUsername(req);
@@ -711,7 +728,8 @@ exports.updateBill = async (req, res) => {
                     bno = ?, bdate = ?, supply = ?, addr = ?, gstin = ?, state = ?, pin = ?, state_code = ?,
                     gtot = ?, ntot = ?, rof = ?, btype = ?, usern = ?, firm = ?,
                     party_id = ?, oth_chg_json = ?, order_no = ?, vehicle_no = ?, dispatch_through = ?, narration = ?,
-                    updated_at = ?, reverse_charge = ?, cgst = ?, sgst = ?, igst = ?
+                    updated_at = ?, reverse_charge = ?, cgst = ?, sgst = ?, igst = ?,
+                    consignee_name = ?, consignee_gstin = ?, consignee_address = ?, consignee_state = ?, consignee_pin = ?, consignee_state_code = ?
                 WHERE id = ? AND firm_id = ?
             `,
             args: [
@@ -722,6 +740,9 @@ exports.updateBill = async (req, res) => {
                 meta.referenceNo || null, meta.vehicleNo || null, meta.dispatchThrough || null, meta.narration || null,
                 now(), meta.reverseCharge ? 1 : 0,
                 cgst, sgst, igst,
+                // Consignee details
+                consignee?.name || null, consignee?.gstin || null, consignee?.address || null, 
+                consignee?.state || null, consignee?.pin || null, consignee?.stateCode || null,
                 id, req.user.firm_id
             ]
         });

@@ -105,17 +105,15 @@ router.get('/inventory/charts', verifyFirmAccess, async (req, res) => {
         }
 
         // Get inventory value distribution by item categories
-        // First try to group by actual category if available, otherwise use item name patterns
+        // Categorize items based on their names since there is no dedicated category column
         const inventoryValueQuery = await turso.execute({
             sql: `SELECT 
-                    COALESCE(category, 
-                        CASE 
-                            WHEN item LIKE '%phone%' OR item LIKE '%laptop%' OR item LIKE '%computer%' OR item LIKE '%electronic%' THEN 'Electronics'
-                            WHEN item LIKE '%shirt%' OR item LIKE '%cloth%' OR item LIKE '%garment%' OR item LIKE '%fabric%' THEN 'Clothing'
-                            WHEN item LIKE '%furniture%' OR item LIKE '%home%' OR item LIKE '%kitchen%' OR item LIKE '%decor%' THEN 'Home Goods'
-                            ELSE 'Other'
-                        END
-                    ) as category,
+                    CASE 
+                        WHEN item LIKE '%phone%' OR item LIKE '%laptop%' OR item LIKE '%computer%' OR item LIKE '%electronic%' THEN 'Electronics'
+                        WHEN item LIKE '%shirt%' OR item LIKE '%cloth%' OR item LIKE '%garment%' OR item LIKE '%fabric%' THEN 'Clothing'
+                        WHEN item LIKE '%furniture%' OR item LIKE '%home%' OR item LIKE '%kitchen%' OR item LIKE '%decor%' THEN 'Home Goods'
+                        ELSE 'Other'
+                    END as category,
                     SUM(qty * rate) as value
                   FROM stocks 
                   WHERE firm_id = ?
@@ -362,14 +360,12 @@ router.get('/inventory/top-products', verifyFirmAccess, async (req, res) => {
         const productsQuery = await turso.execute({
             sql: `SELECT 
                     item as name,
-                    COALESCE(category, 
-                        CASE 
-                            WHEN item LIKE '%phone%' OR item LIKE '%laptop%' OR item LIKE '%computer%' OR item LIKE '%electronic%' THEN 'Electronics'
-                            WHEN item LIKE '%shirt%' OR item LIKE '%cloth%' OR item LIKE '%garment%' OR item LIKE '%fabric%' THEN 'Clothing'
-                            WHEN item LIKE '%furniture%' OR item LIKE '%home%' OR item LIKE '%kitchen%' OR item LIKE '%decor%' THEN 'Home Goods'
-                            ELSE 'Other'
-                        END
-                    ) as category,
+                    CASE 
+                        WHEN item LIKE '%phone%' OR item LIKE '%laptop%' OR item LIKE '%computer%' OR item LIKE '%electronic%' THEN 'Electronics'
+                        WHEN item LIKE '%shirt%' OR item LIKE '%cloth%' OR item LIKE '%garment%' OR item LIKE '%fabric%' THEN 'Clothing'
+                        WHEN item LIKE '%furniture%' OR item LIKE '%home%' OR item LIKE '%kitchen%' OR item LIKE '%decor%' THEN 'Home Goods'
+                        ELSE 'Other'
+                    END as category,
                     qty as quantity
                   FROM stocks 
                   WHERE firm_id = ?

@@ -14,6 +14,8 @@
         parties: [],    // Mock Data
         cart: [],       // Current Bill Items
         selectedParty: null,
+        selectedConsignee: null, // Consignee details
+        consigneeSameAsBillTo: true, // Toggle for same as bill to (default to true)
         historyCache: {},
         meta: {
             dlnBillNo: '',
@@ -54,6 +56,49 @@
     // --- UTILS ---
     const dlnFormatCurrency = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0);
     const dlnGetHistoryCacheKey = (partyId, stockId) => `${partyId}:${stockId}`;
+    
+    // Function to populate consignee details from bill-to party
+    function dlnPopulateConsigneeFromBillTo() {
+        if (state.selectedParty) {
+            state.selectedConsignee = {
+                name: state.selectedParty.firm,
+                address: state.selectedParty.addr,
+                gstin: state.selectedParty.gstin,
+                state: state.selectedParty.state,
+                contact: state.selectedParty.contact || '',
+                deliveryInstructions: ''
+            };
+            
+            // Update the consignee display
+            dlnUpdateConsigneeDisplay();
+        }
+    }
+    
+    // Function to update consignee display
+    function dlnUpdateConsigneeDisplay() {
+        const nameEl = document.getElementById('dln-consignee-name');
+        const addressEl = document.getElementById('dln-consignee-address');
+        const gstinEl = document.getElementById('dln-consignee-gstin');
+        const stateEl = document.getElementById('dln-consignee-state');
+        const contactEl = document.getElementById('dln-consignee-contact');
+        const instructionsEl = document.getElementById('dln-consignee-delivery-instructions');
+        
+        if (state.selectedConsignee) {
+            if (nameEl) nameEl.value = state.selectedConsignee.name || '';
+            if (addressEl) addressEl.value = state.selectedConsignee.address || '';
+            if (gstinEl) gstinEl.value = state.selectedConsignee.gstin || '';
+            if (stateEl) stateEl.value = state.selectedConsignee.state || '';
+            if (contactEl) contactEl.value = state.selectedConsignee.contact || '';
+            if (instructionsEl) instructionsEl.value = state.selectedConsignee.deliveryInstructions || '';
+        } else {
+            if (nameEl) nameEl.value = '';
+            if (addressEl) addressEl.value = '';
+            if (gstinEl) gstinEl.value = '';
+            if (stateEl) stateEl.value = '';
+            if (contactEl) contactEl.value = '';
+            if (instructionsEl) instructionsEl.value = '';
+        }
+    }
 
     // --- OTHER CHARGES MANAGEMENT ---
     function dlnAddOtherCharge(charge) {
@@ -240,6 +285,47 @@
                         </div>
                     </div>
 
+                    <!-- CONSIGNEE DETAILS SECTION -->
+                    <div class="p-3 border-b border-gray-200 bg-white mt-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Consignee Details</label>
+                            <label class="flex items-center cursor-pointer text-[10px] text-blue-600 font-medium">
+                                <input type="checkbox" id="dln-consignee-same-as-bill-to" ${state.consigneeSameAsBillTo ? 'checked' : ''} class="form-checkbox h-3 w-3 text-blue-600 rounded mr-1">
+                                Same as Bill To
+                            </label>
+                        </div>
+                        <div id="dln-consignee-display">
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Consignee Name *</label>
+                                    <input type="text" id="dln-consignee-name" value="${state.selectedConsignee?.name || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter consignee name">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Address *</label>
+                                    <textarea id="dln-consignee-address" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none h-16 resize-none" placeholder="Enter delivery address">${state.selectedConsignee?.address || ''}</textarea>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[10px] text-gray-500 font-bold mb-1 block">GSTIN</label>
+                                        <input type="text" id="dln-consignee-gstin" value="${state.selectedConsignee?.gstin || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none uppercase" placeholder="27ABCDE1234F1Z5" maxlength="15">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-gray-500 font-bold mb-1 block">State *</label>
+                                        <input type="text" id="dln-consignee-state" value="${state.selectedConsignee?.state || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter state">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Contact</label>
+                                    <input type="text" id="dln-consignee-contact" value="${state.selectedConsignee?.contact || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Phone/Email">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">Delivery Instructions</label>
+                                    <textarea id="dln-consignee-delivery-instructions" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none h-12 resize-none" placeholder="Special delivery instructions">${state.selectedConsignee?.deliveryInstructions || ''}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="p-3 space-y-3">
                          <div>
                             <label class="text-[10px] text-gray-500 font-bold">Reference / PO No</label>
@@ -378,6 +464,9 @@
             });
         }
         
+        // Update consignee display after layout rendering
+        dlnUpdateConsigneeDisplay();
+        
         dlnAttachGlobalListeners();
         dlnAttachTableListeners();
     }
@@ -424,6 +513,11 @@
             } catch (error) {
                 console.error('Error fetching party balance:', error);
                 balanceInfo = { balance: 0, balanceType: 'Credit', balanceFormatted: '₹0.00' };
+            }
+            
+            // If consignee same as bill to is enabled, update consignee details
+            if (state.consigneeSameAsBillTo) {
+                dlnPopulateConsigneeFromBillTo();
             }
             
             return `
@@ -2091,7 +2185,70 @@
         // Other charges button
         const otherChargesBtn = document.getElementById('dln-btn-other-charges');
         if (otherChargesBtn) otherChargesBtn.onclick = dlnOpenOtherChargesModal;
-
+                
+        // Consignee 'Same as Bill To' toggle
+        const consigneeSameAsBillToToggle = document.getElementById('dln-consignee-same-as-bill-to');
+        if (consigneeSameAsBillToToggle) {
+            // Set initial state of the toggle based on consigneeSameAsBillTo
+            consigneeSameAsBillToToggle.checked = state.consigneeSameAsBillTo;
+                    
+            consigneeSameAsBillToToggle.onchange = (e) => {
+                state.consigneeSameAsBillTo = e.target.checked;
+                if (e.target.checked) {
+                    dlnPopulateConsigneeFromBillTo();
+                }
+            };
+        }
+                
+        // Consignee details input listeners
+        const consigneeNameInput = document.getElementById('dln-consignee-name');
+        if (consigneeNameInput) {
+            consigneeNameInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.name = e.target.value;
+            };
+        }
+                
+        const consigneeAddressInput = document.getElementById('dln-consignee-address');
+        if (consigneeAddressInput) {
+            consigneeAddressInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.address = e.target.value;
+            };
+        }
+                
+        const consigneeGstinInput = document.getElementById('dln-consignee-gstin');
+        if (consigneeGstinInput) {
+            consigneeGstinInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.gstin = e.target.value;
+            };
+        }
+                
+        const consigneeStateInput = document.getElementById('dln-consignee-state');
+        if (consigneeStateInput) {
+            consigneeStateInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.state = e.target.value;
+            };
+        }
+                
+        const consigneeContactInput = document.getElementById('dln-consignee-contact');
+        if (consigneeContactInput) {
+            consigneeContactInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.contact = e.target.value;
+            };
+        }
+                
+        const consigneeInstructionsInput = document.getElementById('dln-consignee-delivery-instructions');
+        if (consigneeInstructionsInput) {
+            consigneeInstructionsInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.deliveryInstructions = e.target.value;
+            };
+        }
+                
         document.addEventListener('keydown', (e) => {
             const container = document.getElementById('delivery-note');
             if (!container || container.classList.contains('hidden')) return;
@@ -2182,7 +2339,8 @@
                     meta: state.meta,
                     party: state.selectedParty,
                     cart: state.cart,
-                    otherCharges: state.otherCharges
+                    otherCharges: state.otherCharges,
+                    consignee: state.selectedConsignee
                 };
 
                 try {
@@ -2527,6 +2685,7 @@
             party,
             cart: processedCart,  // Use the processed cart with narration
             otherCharges: processedOtherCharges,
+            consignee: billData.consignee, // Include consignee details
             billId,
             totalTaxable,
             totalTaxAmount,
@@ -2645,6 +2804,24 @@
     ws_data.push([dlnCreateCell(invoiceData.party.firm, { font: { bold: true } })]);
     ws_data.push([dlnCreateCell(invoiceData.party.addr || "")]);
     ws_data.push([dlnCreateCell("GSTIN: " + (invoiceData.party.gstin || "Unregistered"))]);
+    
+    // Add consignee details if available
+    if (invoiceData.consignee && (invoiceData.consignee.name || invoiceData.consignee.address || invoiceData.consignee.gstin)) {
+        ws_data.push([]); // Spacer
+        ws_data.push([dlnCreateCell("CONSIGNEE (SHIP TO):", { font: { bold: true } })]);
+        ws_data.push([dlnCreateCell(invoiceData.consignee.name || "", { font: { bold: true } })]);
+        ws_data.push([dlnCreateCell(invoiceData.consignee.address || "")]);
+        ws_data.push([dlnCreateCell("GSTIN: " + (invoiceData.consignee.gstin || "Unregistered"))]);
+        if (invoiceData.consignee.state) {
+            ws_data.push([dlnCreateCell("State: " + invoiceData.consignee.state)]);
+        }
+        if (invoiceData.consignee.contact) {
+            ws_data.push([dlnCreateCell("Contact: " + invoiceData.consignee.contact)]);
+        }
+        if (invoiceData.consignee.deliveryInstructions) {
+            ws_data.push([dlnCreateCell("Delivery Instructions: " + invoiceData.consignee.deliveryInstructions)]);
+        }
+    }
     
     ws_data.push([]); // Spacer
 
@@ -3066,7 +3243,7 @@
                 return;
             }
 
-            const response = await window.api.get(`/inventory/api/bills/${bill.id}/pdf`);
+            const response = await window.api.get(`/inventory/dln/api/bills/${bill.id}/pdf`);
             if (!response) {
                 throw new Error('Request failed (no response). You may have been logged out.');
             }

@@ -65,6 +65,7 @@
                 address: state.selectedParty.addr,
                 gstin: state.selectedParty.gstin,
                 state: state.selectedParty.state,
+                pin: state.selectedParty.pin || '',
                 contact: state.selectedParty.contact || '',
                 deliveryInstructions: ''
             };
@@ -80,6 +81,7 @@
         const addressEl = document.getElementById('consignee-address');
         const gstinEl = document.getElementById('consignee-gstin');
         const stateEl = document.getElementById('consignee-state');
+        const pinEl = document.getElementById('consignee-pin');
         const contactEl = document.getElementById('consignee-contact');
         const instructionsEl = document.getElementById('consignee-delivery-instructions');
         
@@ -88,6 +90,7 @@
             if (addressEl) addressEl.value = state.selectedConsignee.address || '';
             if (gstinEl) gstinEl.value = state.selectedConsignee.gstin || '';
             if (stateEl) stateEl.value = state.selectedConsignee.state || '';
+            if (pinEl) pinEl.value = state.selectedConsignee.pin || '';
             if (contactEl) contactEl.value = state.selectedConsignee.contact || '';
             if (instructionsEl) instructionsEl.value = state.selectedConsignee.deliveryInstructions || '';
         } else {
@@ -95,6 +98,7 @@
             if (addressEl) addressEl.value = '';
             if (gstinEl) gstinEl.value = '';
             if (stateEl) stateEl.value = '';
+            if (pinEl) pinEl.value = '';
             if (contactEl) contactEl.value = '';
             if (instructionsEl) instructionsEl.value = '';
         }
@@ -313,6 +317,10 @@
                                         <label class="text-[10px] text-gray-500 font-bold mb-1 block">State *</label>
                                         <input type="text" id="consignee-state" value="${state.selectedConsignee?.state || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter state">
                                     </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">PIN Code</label>
+                                    <input type="text" id="consignee-pin" value="${state.selectedConsignee?.pin || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter PIN code" maxlength="6">
                                 </div>
                                 <div>
                                     <label class="text-[10px] text-gray-500 font-bold mb-1 block">Contact</label>
@@ -2230,6 +2238,14 @@
             consigneeStateInput.oninput = (e) => {
                 if (!state.selectedConsignee) state.selectedConsignee = {};
                 state.selectedConsignee.state = e.target.value;
+            };
+        }
+                
+        const consigneePinInput = document.getElementById('consignee-pin');
+        if (consigneePinInput) {
+            consigneePinInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.pin = e.target.value;
             };
         }
                 

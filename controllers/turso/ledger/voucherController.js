@@ -18,7 +18,7 @@ const getActorUsername = (req) => (req && req.user && req.user.username ? req.us
  * Expected payload: { voucher_type, party_id, amount, payment_mode, narration, transaction_date }
  */
 exports.createVoucher = async (req, res) => {
-    const { voucher_type, party_id, amount, payment_mode, narration, transaction_date } = req.body;
+    const { voucher_type, party_id, amount, payment_mode, narration, transaction_date, bank_account_id } = req.body;
 
     const actorUsername = getActorUsername(req);
     if (!actorUsername) {
@@ -76,6 +76,26 @@ exports.createVoucher = async (req, res) => {
         }
     } catch (error) {
         return res.status(500).json({ error: 'Error validating party: ' + error.message });
+    }
+    
+    // If payment mode is Bank and bank_account_id is provided, validate the bank account
+    let bankAccountName = null;
+    if (payment_mode && payment_mode.toLowerCase().includes('bank') && bank_account_id) {
+        try {
+            const bankAccountQuery = await turso.execute({
+                sql: 'SELECT id, bank_name, account_number FROM bank_accounts WHERE id = ? AND firm_id = ?',
+                args: [parseInt(bank_account_id), firmId]
+            });
+            
+            if (bankAccountQuery.rows.length === 0) {
+                return res.status(403).json({ error: 'Bank account does not belong to your firm or does not exist' });
+            }
+            
+            const bankAccount = bankAccountQuery.rows[0];
+            bankAccountName = `${bankAccount.bank_name} - ${bankAccount.account_number.substring(0, 4)}XXXX`;
+        } catch (error) {
+            return res.status(500).json({ error: 'Error validating bank account: ' + error.message });
+        }
     }
 
     // Generate voucher number
@@ -141,8 +161,17 @@ exports.createVoucher = async (req, res) => {
 
         if (payment_mode && payment_mode.toLowerCase().includes('bank')) {
             accountType = 'BANK';
+            // If a specific bank account is selected, use its name
+            if (bankAccountName) {
+                accountHead = bankAccountName;
+            }
         } else if (payment_mode && payment_mode.toLowerCase().includes('cash')) {
             accountType = 'CASH';
+        } else if (payment_mode && (payment_mode.toLowerCase().includes('cheque') || 
+                                   payment_mode.toLowerCase().includes('neft') || 
+                                   payment_mode.toLowerCase().includes('rtgs') || 
+                                   payment_mode.toLowerCase().includes('upi'))) {
+            accountType = 'BANK';
         }
 
         if (finalVoucherType === 'RECEIPT') {

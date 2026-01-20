@@ -65,6 +65,7 @@
                 address: state.selectedParty.addr,
                 gstin: state.selectedParty.gstin,
                 state: state.selectedParty.state,
+                pin: state.selectedParty.pin || '',
                 contact: state.selectedParty.contact || '',
                 deliveryInstructions: ''
             };
@@ -80,6 +81,7 @@
         const addressEl = document.getElementById('cnt-prs-consignee-address');
         const gstinEl = document.getElementById('cnt-prs-consignee-gstin');
         const stateEl = document.getElementById('cnt-prs-consignee-state');
+        const pinEl = document.getElementById('cnt-prs-consignee-pin');
         const contactEl = document.getElementById('cnt-prs-consignee-contact');
         const instructionsEl = document.getElementById('cnt-prs-consignee-delivery-instructions');
         
@@ -88,6 +90,7 @@
             if (addressEl) addressEl.textContent = state.selectedConsignee.address || '-';
             if (gstinEl) gstinEl.textContent = `GST: ${state.selectedConsignee.gstin || '-'}`;
             if (stateEl) stateEl.textContent = `State: ${state.selectedConsignee.state || '-'}`;
+            if (pinEl) pinEl.textContent = `PIN: ${state.selectedConsignee.pin || '-'}`;
             if (contactEl) contactEl.textContent = `Contact: ${state.selectedConsignee.contact || '-'}`;
             if (instructionsEl) instructionsEl.textContent = state.selectedConsignee.deliveryInstructions || '-';
         } else {
@@ -95,6 +98,7 @@
             if (addressEl) addressEl.textContent = '-';
             if (gstinEl) gstinEl.textContent = 'GST: -';
             if (stateEl) stateEl.textContent = 'State: -';
+            if (pinEl) pinEl.textContent = 'PIN: -';
             if (contactEl) contactEl.textContent = 'Contact: -';
             if (instructionsEl) instructionsEl.textContent = '-';
         }
@@ -293,6 +297,10 @@
                                         <label class="text-[10px] text-gray-500 font-bold mb-1 block">State *</label>
                                         <input type="text" id="cnt-prs-consignee-state" value="${state.selectedConsignee?.state || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter state">
                                     </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold mb-1 block">PIN Code</label>
+                                    <input type="text" id="cnt-prs-consignee-pin" value="${state.selectedConsignee?.pin || ''}" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none" placeholder="Enter PIN code" maxlength="6">
                                 </div>
                                 <div>
                                     <label class="text-[10px] text-gray-500 font-bold mb-1 block">Contact</label>
@@ -2210,6 +2218,14 @@
             consigneeStateInput.oninput = (e) => {
                 if (!state.selectedConsignee) state.selectedConsignee = {};
                 state.selectedConsignee.state = e.target.value;
+            };
+        }
+        
+        const consigneePinInput = document.getElementById('cnt-prs-consignee-pin');
+        if (consigneePinInput) {
+            consigneePinInput.oninput = (e) => {
+                if (!state.selectedConsignee) state.selectedConsignee = {};
+                state.selectedConsignee.pin = e.target.value;
             };
         }
         

@@ -30,7 +30,7 @@ A modern, security-focused web application built with Express.js, featuring dual
 - **Request Logging**: Detailed logging of all incoming requests for security auditing
 - **Responsive Design**: Clean, modern UI built with Tailwind CSS
 - **Security Middleware**: Multi-layered security architecture
-- **Database**: SQLite with better-sqlite3 for data persistence
+- **Database**: Turso Cloud database for data persistence
 
 ## 🛠️ Tech Stack
 
@@ -39,7 +39,7 @@ A modern, security-focused web application built with Express.js, featuring dual
 - **Express.js** - Web application framework
 - **bcrypt** - Password hashing
 - **jsonwebtoken** - JWT token generation and verification
-- **better-sqlite3** - SQLite database driver
+- **@libsql/client** - Turso database driver
 - **xss** - Input sanitization and XSS protection
 
 ### Frontend

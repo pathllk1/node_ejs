@@ -1,34 +1,33 @@
 #!/usr/bin/env node
 
 /**
- * Script to backup SQLite data to MongoDB using Prisma
- * This script maps SQLite models to MongoDB models based on the schema comparison
+ * Script to backup Turso data to MongoDB using Prisma
+ * This script maps Turso models to MongoDB models based on the schema comparison
  */
 
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-// Import SQLite database connection
-const Database = require('better-sqlite3');
-const db = new Database(path.join(__dirname, '..', 'config', 'app.db'));
+// Import Turso database connection
+const turso = require('../config/turso');
 
 // Import MongoDB Prisma client
 const mongoPrisma = require('../config/prisma_mongo');
 
 async function backupData() {
-    console.log('🚀 Starting SQLite to MongoDB backup process...');
+    console.log('🚀 Starting Turso to MongoDB backup process...');
     
     try {
         // Test database connections
         console.log('🔌 Testing database connections...');
         
-        // Test SQLite
+        // Test Turso
         try {
-            db.prepare("SELECT 1").get();
-            console.log('✅ SQLite connection successful');
+            await turso.execute("SELECT 1");
+            console.log('✅ Turso connection successful');
         } catch (err) {
-            console.error('❌ SQLite connection failed:', err.message);
+            console.error('❌ Turso connection failed:', err.message);
             throw err;
         }
         
@@ -62,7 +61,6 @@ async function backupData() {
     } finally {
         // Close connections
         await mongoPrisma.$disconnect();
-        db.close();
         console.log('🔒 Connections closed');
     }
 }
@@ -92,10 +90,11 @@ async function clearMongoDB() {
 async function backupBillSequences() {
     console.log('📦 Backing up bill_sequences...');
     
-    const sqliteBillSeqs = db.prepare("SELECT * FROM bill_sequences").all();
+    const sqliteBillSeqsResult = await turso.execute("SELECT * FROM bill_sequences");
+    const sqliteBillSeqs = sqliteBillSeqsResult.rows;
     const count = sqliteBillSeqs.length;
     
-    console.log(`   Found ${count} bill sequences in SQLite`);
+    console.log(`   Found ${count} bill sequences in Turso`);
     
     for (const seq of sqliteBillSeqs) {
         try {
@@ -120,10 +119,11 @@ async function backupBillSequences() {
 async function backupFirms() {
     console.log('🏢 Backing up firms...');
     
-    const sqliteFirms = db.prepare("SELECT * FROM firms").all();
+    const sqliteFirmsResult = await turso.execute("SELECT * FROM firms");
+    const sqliteFirms = sqliteFirmsResult.rows;
     const count = sqliteFirms.length;
     
-    console.log(`   Found ${count} firms in SQLite`);
+    console.log(`   Found ${count} firms in Turso`);
     
     for (const firm of sqliteFirms) {
         try {
@@ -184,10 +184,11 @@ async function backupFirms() {
 async function backupUsers() {
     console.log('👤 Backing up users...');
     
-    const sqliteUsers = db.prepare("SELECT * FROM users").all();
+    const sqliteUsersResult = await turso.execute("SELECT * FROM users");
+    const sqliteUsers = sqliteUsersResult.rows;
     const count = sqliteUsers.length;
     
-    console.log(`   Found ${count} users in SQLite`);
+    console.log(`   Found ${count} users in Turso`);
     
     for (const user of sqliteUsers) {
         try {
@@ -217,10 +218,11 @@ async function backupUsers() {
 async function backupSettings() {
     console.log('⚙️  Backing up settings...');
     
-    const sqliteSettings = db.prepare("SELECT * FROM settings").all();
+    const sqliteSettingsResult = await turso.execute("SELECT * FROM settings");
+    const sqliteSettings = sqliteSettingsResult.rows;
     const count = sqliteSettings.length;
     
-    console.log(`   Found ${count} settings in SQLite`);
+    console.log(`   Found ${count} settings in Turso`);
     
     for (const setting of sqliteSettings) {
         try {
@@ -245,10 +247,11 @@ async function backupSettings() {
 async function backupRequestLogs() {
     console.log('📝 Backing up request_logs...');
     
-    const sqliteLogs = db.prepare("SELECT * FROM request_logs").all();
+    const sqliteLogsResult = await turso.execute("SELECT * FROM request_logs");
+    const sqliteLogs = sqliteLogsResult.rows;
     const count = sqliteLogs.length;
     
-    console.log(`   Found ${count} request logs in SQLite`);
+    console.log(`   Found ${count} request logs in Turso`);
     
     for (const log of sqliteLogs) {
         try {
@@ -274,10 +277,11 @@ async function backupRequestLogs() {
 async function backupParties() {
     console.log('👥 Backing up parties...');
     
-    const sqliteParties = db.prepare("SELECT * FROM parties").all();
+    const sqlitePartiesResult = await turso.execute("SELECT * FROM parties");
+    const sqliteParties = sqlitePartiesResult.rows;
     const count = sqliteParties.length;
     
-    console.log(`   Found ${count} parties in SQLite`);
+    console.log(`   Found ${count} parties in Turso`);
     
     for (const party of sqliteParties) {
         try {
@@ -314,10 +318,11 @@ async function backupParties() {
 async function backupPartyGsts() {
     console.log('🏷️  Backing up party_gsts...');
     
-    const sqlitePartyGsts = db.prepare("SELECT * FROM party_gsts").all();
+    const sqlitePartyGstsResult = await turso.execute("SELECT * FROM party_gsts");
+    const sqlitePartyGsts = sqlitePartyGstsResult.rows;
     const count = sqlitePartyGsts.length;
     
-    console.log(`   Found ${count} party GSTs in SQLite`);
+    console.log(`   Found ${count} party GSTs in Turso`);
     
     for (const gsts of sqlitePartyGsts) {
         try {
@@ -354,10 +359,11 @@ async function backupPartyGsts() {
 async function backupStocks() {
     console.log('📦 Backing up stocks...');
     
-    const sqliteStocks = db.prepare("SELECT * FROM stocks").all();
+    const sqliteStocksResult = await turso.execute("SELECT * FROM stocks");
+    const sqliteStocks = sqliteStocksResult.rows;
     const count = sqliteStocks.length;
     
-    console.log(`   Found ${count} stocks in SQLite`);
+    console.log(`   Found ${count} stocks in Turso`);
     
     for (const stock of sqliteStocks) {
         try {
@@ -394,10 +400,11 @@ async function backupStocks() {
 async function backupBills() {
     console.log('📄 Backing up bills...');
     
-    const sqliteBills = db.prepare("SELECT * FROM bills").all();
+    const sqliteBillsResult = await turso.execute("SELECT * FROM bills");
+    const sqliteBills = sqliteBillsResult.rows;
     const count = sqliteBills.length;
     
-    console.log(`   Found ${count} bills in SQLite`);
+    console.log(`   Found ${count} bills in Turso`);
     
     for (const bill of sqliteBills) {
         try {
@@ -462,10 +469,11 @@ async function backupBills() {
 async function backupLedger() {
     console.log('💰 Backing up ledger...');
     
-    const sqliteLedger = db.prepare("SELECT * FROM ledger").all();
+    const sqliteLedgerResult = await turso.execute("SELECT * FROM ledger");
+    const sqliteLedger = sqliteLedgerResult.rows;
     const count = sqliteLedger.length;
     
-    console.log(`   Found ${count} ledger entries in SQLite`);
+    console.log(`   Found ${count} ledger entries in Turso`);
     
     for (const ledgerEntry of sqliteLedger) {
         try {
@@ -502,10 +510,11 @@ async function backupLedger() {
 async function backupStockReg() {
     console.log('📊 Backing up stock_reg...');
     
-    const sqliteStockReg = db.prepare("SELECT * FROM stock_reg").all();
+    const sqliteStockRegResult = await turso.execute("SELECT * FROM stock_reg");
+    const sqliteStockReg = sqliteStockRegResult.rows;
     const count = sqliteStockReg.length;
     
-    console.log(`   Found ${count} stock register entries in SQLite`);
+    console.log(`   Found ${count} stock register entries in Turso`);
     
     for (const stockReg of sqliteStockReg) {
         try {
@@ -556,10 +565,11 @@ async function backupStockReg() {
 async function backupFirmSettings() {
     console.log('🏢 Backing up firm_settings...');
     
-    const sqliteFirmSettings = db.prepare("SELECT * FROM firm_settings").all();
+    const sqliteFirmSettingsResult = await turso.execute("SELECT * FROM firm_settings");
+    const sqliteFirmSettings = sqliteFirmSettingsResult.rows;
     const count = sqliteFirmSettings.length;
     
-    console.log(`   Found ${count} firm settings in SQLite`);
+    console.log(`   Found ${count} firm settings in Turso`);
     
     for (const firmSetting of sqliteFirmSettings) {
         try {

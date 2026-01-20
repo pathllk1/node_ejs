@@ -19,7 +19,7 @@
   - Masterrolls (employee management)
   - Admin (logs/settings/firm management/db backup/restore)
 
-### SQLite database (better-sqlite3)
+### Turso Cloud database (@libsql/client)
 
 - Primary persistence for users, firms, inventory, ledger, settings, request logs.
 - Initialized and migrated at startup by `config/db.js`.

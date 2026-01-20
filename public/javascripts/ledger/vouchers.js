@@ -3,7 +3,15 @@
  * Handles payment and receipt voucher functionality
  */
 
+let vouchersPageInitialized = false; // Flag to prevent multiple initializations
+
 function initVouchersPage() {
+    // Prevent multiple initializations
+    if (vouchersPageInitialized) {
+        console.log('Vouchers page already initialized, skipping duplicate initialization');
+        return;
+    }
+    
     // DOM Elements
     const voucherForm = document.getElementById('voucherForm');
     const voucherTypeSelect = document.getElementById('voucherType');
@@ -21,6 +29,17 @@ function initVouchersPage() {
     const nextPageBtn = document.getElementById('nextPage');
     const currentPageSpan = document.getElementById('currentPage');
     const paginationInfo = document.getElementById('paginationInfo');
+    
+    // Additional elements for bank account selection
+    const bankAccountField = document.getElementById('bankAccountField');
+    const bankAccountSelect = document.getElementById('bankAccount');
+    
+    // Additional elements for bank account modal (defined here to ensure availability)
+    const bankAccountModal = document.getElementById('bankAccountModal');
+    const bankAccountForm = document.getElementById('bankAccountForm');
+    const openBankAccountModalBtn = document.getElementById('openBankAccountModal');
+    const cancelBankAccountBtn = document.getElementById('cancelBankAccount');
+    const saveBankAccountBtn = document.getElementById('saveBankAccount');
     
     // Summary cards
     const totalReceiptsEl = document.getElementById('total-receipts');
@@ -53,9 +72,12 @@ function initVouchersPage() {
         return;
     }
     
+    // Mark as initialized to prevent multiple runs
+    vouchersPageInitialized = true;
+    
     // Initialize the page
     initPage();
-
+    
     async function apiGetJson(url) {
         // Ensure window.api is available
         if (!window.api || typeof window.api.get !== 'function') {
@@ -194,6 +216,96 @@ function initVouchersPage() {
                     }
                 }, 200);
                 return;
+            }
+            
+            // Add event listener for payment mode change
+            paymentModeSelect.addEventListener('change', handlePaymentModeChange);
+            
+            // Add event listener for opening the bank account modal
+            if (openBankAccountModalBtn) {
+                openBankAccountModalBtn.addEventListener('click', () => {
+                    bankAccountModal.classList.remove('hidden');
+                });
+            }
+            
+            // Add event listener for closing the bank account modal
+            if (cancelBankAccountBtn) {
+                cancelBankAccountBtn.addEventListener('click', () => {
+                    bankAccountModal.classList.add('hidden');
+                    // Reset the form
+                    bankAccountForm.reset();
+                });
+            }
+            
+            // Add event listener for saving a new bank account
+            if (bankAccountForm) {
+                bankAccountForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation(); // Prevent event bubbling
+                    
+                    // Disable the save button
+                    if (saveBankAccountBtn) {
+                        saveBankAccountBtn.disabled = true;
+                        saveBankAccountBtn.textContent = 'Saving...';
+                    }
+                    
+                    try {
+                        const formData = new FormData(bankAccountForm);
+                        const bankAccountData = Object.fromEntries(formData);
+                        
+                        // Convert opening balance to number if provided
+                        if (bankAccountData.opening_balance) {
+                            bankAccountData.opening_balance = parseFloat(bankAccountData.opening_balance);
+                        }
+                        
+                        // Make API call to create bank account
+                        const response = await apiPostJson('/banks', bankAccountData);
+                        
+                        if (response.bankAccountId) {
+                            showToast('Bank account created successfully!', 'success');
+                            
+                            // Close the modal
+                            bankAccountModal.classList.add('hidden');
+                            
+                            // Reset the form
+                            bankAccountForm.reset();
+                            
+                            // Reload bank accounts in the dropdown
+                            await loadBankAccounts();
+                            
+                            // Optionally, select the newly created bank account
+                            if (bankAccountSelect) {
+                                bankAccountSelect.value = response.bankAccountId;
+                            }
+                        } else {
+                            throw new Error(response.error || 'Failed to create bank account');
+                        }
+                    } catch (error) {
+                        console.error('Error creating bank account:', error);
+                        showToast(`Error: ${error.message}`, 'error');
+                    } finally {
+                        // Re-enable the save button
+                        if (saveBankAccountBtn) {
+                            saveBankAccountBtn.disabled = false;
+                            saveBankAccountBtn.textContent = 'Save Account';
+                        }
+                    }
+                });
+            }
+            
+            // Modal close functionality - only allow closing via cancel button
+            if (bankAccountModal) {
+                // Remove the backdrop click handler that closes the modal
+                // The modal should only close when clicking the cancel button
+                
+                // Add a click handler to the modal content to prevent any accidental closure
+                // The modal content is the first direct child of the modal container
+                const modalContent = bankAccountModal.firstElementChild;
+                if (modalContent) {
+                    modalContent.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
+                }
             }
             
             // Load parties for the dropdown
@@ -409,6 +521,11 @@ function initVouchersPage() {
             // Convert amount to number
             voucherData.amount = parseFloat(voucherData.amount);
             
+            // If payment mode is Bank, include the bank account ID
+            if (paymentModeSelect.value === 'Bank' && bankAccountSelect.value) {
+                voucherData.bank_account_id = parseInt(bankAccountSelect.value);
+            }
+            
             // Make API call to create voucher
             await apiPostJson('/ledger/api/vouchers', voucherData);
             
@@ -469,6 +586,52 @@ function initVouchersPage() {
     function printVoucher(id) {
         alert(`Print voucher with ID: ${id}`);
         // In a real implementation, this would open a print dialog
+    }
+    
+    // Function to handle payment mode change
+    function handlePaymentModeChange() {
+        const selectedMode = paymentModeSelect.value;
+        
+        if (selectedMode === 'Bank') {
+            // Show the bank account field and load bank accounts
+            bankAccountField.classList.remove('hidden');
+            loadBankAccounts();
+        } else {
+            // Hide the bank account field
+            bankAccountField.classList.add('hidden');
+            
+            // Clear the bank account selection
+            bankAccountSelect.value = '';
+        }
+    }
+    
+    // Function to load bank accounts
+    async function loadBankAccounts() {
+        try {
+            const response = await apiGetJson('/banks');
+            
+            // The API returns bankAccounts as a property in the response
+            if (response.bankAccounts) {
+                const accounts = response.bankAccounts;
+                
+                // Clear existing options except the first one
+                bankAccountSelect.innerHTML = '<option value="">Select Bank Account</option>';
+                
+                // Add bank accounts to the dropdown
+                accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.id;
+                    option.textContent = `${account.bank_name} - ${account.account_number.substring(0, 4)}XXXX`;
+                    bankAccountSelect.appendChild(option);
+                });
+            } else {
+                console.error('Error loading bank accounts:', response.error);
+                showToast('Error loading bank accounts', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading bank accounts:', error);
+            showToast('Error loading bank accounts', 'error');
+        }
     }
 
 }

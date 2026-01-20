@@ -214,38 +214,119 @@ async function getNextVoucherNumber(firmId, voucherType, financialYear = null) {
     // For now, let's create a temporary solution by adding a type to bill_sequences
     // Actually, we'll add a specific entry for vouchers in the existing table
     
-    let seqRecordResult = await turso.execute({
-        sql: `SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ? AND (
-            (voucher_type = 'PAYMENT' AND ? = 'PAYMENT') OR 
-            (voucher_type = 'RECEIPT' AND ? = 'RECEIPT') OR
-            (voucher_type IS NULL AND ? IN ('PAYMENT', 'RECEIPT'))
-        )`,
-        args: [firmId, fy, voucherType, voucherType, voucherType]
+    // Handle voucher sequences considering the database constraint
+    // Since the unique constraint is on (firm_id, financial_year) only, we need to manage
+    // different voucher types within a single sequence record using a structured approach
+    
+    // We'll use the existing last_sequence field to store a JSON string that tracks
+    // separate sequences for each voucher type
+    
+    // First, try to get existing sequence record
+    const seqRecordResult = await turso.execute({
+        sql: `SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ? AND voucher_type IS NULL`,
+        args: [firmId, fy]
     });
     
     let seqRecord = seqRecordResult.rows[0];
-    
+    let nextSequence;
+
     if (!seqRecord) {
-        console.log(`[VOUCHER_NUMBER] Creating new sequence for Firm: ${firmId}, FY: ${fy}, Type: ${voucherType}`);
+        // No general sequence record found, try to create one
+        console.log(`[VOUCHER_NUMBER] Creating new sequence record for Firm: ${firmId}, FY: ${fy}`);
         
-        // Create new sequence entry for this voucher type
+        try {
+            // Initialize with a JSON structure tracking both PAYMENT and RECEIPT sequences
+            const initialSequences = JSON.stringify({
+                PAYMENT: 0,
+                RECEIPT: 0
+            });
+            
+            await turso.execute({
+                sql: `INSERT INTO bill_sequences (firm_id, financial_year, last_sequence, created_at, updated_at, voucher_type)
+                     VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)`,
+                args: [firmId, fy, initialSequences]
+            });
+            
+        } catch (insertError) {
+            // If insert fails due to race condition, that's OK - just continue to fetch and update
+        }
+        
+        // Re-fetch to handle race conditions
+        const refetchResult = await turso.execute({
+            sql: `SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ? AND voucher_type IS NULL`,
+            args: [firmId, fy]
+        });
+        
+        if (refetchResult.rows.length === 0) {
+            throw new Error(`Failed to get or create sequence record for Firm ${firmId}, FY: ${fy}`);
+        }
+        
+        seqRecord = refetchResult.rows[0];
+        
+        // Parse the JSON to get current sequences or handle legacy numeric values
+        let sequences;
+        try {
+            // Check if the value is already a JSON string or a number
+            const rawValue = seqRecord.last_sequence;
+            if (typeof rawValue === 'string' && rawValue.startsWith('{') && rawValue.endsWith('}')) {
+                // It's already a JSON string
+                sequences = JSON.parse(rawValue);
+                if (typeof sequences !== 'object') {
+                    sequences = { PAYMENT: 0, RECEIPT: 0 };
+                }
+            } else {
+                // It might be a legacy numeric value, convert it appropriately
+                // We'll treat this as if it's the base sequence and initialize both voucher types to 0
+                sequences = { PAYMENT: 0, RECEIPT: 0 };
+            }
+        } catch (e) {
+            // If parsing fails, start fresh
+            sequences = { PAYMENT: 0, RECEIPT: 0 };
+        }
+        
+        // Increment the specific voucher type's sequence
+        const currentSequence = sequences[voucherType] || 0;
+        nextSequence = currentSequence + 1;
+        sequences[voucherType] = nextSequence;
+        
+        // Update the record atomically
         await turso.execute({
-            sql: `INSERT INTO bill_sequences (firm_id, financial_year, last_sequence, created_at, updated_at, voucher_type)
-                 VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)`,
-            args: [firmId, fy, 0, voucherType]
+            sql: `UPDATE bill_sequences SET last_sequence = ? WHERE id = ?`,
+            args: [JSON.stringify(sequences), seqRecord.id]
         });
+    } else {
+        // Existing record found, parse and update atomically
+        let sequences;
+        try {
+            // Check if the value is already a JSON string or a number
+            const rawValue = seqRecord.last_sequence;
+            if (typeof rawValue === 'string' && rawValue.startsWith('{') && rawValue.endsWith('}')) {
+                // It's already a JSON string
+                sequences = JSON.parse(rawValue);
+                if (typeof sequences !== 'object') {
+                    sequences = { PAYMENT: 0, RECEIPT: 0 };
+                }
+            } else {
+                // It might be a legacy numeric value, convert it appropriately
+                // We'll treat this as if it's the base sequence and initialize both voucher types to 0
+                sequences = { PAYMENT: 0, RECEIPT: 0 };
+            }
+        } catch (e) {
+            // If parsing fails, start fresh
+            sequences = { PAYMENT: 0, RECEIPT: 0 };
+        }
         
-        // Fetch the newly created record
-        seqRecordResult = await turso.execute({
-            sql: `SELECT id, last_sequence FROM bill_sequences WHERE firm_id = ? AND financial_year = ? AND 
-                ((voucher_type = ?) OR (voucher_type IS NULL AND ? IN ('PAYMENT', 'RECEIPT')))` ,
-            args: [firmId, fy, voucherType, voucherType]
+        // Increment the specific voucher type's sequence
+        const currentSequence = sequences[voucherType] || 0;
+        nextSequence = currentSequence + 1;
+        sequences[voucherType] = nextSequence;
+        
+        // Update the record atomically
+        await turso.execute({
+            sql: `UPDATE bill_sequences SET last_sequence = ? WHERE id = ?`,
+            args: [JSON.stringify(sequences), seqRecord.id]
         });
-        seqRecord = seqRecordResult.rows[0];
     }
-    
-    // Calculate next sequence number
-    const nextSequence = seqRecord.last_sequence + 1;
     
     // VALIDATION: Sequence number should not exceed 9999 (4-digit limit)
     if (nextSequence > 9999) {
@@ -256,18 +337,6 @@ async function getNextVoucherNumber(firmId, voucherType, financialYear = null) {
     // Build voucher number
     const finalVoucherNo = `${prefix}F${firmId}-${String(nextSequence).padStart(4, '0')}/${fy}`;
     
-    // Update sequence (atomic)
-    const updateResult = await turso.execute({
-        sql: `UPDATE bill_sequences 
-             SET last_sequence = ?, updated_at = CURRENT_TIMESTAMP 
-             WHERE id = ?`,
-        args: [nextSequence, seqRecord.id]
-    });
-    
-    if (updateResult.rowsAffected === 0) {
-        throw new Error(`Failed to update sequence for Firm ${firmId}, Type: ${voucherType}`);
-    }
-
     // VALIDATION: Final format
     const voucherNoRegex = /^[PR]VF\d+-\d{4}\/\d{2}-\d{2}$/;
     if (!voucherNoRegex.test(finalVoucherNo)) {

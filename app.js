@@ -24,6 +24,8 @@ var ledgerRouter = require('./routes/ledger');
 var masterrollsRouter = require('./routes/masterrolls');
 var dashboardRouter = require('./routes/dashboard');
 var dashboardApiRouter = require('./routes/dashboard-api');
+var banksRouter = require('./routes/banks');
+var bankTransactionsRouter = require('./routes/bank-transactions');
 
 var app = express();
 
@@ -68,6 +70,8 @@ app.use('/ledger', verifyToken, ledgerRouter);
 app.use('/masterrolls', verifyToken, masterrollsRouter);
 app.use('/dashboard', verifyToken, dashboardRouter);
 app.use('/api/dashboard', verifyToken, dashboardApiRouter);
+app.use('/banks', verifyToken, banksRouter);
+app.use('/bank-transactions', verifyToken, bankTransactionsRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

@@ -160,7 +160,7 @@ The application uses a dual-token system:
 #### SQLite Configuration
 
 **`config/db.js`:**
-- Uses better-sqlite3 for database access
+- Uses @libsql/client for Turso database access
 - Implements WAL mode for concurrency
 - Automatic schema migration
 - Shared access with Python service
@@ -367,7 +367,7 @@ CMD ["npm", "start"]
 - **ejs**: Template engine
 - **jsonwebtoken**: JWT token handling
 - **bcrypt**: Password hashing
-- **better-sqlite3**: Database access
+- **@libsql/client**: Turso database access
 - **xss**: Input sanitization
 - **morgan**: Request logging
 

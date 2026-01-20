@@ -263,6 +263,9 @@ document.addEventListener('click', async (e) => {
     else if (path === '/masterrolls') {
         shouldIntercept = true;
     }
+    else if (path === '/banks/view') {
+        shouldIntercept = true;
+    }
 
     // 3. IF MATCHED, EXECUTE AJAX NAVIGATION
     if (shouldIntercept) {
@@ -334,6 +337,8 @@ document.addEventListener('click', async (e) => {
                         initAiPage();
                     } else if (path === '/masterrolls' && typeof initMasterrollsPage === 'function') {
                         initMasterrollsPage();
+                    } else if (path === '/banks/view' && typeof initBanksPage === 'function') {
+                        initBanksPage();
                     }
                     // Add more page-specific initialization calls as needed
                 }, 100);

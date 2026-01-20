@@ -257,7 +257,7 @@ The AI client (`public/javascripts/ai-client.js`) includes:
 
 ### SQLite Database
 
-The application uses SQLite with better-sqlite3:
+The application uses Turso Cloud database with @libsql/client:
 
 - **Database file**: `config/app.db`
 - **Schema**: Defined in `config/db.js`

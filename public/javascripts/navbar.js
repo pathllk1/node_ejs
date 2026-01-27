@@ -260,6 +260,9 @@ document.addEventListener('click', async (e) => {
     else if (path === '/ledger/vouchers') {
         shouldIntercept = true;
     }
+    else if (path === '/ledger/journal-entries') {
+        shouldIntercept = true;
+    }
     else if (path === '/masterrolls') {
         shouldIntercept = true;
     }

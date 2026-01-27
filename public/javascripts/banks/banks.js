@@ -182,6 +182,17 @@
     const accountTypeFilter = document.getElementById('accountTypeFilter');
     const statusFilter = document.getElementById('statusFilter');
     
+    // Validate filter elements exist
+    if (!searchInput) {
+        console.warn('Warning: searchInput element not found');
+    }
+    if (!accountTypeFilter) {
+        console.warn('Warning: accountTypeFilter element not found');
+    }
+    if (!statusFilter) {
+        console.warn('Warning: statusFilter element not found');
+    }
+    
     // Transaction Modal Elements
     const bankTransactionModal = document.getElementById('bankTransactionModal');
     const bankTransactionForm = document.getElementById('bankTransactionForm');
@@ -201,9 +212,31 @@
     const withdrawBtn = document.getElementById('withdrawBtn');
     const transferBtn = document.getElementById('transferBtn');
     
+    // Validate transaction button elements
+    if (!transactionButtons) {
+        console.warn('Warning: transactionButtons element not found');
+    }
+    if (!depositBtn) {
+        console.warn('Warning: depositBtn element not found');
+    }
+    if (!withdrawBtn) {
+        console.warn('Warning: withdrawBtn element not found');
+    }
+    if (!transferBtn) {
+        console.warn('Warning: transferBtn element not found');
+    }
+    
     // Transaction Modal Button Elements
     const closeTransactionModalBtn = document.getElementById('closeTransactionModal');
     const cancelTransactionModalBtn = document.getElementById('cancelTransactionModal');
+    
+    // Validate transaction modal button elements
+    if (!closeTransactionModalBtn) {
+        console.warn('Warning: closeTransactionModalBtn element not found');
+    }
+    if (!cancelTransactionModalBtn) {
+        console.warn('Warning: cancelTransactionModalBtn element not found');
+    }
     
     // Pagination Variables
     let currentPage = 1;
@@ -212,24 +245,24 @@
     const limit = 10;
     
     // Event Listeners
-    openCreateBankModalBtn.addEventListener('click', openCreateModal);
-    closeModalBtn.addEventListener('click', closeModal);
-    cancelModalBtn.addEventListener('click', closeModal);
-    bankAccountForm.addEventListener('submit', handleFormSubmit);
-    applyFiltersBtn.addEventListener('click', loadBankAccounts);
+    if (openCreateBankModalBtn) openCreateBankModalBtn.addEventListener('click', openCreateModal);
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeModal);
+    if (bankAccountForm) bankAccountForm.addEventListener('submit', handleFormSubmit);
+    if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', loadBankAccounts);
     
     // Transaction Modal Event Listeners
-    closeTransactionModalBtn.addEventListener('click', closeTransactionModal);
-    cancelTransactionModalBtn.addEventListener('click', closeTransactionModal);
-    bankTransactionForm.addEventListener('submit', handleTransactionSubmit);
+    if (closeTransactionModalBtn) closeTransactionModalBtn.addEventListener('click', closeTransactionModal);
+    if (cancelTransactionModalBtn) cancelTransactionModalBtn.addEventListener('click', closeTransactionModal);
+    if (bankTransactionForm) bankTransactionForm.addEventListener('submit', handleTransactionSubmit);
     
     // Transaction Button Event Listeners
-    depositBtn.addEventListener('click', () => openTransactionModal('deposit'));
-    withdrawBtn.addEventListener('click', () => openTransactionModal('withdrawal'));
-    transferBtn.addEventListener('click', () => openTransactionModal('transfer'));
+    if (depositBtn) depositBtn.addEventListener('click', () => openTransactionModal('deposit'));
+    if (withdrawBtn) withdrawBtn.addEventListener('click', () => openTransactionModal('withdrawal'));
+    if (transferBtn) transferBtn.addEventListener('click', () => openTransactionModal('transfer'));
     
     // Add event delegation for dynamically generated buttons in the bank accounts table
-    bankAccountsList.addEventListener('click', function(e) {
+    if (bankAccountsList) bankAccountsList.addEventListener('click', function(e) {
         const button = e.target.closest('button[data-action]');
         if (!button) return;
         
@@ -260,12 +293,6 @@
      * Load bank accounts with pagination and filtering
      */
     async function loadBankAccounts() {
-        console.log('=== LOADING BANK ACCOUNTS ===');
-        console.log('Function called at:', new Date().toISOString());
-        console.log('Current page:', currentPage);
-        console.log('Limit:', limit);
-        console.log('Stack trace:', new Error().stack);
-        
         showLoading();
         
         try {
@@ -277,15 +304,15 @@
             console.log('API Params:', params.toString());
             
             // Add filters if present
-            if (searchInput.value.trim()) {
+            if (searchInput && searchInput.value && searchInput.value.trim()) {
                 params.append('search', searchInput.value.trim());
             }
             
-            if (accountTypeFilter.value) {
+            if (accountTypeFilter && accountTypeFilter.value) {
                 params.append('account_type', accountTypeFilter.value);
             }
             
-            if (statusFilter.value) {
+            if (statusFilter && statusFilter.value) {
                 params.append('account_status', statusFilter.value);
             }
             
@@ -584,7 +611,7 @@
                 });
             }
             
-            if (response.success || response.message) {
+            if (response.message) {
                 showToast(
                     accountId ? 'Bank account updated successfully' : 'Bank account created successfully', 
                     'success'
@@ -734,7 +761,7 @@
                 }
             });
             
-            if (response.success || response.message) {
+            if (response.message) {
                 showToast('Bank account deleted successfully', 'success');
                 loadBankAccounts(); // Reload the list
             } else {
@@ -844,7 +871,7 @@
                 }
             });
             
-            if (response.success) {
+            if (response.bankAccounts) {
                 const accounts = response.bankAccounts;
                 
                 // Clear existing options except the first one
@@ -853,7 +880,8 @@
                 // Add options for each bank account
                 accounts.forEach(account => {
                     // Skip the current account (from account)
-                    if (account.id != transactionBankAccountId.value) {
+                    // Convert both to numbers for proper comparison
+                    if (parseInt(account.id) != parseInt(transactionBankAccountId.value)) {
                         const option = document.createElement('option');
                         option.value = account.id;
                         option.textContent = `${account.bank_name} - ${maskAccountNumber(account.account_number)}`;
@@ -935,7 +963,7 @@
                 body: JSON.stringify(payload)
             });
             
-            if (response.success || response.message) {
+            if (response.message) {
                 showToast(
                     type === 'deposit' ? 'Deposit recorded successfully' :
                     type === 'withdrawal' ? 'Withdrawal recorded successfully' :

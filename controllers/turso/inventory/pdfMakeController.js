@@ -54,6 +54,19 @@ const formatPercentage = (percent) => {
     return parseFloat(percent || 0).toFixed(2) + '%';
 };
 
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    } catch (e) {
+        return dateString;
+    }
+};
+
 const numberToWords = (num) => {
     if (!num || isNaN(num)) return "Rupees Zero Only";
     
@@ -342,7 +355,7 @@ exports.getBillPdf = async (req, res) => {
                                 widths: ['*', '*'],
                                 body: [
                                     [{ text: 'Invoice No:', style: 'label' }, { text: processedBill.bno || '', style: 'value' }],
-                                    [{ text: 'Date:', style: 'label' }, { text: processedBill.bdate || '', style: 'value' }],
+                                    [{ text: 'Date:', style: 'label' }, { text: formatDate(processedBill.bdate) || '', style: 'value' }],
                                     ...(processedBill.order_no ? [[{ text: 'PO No:', style: 'label' }, { text: processedBill.order_no, style: 'value' }]] : []),
                                     ...(processedBill.vehicle_no ? [[{ text: 'Vehicle No:', style: 'label' }, { text: processedBill.vehicle_no, style: 'value' }]] : []),
                                     ...(processedBill.dispatch_through ? [[{ text: 'Dispatch Through:', style: 'label' }, { text: processedBill.dispatch_through, style: 'value' }]] : [])

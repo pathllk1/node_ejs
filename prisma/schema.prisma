@@ -139,6 +139,7 @@ model firms {
   logo_url            String?
   invoice_template    String?          @default("standard")
   enable_e_invoice    Int?             @default(0)
+  bank_accounts       bank_accounts[]
   bill_sequences      bill_sequences[]
   bills               bills[]
   firm_settings       firm_settings[]
@@ -322,4 +323,29 @@ model users {
   updated_at String
   bills      bills[]
   firms      firms?  @relation(fields: [firm_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model bank_accounts {
+  id                  Int       @id @default(autoincrement())
+  firm_id             Int
+  bank_name           String
+  account_holder_name String?
+  account_number      String
+  account_type        String?   @default("Savings")
+  ifsc_code           String?
+  micr_code           String?
+  branch_name         String?
+  branch_address      String?
+  opening_balance     Float?    @default(0)
+  current_balance     Float?    @default(0)
+  account_status      String?   @default("Active")
+  created_at          DateTime? @default(now())
+  updated_at          DateTime? @default(now())
+  firms               firms     @relation(fields: [firm_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model migrations_log {
+  id             Int       @id @default(autoincrement())
+  migration_name String    @unique(map: "sqlite_autoindex_migrations_log_1")
+  executed_at    DateTime? @default(now())
 }

@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     // --- 5. Mobile HR Toggle ---
     const mHrBtn = document.getElementById('mobile-hr-btn');
     const mHrDropdown = document.getElementById('mobile-hr-dropdown');
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('click', async (e) => {
     // 1. Find the link
     const link = e.target.closest('a');
-    
+
     // If not a link, stop
     if (!link) return;
 
@@ -224,7 +224,7 @@ document.addEventListener('click', async (e) => {
 
     if (path === '/users/profile') {
         shouldIntercept = true;
-    } 
+    }
     else if (path === '/ai/dashboard') {
         shouldIntercept = true;
     }
@@ -266,6 +266,12 @@ document.addEventListener('click', async (e) => {
     else if (path === '/banks/view') {
         shouldIntercept = true;
     }
+    else if (path === '/dashboard/inventory') {
+        shouldIntercept = true;
+    }
+    else if (path === '/dashboard/accounting') {
+        shouldIntercept = true;
+    }
 
     // 3. IF MATCHED, EXECUTE AJAX NAVIGATION
     if (shouldIntercept) {
@@ -282,15 +288,15 @@ document.addEventListener('click', async (e) => {
         try {
             // A. Fetch content using window.api (Attaches Token)
             const response = await window.api.get(link.href);
-            
+
             // B. Handle Auth Errors Manually
             if (!response) return; // api.js might have handled redirect
-            
+
             if (!response.ok) {
                 console.error(`Server Error: ${response.status}`);
                 if (response.status === 401 || response.status === 403) {
                     // Redirect to login manually if auth fails
-                    window.location.href = '/users/login'; 
+                    window.location.href = '/users/login';
                 } else {
                     alert(`Cannot load page (Error ${response.status})`);
                 }
@@ -301,17 +307,17 @@ document.addEventListener('click', async (e) => {
             const html = await response.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            
+
             const newMain = doc.querySelector('main') || doc.querySelector('#main-content');
             const currentMain = document.querySelector('main') || document.querySelector('#main-content');
-            
+
             // D. Swap Content
             if (newMain && currentMain) {
                 currentMain.innerHTML = newMain.innerHTML;
-                            
+
                 // Update URL
                 window.history.pushState(null, '', link.href);
-            
+
                 // Re-execute Scripts
                 const scripts = newMain.querySelectorAll('script');
                 scripts.forEach(oldScript => {
@@ -322,7 +328,7 @@ document.addEventListener('click', async (e) => {
                     newScript.textContent = oldScript.textContent;
                     document.body.appendChild(newScript);
                 });
-            
+
                 // Call page-specific initialization functions after content swap
                 setTimeout(() => {
                     if (path === '/ledger/vouchers' && typeof initVouchersPage === 'function') {
@@ -339,6 +345,19 @@ document.addEventListener('click', async (e) => {
                         initMasterrollsPage();
                     } else if (path === '/banks/view' && typeof initBanksPage === 'function') {
                         initBanksPage();
+                    } else if (path === '/dashboard/inventory') {
+                        // Initialize inventory dashboard
+                        if (typeof loadInventoryStats === 'function') loadInventoryStats();
+                        if (typeof loadInventoryCharts === 'function') loadInventoryCharts();
+                        if (typeof loadRecentActivity === 'function') loadRecentActivity();
+                        if (typeof loadTopProducts === 'function') loadTopProducts();
+                    } else if (path === '/dashboard/accounting') {
+                        // Initialize accounting dashboard
+                        if (typeof checkChartJsLoaded === 'function') {
+                            checkChartJsLoaded();
+                        } else if (typeof initializeAccountingDashboard === 'function') {
+                            initializeAccountingDashboard();
+                        }
                     }
                     // Add more page-specific initialization calls as needed
                 }, 100);
@@ -378,7 +397,7 @@ function closeAllMenus() {
     const mobileMenu = document.getElementById('mobile-menu');
     const toolsDropdown = document.getElementById('tools-dropdown');
     const inventoryDropdown = document.getElementById('inventory-dropdown');
-    
+
     if (mobileMenu) mobileMenu.classList.add('hidden');
     if (toolsDropdown) toolsDropdown.classList.add('hidden');
     if (inventoryDropdown) inventoryDropdown.classList.add('hidden');

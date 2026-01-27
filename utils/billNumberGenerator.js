@@ -192,11 +192,20 @@ async function getNextVoucherNumber(firmId, voucherType, financialYear = null) {
     console.log(`[VOUCHER_NUMBER] Generating for Firm: ${firmId}, Type: ${voucherType}, FY: ${financialYear || 'current'}`);
     
     // Validate voucher type
-    if (!['PAYMENT', 'RECEIPT'].includes(voucherType.toUpperCase())) {
-        throw new Error(`Invalid voucher type: ${voucherType}. Must be PAYMENT or RECEIPT.`);
+    if (!['PAYMENT', 'RECEIPT', 'JOURNAL'].includes(voucherType.toUpperCase())) {
+        throw new Error(`Invalid voucher type: ${voucherType}. Must be PAYMENT, RECEIPT, or JOURNAL.`);
     }
     
-    const prefix = voucherType.toUpperCase() === 'PAYMENT' ? 'PV' : 'RV';
+    let prefix;
+    if (voucherType.toUpperCase() === 'PAYMENT') {
+        prefix = 'PV';
+    } else if (voucherType.toUpperCase() === 'RECEIPT') {
+        prefix = 'RV';
+    } else if (voucherType.toUpperCase() === 'JOURNAL') {
+        prefix = 'JV';
+    } else {
+        prefix = 'VV'; // Generic voucher prefix
+    }
     
     await validateFirmExists(firmId);
     const fy = financialYear || getCurrentFinancialYear();
@@ -275,7 +284,7 @@ async function getNextVoucherNumber(firmId, voucherType, financialYear = null) {
     const finalVoucherNo = `${prefix}F${firmId}-${String(nextSequence).padStart(4, '0')}/${fy}`;
     
     // VALIDATION: Final format
-    const voucherNoRegex = /^[PR]VF\d+-\d{4}\/\d{2}-\d{2}$/;
+    const voucherNoRegex = /^[PRJ]VF\d+-\d{4}\/\d{2}-\d{2}$/;
     if (!voucherNoRegex.test(finalVoucherNo)) {
         throw new Error(`Generated voucher number format invalid: ${finalVoucherNo}`);
     }

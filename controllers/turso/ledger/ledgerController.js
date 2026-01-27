@@ -178,3 +178,57 @@ exports.getAccountTypeSummaries = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+/**
+ * Get account suggestions for autocomplete
+ * Returns account heads and their types for the current firm
+ */
+exports.getAccountSuggestions = async (req, res) => {
+    try {
+        if (!req.user || !req.user.firm_id) {
+            return res.status(403).json({ error: 'User is not associated with any firm' });
+        }
+
+        const { q } = req.query; // Search term
+        
+        let query = `
+            SELECT DISTINCT 
+                account_head,
+                account_type
+            FROM ledger 
+            WHERE firm_id = ?
+        `;
+        
+        const queryParams = [req.user.firm_id];
+        
+        if (q && q.trim()) {
+            query += ` AND account_head LIKE ?`;
+            queryParams.push(`%${q.trim()}%`);
+        }
+        
+        query += ` ORDER BY account_head LIMIT 20`;
+        
+        const result = await turso.execute({
+            sql: query,
+            args: queryParams
+        });
+        
+        // Convert BigInt values to numbers
+        const suggestions = result.rows.map(suggestion => {
+            const processedSuggestion = {};
+            for (const [key, value] of Object.entries(suggestion)) {
+                if (typeof value === 'bigint') {
+                    processedSuggestion[key] = Number(value);
+                } else {
+                    processedSuggestion[key] = value;
+                }
+            }
+            return processedSuggestion;
+        });
+        
+        res.json(suggestions);
+    } catch (err) {
+        console.error('[ACCOUNT_SUGGESTIONS] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};

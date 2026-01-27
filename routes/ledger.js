@@ -43,6 +43,7 @@ router.post('/api/journal-entries', verifyFirmAccess, journalEntryController.cre
 router.get('/api/journal-entries/summary', verifyFirmAccess, journalEntryController.getJournalEntrySummary);
 router.get('/api/journal-entries', verifyFirmAccess, journalEntryController.getJournalEntries);
 router.get('/api/journal-entries/:id', verifyFirmAccess, journalEntryController.getJournalEntryById);
+router.put('/api/journal-entries/:id', verifyFirmAccess, journalEntryController.updateJournalEntry);
 router.delete('/api/journal-entries/:id', verifyFirmAccess, journalEntryController.deleteJournalEntry);
 
 module.exports = router;

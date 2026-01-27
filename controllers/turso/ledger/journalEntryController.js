@@ -319,8 +319,8 @@ exports.getJournalEntryById = async (req, res) => {
 
         // Then get all the ledger entries for this journal entry
         const detailsResult = await turso.execute({
-            sql: 'SELECT * FROM ledger WHERE voucher_id = ? AND firm_id = ? ORDER BY id',
-            args: [journalEntryId, firmId]
+            sql: 'SELECT * FROM ledger WHERE voucher_id = ? AND firm_id = ? AND voucher_type = ? ORDER BY id',
+            args: [journalEntryId, firmId, 'JOURNAL']
         });
 
         // Convert BigInt values to numbers
@@ -425,6 +425,143 @@ exports.deleteJournalEntry = async (req, res) => {
     } catch (error) {
         console.error('[JOURNAL_ENTRY_DELETE] Error deleting journal entry:', error);
         res.status(500).json({ error: 'Failed to delete journal entry: ' + error.message });
+    }
+};
+
+/**
+ * Update an existing journal entry with multiple debit/credit lines
+ * Expected payload: { entries: [{ account_head, account_type, debit_amount, credit_amount, narration }, ...], narration, transaction_date }
+ */
+exports.updateJournalEntry = async (req, res) => {
+    const { id } = req.params;
+    const { entries, narration, transaction_date } = req.body;
+
+    const actorUsername = getActorUsername(req);
+    if (!actorUsername) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if user has firm access
+    if (!req.user || !req.user.firm_id) {
+        return res.status(403).json({ error: 'User is not associated with any firm' });
+    }
+    
+    if (req.user.firm_id === undefined || req.user.firm_id === null) {
+        console.error('[JOURNAL_ENTRY_UPDATE] firm_id is undefined or null:', req.user);
+        return res.status(400).json({ error: 'User firm association is invalid' });
+    }
+    
+    const firmId = Number(req.user.firm_id);
+    if (isNaN(firmId) || firmId <= 0) {
+        console.error('[JOURNAL_ENTRY_UPDATE] Invalid firmId after conversion:', req.user.firm_id);
+        return res.status(400).json({ error: 'Invalid firm ID after conversion' });
+    }
+
+    // Validate the ID parameter
+    const journalEntryId = Number(id);
+    if (isNaN(journalEntryId) || journalEntryId <= 0) {
+        return res.status(400).json({ error: 'Invalid journal entry ID' });
+    }
+
+    // Validate input data
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+        return res.status(400).json({ error: 'At least one journal entry line is required' });
+    }
+
+    if (!narration) {
+        return res.status(400).json({ error: 'Narration is required' });
+    }
+
+    if (!transaction_date) {
+        return res.status(400).json({ error: 'Transaction date is required' });
+    }
+
+    try {
+        // Check if the journal entry exists and belongs to the firm
+        const journalEntryResult = await turso.execute({
+            sql: 'SELECT voucher_no FROM vouchers WHERE id = ? AND firm_id = ? AND voucher_type = ?',
+            args: [journalEntryId, firmId, 'JOURNAL']
+        });
+
+        if (journalEntryResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Journal entry not found or does not belong to your firm' });
+        }
+
+        const journalEntryNo = journalEntryResult.rows[0].voucher_no;
+        const finalTransactionDate = transaction_date;
+
+        // Validate each entry
+        let totalDebits = 0;
+        let totalCredits = 0;
+        
+        for (const entry of entries) {
+            if (!entry.account_head || !entry.account_head.trim()) {
+                return res.status(400).json({ error: 'Account head is required for all entries' });
+            }
+            
+            const debitAmount = parseFloat(entry.debit_amount) || 0;
+            const creditAmount = parseFloat(entry.credit_amount) || 0;
+            
+            if (debitAmount < 0 || creditAmount < 0) {
+                return res.status(400).json({ error: 'Amounts must be positive numbers' });
+            }
+            
+            if (debitAmount > 0 && creditAmount > 0) {
+                return res.status(400).json({ error: 'Each entry can be either debit or credit, not both' });
+            }
+            
+            totalDebits += debitAmount;
+            totalCredits += creditAmount;
+        }
+
+        // Validate that total debits equal total credits
+        if (Math.abs(totalDebits - totalCredits) > 0.01) {
+            return res.status(400).json({ error: 'Total debits must equal total credits' });
+        }
+
+        // Update the voucher header with new narration and transaction date
+        await turso.execute({
+            sql: 'UPDATE vouchers SET narration = ?, transaction_date = ?, updated_at = ? WHERE id = ? AND firm_id = ? AND voucher_type = ?',
+            args: [narration, finalTransactionDate, now(), journalEntryId, firmId, 'JOURNAL']
+        });
+
+        // Delete all existing ledger entries for this journal entry
+        await turso.execute({
+            sql: 'DELETE FROM ledger WHERE voucher_id = ? AND firm_id = ?',
+            args: [journalEntryId, firmId]
+        });
+
+        // Insert new ledger entries
+        for (const entry of entries) {
+            const debitAmount = parseFloat(entry.debit_amount) || 0;
+            const creditAmount = parseFloat(entry.credit_amount) || 0;
+            
+            await turso.execute({
+                sql: `INSERT INTO ledger 
+                    (voucher_id, voucher_type, voucher_no, account_head, account_type, debit_amount, credit_amount, 
+                    narration, transaction_date, username, firm_id, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [
+                    journalEntryId, 'JOURNAL', journalEntryNo,
+                    entry.account_head, entry.account_type || 'GENERAL', 
+                    debitAmount, creditAmount, 
+                    entry.narration || narration || `Journal Entry ${journalEntryNo}`,
+                    finalTransactionDate, actorUsername, firmId,
+                    now(), now()
+                ]
+            });
+        }
+
+        res.json({ 
+            message: 'Journal entry updated successfully', 
+            journalEntryId,
+            journalEntryNo,
+            totalDebits: totalDebits,
+            totalCredits: totalCredits
+        });
+    } catch (error) {
+        console.error('[JOURNAL_ENTRY_UPDATE] Error updating journal entry:', error);
+        res.status(500).json({ error: 'Failed to update journal entry: ' + error.message });
     }
 };
 
